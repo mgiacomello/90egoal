@@ -1,0 +1,236 @@
+@import "tailwindcss";
+
+/* ============================================
+   90 & GOAL — Design System
+   Ispirato a Sleeper / Sorare / DraftKings
+   ============================================ */
+
+@theme {
+  --color-base: #07090d;
+  --color-elev: #0d1117;
+  --color-accent: #00e676;
+  --color-accent-soft: #1aff8c;
+  --color-cyan: #22d3ee;
+  --color-violet: #8b5cf6;
+  --color-gold: #ffd24a;
+  --color-ink: #f4f7fb;
+  --color-muted: #8a94a6;
+  --font-display: var(--font-sora), system-ui, sans-serif;
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+}
+
+@layer base {
+  :root {
+    --accent: #00e676;
+    --accent-soft: #1aff8c;
+    --accent-cyan: #22d3ee;
+    --violet: #8b5cf6;
+    --gold: #ffd24a;
+    --muted: #8a94a6;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #07090d;
+    color: #f4f7fb;
+    font-family: var(--font-inter), system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Sfondo ambientale: glow radiali */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(900px 600px at 15% -10%, rgba(0, 230, 118, 0.16), transparent 60%),
+      radial-gradient(800px 600px at 100% 0%, rgba(34, 211, 238, 0.12), transparent 55%),
+      radial-gradient(700px 700px at 50% 120%, rgba(139, 92, 246, 0.12), transparent 60%);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.12);
+    border-radius: 10px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 230, 118, 0.4);
+  }
+}
+
+/* ============ UTILITIES ============ */
+
+.font-display {
+  font-family: var(--font-sora), system-ui, sans-serif;
+}
+
+.text-gradient {
+  background: linear-gradient(120deg, #1aff8c 0%, #22d3ee 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.text-gradient-gold {
+  background: linear-gradient(120deg, #ffe27a 0%, #ffd24a 55%, #ff9f43 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 20px 50px -20px rgba(0, 0, 0, 0.7);
+}
+
+.glass-hover {
+  transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.25s, box-shadow 0.25s;
+}
+.glass-hover:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 230, 118, 0.35);
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.08),
+    0 30px 60px -25px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(0, 230, 118, 0.15);
+}
+
+.glow-accent {
+  box-shadow: 0 0 0 1px rgba(0, 230, 118, 0.2), 0 8px 30px -8px rgba(0, 230, 118, 0.45);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1aff8c, #00e676);
+  color: #04130b;
+  font-weight: 700;
+  border-radius: 14px;
+  transition: transform 0.2s, box-shadow 0.2s, filter 0.2s;
+  box-shadow: 0 10px 30px -10px rgba(0, 230, 118, 0.6);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 16px 40px -12px rgba(0, 230, 118, 0.75);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-primary:disabled {
+  opacity: 0.45;
+  filter: grayscale(0.3);
+  transform: none;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: #f4f7fb;
+  border-radius: 14px;
+  transition: border-color 0.2s, background 0.2s, transform 0.2s;
+}
+.btn-ghost:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateY(-2px);
+}
+
+.chip {
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.15s, background 0.2s, border-color 0.2s, color 0.2s;
+}
+.chip:hover {
+  transform: translateY(-2px) scale(1.04);
+}
+
+.input-field {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  color: #f4f7fb;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.input-field:focus {
+  outline: none;
+  border-color: rgba(0, 230, 118, 0.6);
+  background: rgba(0, 230, 118, 0.04);
+  box-shadow: 0 0 0 4px rgba(0, 230, 118, 0.1);
+}
+.input-field::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* ============ ANIMAZIONI ============ */
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(6deg); }
+}
+.animate-float {
+  animation: floaty 5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+.animate-pulse-glow {
+  animation: pulse-glow 2.5s ease-in-out infinite;
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 38s linear infinite;
+}
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+.stagger > * {
+  opacity: 0;
+  animation: fade-up 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger > *:nth-child(2) { animation-delay: 0.12s; }
+.stagger > *:nth-child(3) { animation-delay: 0.19s; }
+.stagger > *:nth-child(4) { animation-delay: 0.26s; }
+.stagger > *:nth-child(5) { animation-delay: 0.33s; }
+.stagger > *:nth-child(6) { animation-delay: 0.40s; }
