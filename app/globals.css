@@ -170,6 +170,91 @@
   transform: translateY(-2px) scale(1.04);
 }
 
+/* ===== Controlli "old-browser-safe" (solo rgba/hex, niente color-mix/oklab) ===== */
+
+/* Cella della griglia minuti 1–90 */
+.min-cell {
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #c7d0dc;
+  border-radius: 9px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.45rem 0;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.min-cell:hover {
+  border-color: rgba(0, 230, 118, 0.55);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+.min-cell.is-selected {
+  background: #00e676;
+  border-color: #1aff8c;
+  color: #04130b;
+  font-weight: 800;
+  box-shadow: 0 4px 14px -4px rgba(0, 230, 118, 0.6);
+}
+.min-cell:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  transform: none;
+}
+.min-cell.is-selected:disabled {
+  opacity: 1;
+}
+
+/* Bottone toggle a segmenti (recupero, ecc.) */
+.seg-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #aab2c0;
+  border-radius: 12px;
+  font-weight: 600;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  cursor: pointer;
+}
+.seg-btn:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: #ffffff;
+}
+.seg-btn.is-active {
+  background: rgba(255, 210, 74, 0.16);
+  border-color: rgba(255, 210, 74, 0.7);
+  color: #ffe27a;
+}
+.seg-btn.is-active-green {
+  background: rgba(0, 230, 118, 0.16);
+  border-color: rgba(0, 230, 118, 0.7);
+  color: #1aff8c;
+}
+
+/* Chip minuto rimovibile (riepilogo / admin) */
+.tag-min {
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 230, 118, 0.14);
+  border: 1px solid rgba(0, 230, 118, 0.45);
+  color: #1aff8c;
+  border-radius: 9px;
+  font-family: var(--font-inter), monospace;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.tag-min:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.55);
+  color: #fca5a5;
+}
+.tag-min.tag-cyan {
+  background: rgba(34, 211, 238, 0.14);
+  border-color: rgba(34, 211, 238, 0.45);
+  color: #67e8f9;
+}
+
 .input-field {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.09);

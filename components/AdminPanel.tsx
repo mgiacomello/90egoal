@@ -111,7 +111,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched }
               {minuti.length === 0 && <span className="text-[var(--muted)] text-sm self-center">Nessun gol inserito.</span>}
               {minuti.map(m => (
                 <button key={m} type="button" onClick={() => setMinuti(prev => prev.filter(x => x !== m))}
-                  className="chip bg-[var(--accent-cyan)]/12 border border-[var(--accent-cyan)]/40 text-[var(--accent-cyan)] px-2.5 py-1 rounded-lg text-sm font-mono hover:bg-red-500/15 hover:border-red-500/50 hover:text-red-300">
+                  className="tag-min tag-cyan px-2.5 py-1 text-sm">
                   {m}&apos;
                 </button>
               ))}
@@ -125,9 +125,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched }
             <div className="flex gap-2 flex-wrap">
               {['primo', 'secondo', 'entrambi', 'nessuno'].map(v => (
                 <button key={v} type="button" onClick={() => setRecupero(v)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all capitalize ${
-                    recupero === v ? 'bg-[var(--gold)]/15 border-[var(--gold)]/50 text-[var(--gold)]' : 'bg-white/4 border-white/8 text-[var(--muted)] hover:border-white/20 hover:text-white'
-                  }`}>
+                  className={`seg-btn px-4 py-2 text-sm capitalize ${recupero === v ? 'is-active' : ''}`}>
                   {v === 'primo' ? '1° tempo' : v === 'secondo' ? '2° tempo' : v}
                 </button>
               ))}

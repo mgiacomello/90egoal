@@ -22,22 +22,18 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
   const [recupero, setRecupero] = useState<'primo' | 'secondo' | null>(pronosticoEsistente?.recupero ?? null)
   const [firstGoal, setFirstGoal] = useState<string>(pronosticoEsistente?.first_goal ?? '')
   const [lastGoal, setLastGoal] = useState<string>(pronosticoEsistente?.last_goal ?? '')
-  const [minuteInput, setMinuteInput] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  function tryAdd(m: number) {
-    if (isNaN(m) || m < 1 || m > 90) { setError('Inserisci un minuto tra 1 e 90.'); return }
-    if (minuti.includes(m)) { setError(`Il minuto ${m}' è già stato inserito.`); return }
-    if (minuti.length >= MAX_MINUTI) { setError(`Puoi indicare al massimo ${MAX_MINUTI} minuti.`); return }
-    setMinuti(prev => [...prev, m].sort((a, b) => a - b))
-    setMinuteInput('')
+  function toggleMinuto(m: number) {
     setError('')
-  }
-
-  function removeMinuto(m: number) {
-    setMinuti(prev => prev.filter(x => x !== m))
+    if (minuti.includes(m)) {
+      setMinuti(prev => prev.filter(x => x !== m))
+    } else {
+      if (minuti.length >= MAX_MINUTI) { setError(`Hai già scelto tutti i ${MAX_MINUTI} minuti. Deseleziona un minuto per cambiarlo.`); return }
+      setMinuti(prev => [...prev, m].sort((a, b) => a - b))
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -142,46 +138,35 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
           <p className="text-xs text-[var(--muted)] mb-4">I minuti (1–90) in cui prevedi un gol in una qualsiasi partita.</p>
 
           {/* Progress bar */}
-          <div className="h-1.5 w-full bg-white/8 rounded-full overflow-hidden mb-5">
+          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mb-5">
             <div className="h-full bg-gradient-to-r from-[var(--accent-soft)] to-[var(--accent-cyan)] rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
 
-          {/* Input */}
-          {!completo && (
-            <div className="flex gap-2 mb-4">
-              <input type="number" min={1} max={90} value={minuteInput}
-                onChange={e => setMinuteInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); tryAdd(parseInt(minuteInput)) } }}
-                placeholder="es. 23"
-                className="input-field w-28 px-3 py-2.5 text-center font-mono text-lg" />
-              <button type="button" onClick={() => tryAdd(parseInt(minuteInput))} className="btn-primary px-5 py-2.5 text-sm">
-                + Aggiungi
-              </button>
-              <div className="flex-1 hidden sm:flex items-center justify-end gap-1 text-xs text-[var(--muted)]">
-                Suggeriti:
-                {[45, 67, 88, 90].map(m => (
-                  <button key={m} type="button" onClick={() => tryAdd(m)} disabled={minuti.includes(m)}
-                    className="chip px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-white/60 font-mono disabled:opacity-30">
-                    {m}&apos;
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Chip minuti */}
-          <div className="flex flex-wrap gap-2 min-h-[2.5rem]">
-            {minuti.length === 0 && <p className="text-[var(--muted)] text-sm self-center">Nessun minuto selezionato.</p>}
-            {minuti.map(m => (
-              <button key={m} type="button" onClick={() => removeMinuto(m)}
-                className="chip group flex items-center gap-1 bg-[var(--accent)]/12 border border-[var(--accent)]/40 text-[var(--accent-soft)] px-3 py-1.5 rounded-xl text-sm font-mono font-semibold hover:bg-red-500/15 hover:border-red-500/50 hover:text-red-300"
-                title="Rimuovi">
-                {m}&apos;
-                <span className="text-xs opacity-40 group-hover:opacity-100">✕</span>
-              </button>
-            ))}
+          {/* Griglia 1–90: tocca per selezionare */}
+          <div className="grid grid-cols-9 sm:grid-cols-10 gap-1.5">
+            {Array.from({ length: 90 }, (_, i) => i + 1).map(m => {
+              const selected = minuti.includes(m)
+              const disabled = !selected && completo
+              return (
+                <button
+                  key={m}
+                  type="button"
+                  onClick={() => toggleMinuto(m)}
+                  disabled={disabled}
+                  className={`min-cell ${selected ? 'is-selected' : ''}`}
+                  title={selected ? 'Tocca per rimuovere' : 'Tocca per selezionare'}
+                >
+                  {m}
+                </button>
+              )
+            })}
           </div>
-          {completo && <p className="text-[var(--accent-soft)] text-xs mt-3">✓ Tutti i 13 minuti selezionati. Clicca un minuto per rimuoverlo.</p>}
+
+          <p className={`text-xs mt-4 ${completo ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
+            {completo
+              ? '✓ Tutti i 13 minuti selezionati. Tocca un minuto verde per rimuoverlo.'
+              : 'Tocca i numeri per scegliere i minuti in cui prevedi un gol.'}
+          </p>
         </div>
 
         {/* STEP 2 — Recupero */}
@@ -191,11 +176,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
           <div className="flex gap-3">
             {(['primo', 'secondo'] as const).map(t => (
               <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
-                className={`flex-1 px-5 py-3 rounded-xl text-sm font-semibold border transition-all ${
-                  recupero === t
-                    ? 'bg-[var(--gold)]/15 border-[var(--gold)]/50 text-[var(--gold)]'
-                    : 'bg-white/4 border-white/8 text-[var(--muted)] hover:border-white/20 hover:text-white'
-                }`}>
+                className={`seg-btn flex-1 px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
                 {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
               </button>
             ))}
