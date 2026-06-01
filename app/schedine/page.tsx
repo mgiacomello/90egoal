@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Schedina, Pronostico } from '@/lib/types'
 import Flag from '@/components/Flag'
 import { stadiumImage } from '@/lib/stadiums'
@@ -7,9 +8,10 @@ import { stadiumImage } from '@/lib/stadiums'
 export default async function SchedinePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/auth/login')
 
   const { data: schedine } = await supabase.from('schedine').select('*').order('id')
-  const { data: mieiPronostici } = await supabase.from('pronostici').select('*').eq('user_id', user!.id)
+  const { data: mieiPronostici } = await supabase.from('pronostici').select('*').eq('user_id', user.id)
   const { data: risultati } = await supabase.from('risultati').select('*')
 
   const pronosticoMap = new Map<number, Pronostico>()
