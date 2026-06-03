@@ -272,6 +272,23 @@
   color: rgba(255, 255, 255, 0.25);
 }
 
+/* Select nativi: sfondo solido scuro così le opzioni sono leggibili
+   anche su browser datati (evita testo bianco su popup di sistema chiaro). */
+select.input-field {
+  background-color: #0e151f;
+  -webkit-appearance: menulist;
+  appearance: menulist;
+}
+.input-field option {
+  background-color: #0e151f;
+  color: #f4f7fb;
+}
+.input-field optgroup {
+  background-color: #0b1119;
+  color: #9aa4b2;
+  font-weight: 700;
+}
+
 /* ============ ANIMAZIONI ============ */
 
 @keyframes fade-up {
