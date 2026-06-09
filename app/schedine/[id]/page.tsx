@@ -20,17 +20,20 @@ export default async function ScedinaPage({ params }: { params: Promise<{ id: st
   const deadline = new Date(schedina.deadline)
   if (new Date() > deadline) redirect('/schedine')
 
+  // Pronostico definitivo: se già inviato, non è più modificabile → torna all'elenco
   const { data: pronostico } = await supabase
     .from('pronostici')
-    .select('*')
+    .select('id')
     .eq('user_id', user.id)
     .eq('schedina_id', id)
     .maybeSingle()
 
+  if (pronostico) redirect('/schedine')
+
   return (
     <ScedinaForm
       schedina={schedina}
-      pronosticoEsistente={pronostico}
+      pronosticoEsistente={null}
       userId={user.id}
     />
   )

@@ -78,12 +78,16 @@ export default async function SchedinePage() {
                     </p>
                   </div>
                   <div className="shrink-0">
-                    {!isScaduta ? (
-                      <Link href={`/schedine/${s.id}`} className={isCompilata ? 'btn-ghost px-5 py-2.5 text-sm' : 'btn-primary px-5 py-2.5 text-sm'}>
-                        {isCompilata ? 'Modifica' : 'Compila ora →'}
+                    {isCompilata ? (
+                      <span className="inline-flex items-center gap-1.5 text-sm text-[var(--accent-soft)] bg-black/40 backdrop-blur border border-[var(--accent)]/40 px-4 py-2 rounded-lg">
+                        🔒 Inviato
+                      </span>
+                    ) : !isScaduta ? (
+                      <Link href={`/schedine/${s.id}`} className="btn-primary px-5 py-2.5 text-sm">
+                        Compila ora →
                       </Link>
                     ) : (
-                      <span className="text-white/60 text-sm px-2">{isCompilata ? 'Inviata' : 'Non giocata'}</span>
+                      <span className="text-white/60 text-sm px-2">Non giocata</span>
                     )}
                   </div>
                 </div>
@@ -109,7 +113,7 @@ export default async function SchedinePage() {
               {pronostico && (
                 <div className="mx-6 mb-6 pt-4 border-t border-white/8 space-y-3">
                   <p className="text-xs text-[var(--accent)] uppercase tracking-wider font-semibold">
-                    Il tuo pronostico{risultato ? ' · minuti azzeccati in verde' : ''}
+                    Il tuo pronostico {risultato ? '· minuti azzeccati in verde' : '· definitivo 🔒'}
                   </p>
 
                   {/* Minuti scelti */}

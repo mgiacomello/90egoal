@@ -45,6 +45,11 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
       return
     }
 
+    // Conferma: il pronostico è definitivo
+    if (!window.confirm('Confermi l\'invio? Una volta inviato, il pronostico NON sarà più modificabile.')) {
+      return
+    }
+
     setSaving(true)
     const supabase = createClient()
     const payload = {
@@ -56,14 +61,12 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
       last_goal: lastGoal || null,
     }
 
-    const { error: dbError } = pronosticoEsistente
-      ? await supabase.from('pronostici').update(payload).eq('id', pronosticoEsistente.id)
-      : await supabase.from('pronostici').insert(payload)
+    const { error: dbError } = await supabase.from('pronostici').insert(payload)
 
-    if (dbError) setError('Errore nel salvataggio. Riprova.')
+    if (dbError) setError('Errore nell\'invio. Riprova.')
     else {
       setSaved(true)
-      setTimeout(() => router.push('/schedine'), 1500)
+      setTimeout(() => router.push('/schedine'), 1800)
     }
     setSaving(false)
   }
@@ -72,8 +75,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
     return (
       <div className="text-center py-24 animate-fade-up">
         <div className="inline-grid place-items-center w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-4xl mb-5 shadow-[0_20px_50px_-10px_rgba(0,230,118,0.6)]">✓</div>
-        <h2 className="font-display font-bold text-2xl text-gradient">Pronostico salvato!</h2>
-        <p className="text-[var(--muted)] mt-2">In bocca al lupo. Reindirizzamento…</p>
+        <h2 className="font-display font-bold text-2xl text-gradient">Pronostico inviato!</h2>
+        <p className="text-[var(--muted)] mt-2">Il pronostico è <strong className="text-white">definitivo</strong> e non è più modificabile. In bocca al lupo! 🍀</p>
       </div>
     )
   }
@@ -207,13 +210,13 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
         {/* Submit sticky */}
         <div className="sticky bottom-4 z-10">
           <button type="submit" disabled={saving || !completo} className="btn-primary w-full py-4 text-base shadow-2xl">
-            {saving ? 'Salvataggio…' : pronosticoEsistente ? 'Aggiorna pronostico' : 'Invia pronostico'}
+            {saving ? 'Invio…' : '🔒 Invia pronostico (definitivo)'}
           </button>
-          {!completo && (
-            <p className="text-center text-[var(--muted)] text-xs mt-2">
-              Aggiungi ancora {MAX_MINUTI - minuti.length} {MAX_MINUTI - minuti.length === 1 ? 'minuto' : 'minuti'} per inviare.
-            </p>
-          )}
+          <p className="text-center text-[var(--muted)] text-xs mt-2">
+            {!completo
+              ? `Aggiungi ancora ${MAX_MINUTI - minuti.length} ${MAX_MINUTI - minuti.length === 1 ? 'minuto' : 'minuti'} per inviare.`
+              : 'Attenzione: dopo l’invio il pronostico non sarà più modificabile.'}
+          </p>
         </div>
       </form>
     </div>
