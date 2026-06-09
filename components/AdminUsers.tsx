@@ -37,9 +37,11 @@ export default function AdminUsers({ profiles, pronostici, activity, schedine }:
     pronByUser.set(p.user_id, arr)
   })
 
-  // aggregati
-  const tempoTotale = activity.reduce((acc, a) => acc + (a.minuti_attivi || 0), 0)
-  const utentiAttivi = activity.filter(a => giocatori.some(g => g.id === a.user_id)).length
+  // aggregati (solo giocatori, escluso l'admin)
+  const giocatoriIds = new Set(giocatori.map(g => g.id))
+  const attivitaGiocatori = activity.filter(a => giocatoriIds.has(a.user_id))
+  const tempoTotale = attivitaGiocatori.reduce((acc, a) => acc + (a.minuti_attivi || 0), 0)
+  const utentiAttivi = attivitaGiocatori.length
   const totGiocate = pronostici.length
 
   const righe = giocatori
