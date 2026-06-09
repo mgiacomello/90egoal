@@ -45,6 +45,6 @@ Chi totalizza più punti vince la classifica della schedina! 🏆
 - **Schedina 1** → pronostici entro le **24:00 del 10 giugno 2026**
 - **Schedina 2** → pronostici entro le **24:00 del 16 giugno 2026**
 
-Puoi modificare il pronostico quante volte vuoi fino alla scadenza.
+⚠️ Attenzione: il pronostico è **definitivo** — una volta inviato non potrà più essere modificato, quindi controlla bene prima di confermare. Potrai comunque rivederlo in qualsiasi momento.
 
 Grazie per l'aiuto nel test! Qualsiasi problema o suggerimento, scrivimi pure. ⚽
