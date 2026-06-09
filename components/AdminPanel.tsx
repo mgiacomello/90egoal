@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Schedina, Risultato, Partita } from '@/lib/types'
+import TeamPicker from '@/components/TeamPicker'
 
 interface Props {
   schedine: Schedina[]
@@ -137,24 +138,15 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
           </div>
 
           {/* Prima/ultima squadra */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              { label: '🥇 Prima squadra a segnare', value: firstGoal, set: setFirstGoal },
-              { label: '🏁 Ultima squadra a segnare', value: lastGoal, set: setLastGoal },
-            ].map((f, idx) => (
-              <div key={idx}>
-                <label className="block text-sm font-medium text-[var(--muted)] mb-2">{f.label}</label>
-                <select value={f.value} onChange={e => f.set(e.target.value)} className="input-field w-full px-3 py-2.5 text-sm">
-                  <option value="">— Nessuna —</option>
-                  {schedina.partite.map((p: Partita, i: number) => (
-                    <optgroup key={i} label={`${p.home} vs ${p.away}`}>
-                      <option value={p.home}>{p.home}</option>
-                      <option value={p.away}>{p.away}</option>
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            ))}
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-[var(--muted)] mb-2">🥇 Prima squadra a segnare</label>
+              <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-[var(--muted)] mb-2">🏁 Ultima squadra a segnare</label>
+              <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
+            </div>
           </div>
 
           {/* Note */}

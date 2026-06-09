@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Schedina, Pronostico, Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
+import TeamPicker from '@/components/TeamPicker'
 import { stadiumImage } from '@/lib/stadiums'
 
 const MAX_MINUTI = 13
@@ -186,25 +187,16 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
         {/* STEP 3 — Primo/Ultimo gol */}
         <div className="glass rounded-2xl p-6">
           <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">🏆</span> Prima e ultima rete <span className="text-xs font-normal text-[var(--gold)]">+3 / +10</span></h2>
-          <p className="text-xs text-[var(--muted)] mb-4">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite?</p>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {[
-              { label: '🥇 Prima a segnare', value: firstGoal, set: setFirstGoal },
-              { label: '🏁 Ultima a segnare', value: lastGoal, set: setLastGoal },
-            ].map((f, idx) => (
-              <div key={idx}>
-                <label className="block text-xs text-[var(--muted)] mb-1.5 font-medium">{f.label}</label>
-                <select value={f.value} onChange={e => f.set(e.target.value)} className="input-field w-full px-3 py-2.5 text-sm">
-                  <option value="">— Nessuna —</option>
-                  {schedina.partite.map((p: Partita, i: number) => (
-                    <optgroup key={i} label={`${p.home} vs ${p.away}`}>
-                      <option value={p.home}>{p.home}</option>
-                      <option value={p.away}>{p.away}</option>
-                    </optgroup>
-                  ))}
-                </select>
-              </div>
-            ))}
+          <p className="text-xs text-[var(--muted)] mb-5">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite? Tocca una squadra.</p>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🥇 Prima squadra a segnare</label>
+              <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🏁 Ultima squadra a segnare</label>
+              <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
+            </div>
           </div>
         </div>
 

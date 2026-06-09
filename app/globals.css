@@ -255,6 +255,33 @@
   color: #67e8f9;
 }
 
+/* Pulsante selezione squadra (sostituisce i select nativi) */
+.team-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #c7d0dc;
+  border-radius: 10px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.8rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;
+}
+.team-chip:hover {
+  border-color: rgba(0, 230, 118, 0.5);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+.team-chip.is-on {
+  background: rgba(0, 230, 118, 0.16);
+  border-color: #1aff8c;
+  color: #ffffff;
+  font-weight: 700;
+}
+
 /* Chip di sola lettura (riepilogo pronostico) */
 .tag-static {
   display: inline-block;
