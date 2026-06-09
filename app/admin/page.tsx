@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AdminPanel from '@/components/AdminPanel'
+import AdminAggregates from '@/components/AdminAggregates'
 import AdminStats from '@/components/AdminStats'
 import { Pronostico, Profile, ClassificaRow } from '@/lib/types'
 
@@ -38,6 +39,14 @@ export default async function AdminPage() {
         schedine={schedine ?? []}
         risultatiMap={Object.fromEntries(risultatiMap)}
         pronosticiBySched={Object.fromEntries(pronosticiBySched)}
+      />
+
+      <AdminAggregates
+        schedine={schedine ?? []}
+        profiles={(profiles as Profile[]) ?? []}
+        pronostici={(pronostici as Pronostico[]) ?? []}
+        risultatiMap={Object.fromEntries(risultatiMap)}
+        classifica={(classifica as ClassificaRow[]) ?? []}
       />
 
       <AdminStats
