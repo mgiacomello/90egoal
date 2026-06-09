@@ -25,7 +25,7 @@ export default async function SchedinePage() {
       <div className="mb-8">
         <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Le tue schedine</span>
         <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Compila i pronostici</h1>
-        <p className="text-[var(--muted)] mt-2">Inserisci i tuoi pronostici prima della scadenza di ogni schedina.</p>
+        <p className="text-[var(--muted)] mt-2">Compila e invia i tuoi pronostici prima della scadenza. Una volta inviati sono <strong className="text-white">definitivi</strong>.</p>
       </div>
 
       <div className="space-y-5 stagger">
