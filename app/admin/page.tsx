@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import AdminPanel from '@/components/AdminPanel'
+import AdminStats from '@/components/AdminStats'
+import { Pronostico, Profile, ClassificaRow } from '@/lib/types'
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -15,22 +17,36 @@ export default async function AdminPage() {
 
   if (!profile?.is_admin) redirect('/')
 
-  const { data: schedine } = await supabase.from('schedine').select('*').order('id')
-  const { data: risultati } = await supabase.from('risultati').select('*')
-  const { data: stats } = await supabase.from('pronostici').select('schedina_id, user_id')
+  const [{ data: schedine }, { data: risultati }, { data: pronostici }, { data: profiles }, { data: classifica }] = await Promise.all([
+    supabase.from('schedine').select('*').order('id'),
+    supabase.from('risultati').select('*'),
+    supabase.from('pronostici').select('*'),
+    supabase.from('profiles').select('id, username, full_name, is_admin, created_at'),
+    supabase.from('classifica').select('*'),
+  ])
 
   const pronosticiBySched = new Map<number, number>()
-  stats?.forEach(p => {
+  ;(pronostici as Pronostico[] | null)?.forEach(p => {
     pronosticiBySched.set(p.schedina_id, (pronosticiBySched.get(p.schedina_id) ?? 0) + 1)
   })
 
   const risultatiMap = new Map(risultati?.map(r => [r.schedina_id, r]) ?? [])
 
   return (
-    <AdminPanel
-      schedine={schedine ?? []}
-      risultatiMap={Object.fromEntries(risultatiMap)}
-      pronosticiBySched={Object.fromEntries(pronosticiBySched)}
-    />
+    <div className="space-y-12">
+      <AdminPanel
+        schedine={schedine ?? []}
+        risultatiMap={Object.fromEntries(risultatiMap)}
+        pronosticiBySched={Object.fromEntries(pronosticiBySched)}
+      />
+
+      <AdminStats
+        schedine={schedine ?? []}
+        profiles={(profiles as Profile[]) ?? []}
+        pronostici={(pronostici as Pronostico[]) ?? []}
+        risultatiMap={Object.fromEntries(risultatiMap)}
+        classifica={(classifica as ClassificaRow[]) ?? []}
+      />
+    </div>
   )
 }
