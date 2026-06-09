@@ -8,9 +8,10 @@ interface Props {
   schedine: Schedina[]
   risultatiMap: Record<number, Risultato>
   pronosticiBySched: Record<number, number>
+  embedded?: boolean
 }
 
-export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched }: Props) {
+export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, embedded }: Props) {
   const [selected, setSelected] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -72,11 +73,14 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched }
 
   return (
     <div className="animate-fade-up">
-      <div className="mb-8">
-        <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Area riservata</span>
-        <h1 className="font-display font-bold text-3xl mt-2">⚙️ Pannello Admin</h1>
-        <p className="text-[var(--muted)] mt-2">Inserisci i risultati reali per calcolare automaticamente le classifiche.</p>
-      </div>
+      {!embedded && (
+        <div className="mb-8">
+          <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Area riservata</span>
+          <h1 className="font-display font-bold text-3xl mt-2">⚙️ Pannello Admin</h1>
+          <p className="text-[var(--muted)] mt-2">Inserisci i risultati reali per calcolare automaticamente le classifiche.</p>
+        </div>
+      )}
+      {embedded && <p className="text-[var(--muted)] text-sm mb-6">Seleziona una schedina e inserisci i minuti dei gol reali: la classifica si calcola da sola.</p>}
 
       {/* Selezione schedina */}
       <div className="grid sm:grid-cols-2 gap-4 mb-8">

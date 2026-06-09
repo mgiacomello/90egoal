@@ -35,12 +35,7 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-12">
-      <AdminPanel
-        schedine={schedine ?? []}
-        risultatiMap={Object.fromEntries(risultatiMap)}
-        pronosticiBySched={Object.fromEntries(pronosticiBySched)}
-      />
-
+      {/* DATI & ANALISI — in primo piano */}
       <AdminAggregates
         schedine={schedine ?? []}
         profiles={(profiles as Profile[]) ?? []}
@@ -56,6 +51,26 @@ export default async function AdminPage() {
         risultatiMap={Object.fromEntries(risultatiMap)}
         classifica={(classifica as ClassificaRow[]) ?? []}
       />
+
+      {/* INSERIMENTO RISULTATI — in fondo, richiudibile */}
+      <details className="glass rounded-2xl overflow-hidden group">
+        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors">
+          <span className="font-display font-bold text-lg flex items-center gap-2">
+            🛠️ Inserimento risultati
+            <span className="text-xs font-normal text-[var(--muted)]">(a fine partite)</span>
+          </span>
+          <span className="text-[var(--muted)] text-sm group-open:hidden">Apri ▾</span>
+          <span className="text-[var(--muted)] text-sm hidden group-open:inline">Chiudi ▴</span>
+        </summary>
+        <div className="px-6 pb-6 pt-2 border-t border-white/8">
+          <AdminPanel
+            schedine={schedine ?? []}
+            risultatiMap={Object.fromEntries(risultatiMap)}
+            pronosticiBySched={Object.fromEntries(pronosticiBySched)}
+            embedded
+          />
+        </div>
+      </details>
     </div>
   )
 }
