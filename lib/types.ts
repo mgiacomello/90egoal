@@ -51,4 +51,14 @@ export interface Profile {
   username: string
   full_name: string
   is_admin: boolean
+  email?: string | null
+  created_at?: string
+}
+
+export interface ActivitySummary {
+  user_id: string
+  minuti_attivi: number
+  primo_accesso: string
+  ultimo_accesso: string
+  giorni_attivi: number
 }

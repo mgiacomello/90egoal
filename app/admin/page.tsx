@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import AdminPanel from '@/components/AdminPanel'
 import AdminAggregates from '@/components/AdminAggregates'
 import AdminStats from '@/components/AdminStats'
-import { Pronostico, Profile, ClassificaRow } from '@/lib/types'
+import AdminUsers from '@/components/AdminUsers'
+import { Pronostico, Profile, ClassificaRow, ActivitySummary } from '@/lib/types'
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -18,13 +19,26 @@ export default async function AdminPage() {
 
   if (!profile?.is_admin) redirect('/')
 
-  const [{ data: schedine }, { data: risultati }, { data: pronostici }, { data: profiles }, { data: classifica }] = await Promise.all([
+  const [{ data: schedine }, { data: risultati }, { data: pronostici }, { data: classifica }] = await Promise.all([
     supabase.from('schedine').select('*').order('id'),
     supabase.from('risultati').select('*'),
     supabase.from('pronostici').select('*'),
-    supabase.from('profiles').select('id, username, full_name, is_admin, created_at'),
     supabase.from('classifica').select('*'),
   ])
+
+  // Profili: prima i campi base (sempre disponibili), poi prova email (post-migrazione)
+  const { data: profilesBase } = await supabase
+    .from('profiles')
+    .select('id, username, full_name, is_admin, created_at')
+  let profiles = profilesBase as Profile[] | null
+  const { data: emailRows } = await supabase.from('profiles').select('id, email')
+  if (profiles && emailRows) {
+    const emailById = new Map((emailRows as { id: string; email: string | null }[]).map(e => [e.id, e.email]))
+    profiles = profiles.map(p => ({ ...p, email: emailById.get(p.id) ?? null }))
+  }
+
+  // Attività (esiste solo dopo la migrazione): se assente, resta vuota
+  const { data: activity } = await supabase.from('user_activity_summary').select('*')
 
   const pronosticiBySched = new Map<number, number>()
   ;(pronostici as Pronostico[] | null)?.forEach(p => {
@@ -35,6 +49,14 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-12">
+      {/* UTENTI — chi si è registrato, dati e permanenza */}
+      <AdminUsers
+        profiles={(profiles as Profile[]) ?? []}
+        pronostici={(pronostici as Pronostico[]) ?? []}
+        activity={(activity as ActivitySummary[]) ?? []}
+        schedine={schedine ?? []}
+      />
+
       {/* DATI & ANALISI — in primo piano */}
       <AdminAggregates
         schedine={schedine ?? []}

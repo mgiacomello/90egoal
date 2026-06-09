@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import ActivityTracker from "@/components/ActivityTracker";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -30,6 +31,7 @@ export default function RootLayout({
     <html lang="it" className={`${inter.variable} ${sora.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <Navbar />
+        <ActivityTracker />
         <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 flex-1">
           {children}
         </main>
