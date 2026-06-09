@@ -255,6 +255,23 @@
   color: #67e8f9;
 }
 
+/* Chip di sola lettura (riepilogo pronostico) */
+.tag-static {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  background: rgba(0, 230, 118, 0.14);
+  border: 1px solid rgba(0, 230, 118, 0.40);
+  color: #1aff8c;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.tag-static.is-miss {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.10);
+  color: rgba(255, 255, 255, 0.4);
+  text-decoration: line-through;
+}
+
 .input-field {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.09);

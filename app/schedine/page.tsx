@@ -105,20 +105,54 @@ export default async function SchedinePage() {
                 ))}
               </div>
 
-              {/* Risultati / punteggio */}
-              {risultato && isCompilata && (
-                <div className="mx-6 mb-6 pt-4 border-t border-white/8">
-                  <p className="text-xs text-[var(--muted)] mb-2 uppercase tracking-wider font-semibold">I tuoi minuti vs risultati</p>
+              {/* Il tuo pronostico (sola lettura) */}
+              {pronostico && (
+                <div className="mx-6 mb-6 pt-4 border-t border-white/8 space-y-3">
+                  <p className="text-xs text-[var(--accent)] uppercase tracking-wider font-semibold">
+                    Il tuo pronostico{risultato ? ' · minuti azzeccati in verde' : ''}
+                  </p>
+
+                  {/* Minuti scelti */}
                   <div className="flex flex-wrap gap-1.5">
                     {pronostico.minuti.map((m: number) => {
-                      const ok = risultato.minuti_gol.includes(m)
+                      const miss = !!risultato && !risultato.minuti_gol.includes(m)
                       return (
-                        <span key={m} className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold ${ok ? 'bg-[var(--accent)]/15 text-[var(--accent-soft)] border border-[var(--accent)]/40' : 'bg-white/5 text-white/30 line-through'}`}>
+                        <span key={m} className={`tag-static ${miss ? 'is-miss' : ''} px-2.5 py-1 text-xs`}>
                           {m}&apos;
                         </span>
                       )
                     })}
                   </div>
+
+                  {/* Recupero + prima/ultima squadra */}
+                  {(pronostico.recupero || pronostico.first_goal || pronostico.last_goal) && (
+                    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                      {pronostico.recupero && (
+                        <span className="text-[var(--muted)]">
+                          ➕ Recupero: <span className="text-white font-medium">{pronostico.recupero === 'primo' ? '1° tempo' : '2° tempo'}</span>
+                        </span>
+                      )}
+                      {pronostico.first_goal && (
+                        <span className="flex items-center gap-1.5 text-[var(--muted)]">
+                          🥇 Prima: <Flag team={pronostico.first_goal} w={40} className="w-5 h-3.5" />
+                          <span className="text-white font-medium">{pronostico.first_goal}</span>
+                        </span>
+                      )}
+                      {pronostico.last_goal && (
+                        <span className="flex items-center gap-1.5 text-[var(--muted)]">
+                          🏁 Ultima: <Flag team={pronostico.last_goal} w={40} className="w-5 h-3.5" />
+                          <span className="text-white font-medium">{pronostico.last_goal}</span>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Risultati reali, se pubblicati */}
+                  {risultato && (
+                    <p className="text-xs text-[var(--muted)]">
+                      Minuti dei gol reali: <span className="text-white/80 font-mono">{[...risultato.minuti_gol].sort((a, b) => a - b).map(m => `${m}'`).join(', ') || '—'}</span>
+                    </p>
+                  )}
                 </div>
               )}
             </div>
