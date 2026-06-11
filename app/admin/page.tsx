@@ -4,7 +4,8 @@ import AdminPanel from '@/components/AdminPanel'
 import AdminAggregates from '@/components/AdminAggregates'
 import AdminStats from '@/components/AdminStats'
 import AdminUsers from '@/components/AdminUsers'
-import { Pronostico, Profile, ClassificaRow, ActivitySummary } from '@/lib/types'
+import AdminTiming from '@/components/AdminTiming'
+import { Pronostico, Profile, ClassificaRow, ActivitySummary, TimingSummary, SectionTime } from '@/lib/types'
 
 export default async function AdminPage() {
   const supabase = await createClient()
@@ -37,8 +38,10 @@ export default async function AdminPage() {
     profiles = profiles.map(p => ({ ...p, email: emailById.get(p.id) ?? null }))
   }
 
-  // Attività (esiste solo dopo la migrazione): se assente, resta vuota
+  // Attività + tempi (esistono solo dopo le migrazioni): se assenti, restano vuoti
   const { data: activity } = await supabase.from('user_activity_summary').select('*')
+  const { data: timing } = await supabase.from('timing_summary').select('*')
+  const { data: sections } = await supabase.from('section_time').select('*')
 
   const pronosticiBySched = new Map<number, number>()
   ;(pronostici as Pronostico[] | null)?.forEach(p => {
@@ -55,6 +58,12 @@ export default async function AdminPage() {
         pronostici={(pronostici as Pronostico[]) ?? []}
         activity={(activity as ActivitySummary[]) ?? []}
         schedine={schedine ?? []}
+      />
+
+      {/* TEMPI / COMPORTAMENTO */}
+      <AdminTiming
+        timing={(timing as TimingSummary[]) ?? []}
+        sections={(sections as SectionTime[]) ?? []}
       />
 
       {/* DATI & ANALISI — in primo piano */}

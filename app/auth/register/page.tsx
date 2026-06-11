@@ -1,15 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { logEvent } from '@/lib/track'
 
 export default function RegisterPage() {
   const router = useRouter()
   const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '', confirm: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const startedAt = useRef<number>(Date.now())
 
   function update(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -34,6 +36,7 @@ export default function RegisterPage() {
     if (error) {
       setError(error.message === 'User already registered' ? 'Email già registrata.' : error.message)
     } else {
+      await logEvent('register', { ms: Date.now() - startedAt.current })
       router.push('/schedine')
       router.refresh()
     }

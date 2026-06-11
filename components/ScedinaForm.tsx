@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Schedina, Pronostico, Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
 import TeamPicker from '@/components/TeamPicker'
 import { stadiumImage } from '@/lib/stadiums'
+import { logEvent } from '@/lib/track'
 
 const MAX_MINUTI = 13
 
@@ -26,6 +27,20 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // --- Tracciamento tempi (per le statistiche admin) ---
+  const openedAt = useRef<number>(Date.now())
+  const marked = useRef<Set<string>>(new Set())
+  function mark(name: string) {
+    if (marked.current.has(name)) return
+    marked.current.add(name)
+    logEvent(name, { schedina_id: schedina.id, ms: Date.now() - openedAt.current })
+  }
+  useEffect(() => { logEvent('form_open', { schedina_id: schedina.id }) }, [])
+  useEffect(() => { if (minuti.length === MAX_MINUTI) mark('minutes_done') }, [minuti])
+  useEffect(() => { if (recupero) mark('recupero_set') }, [recupero])
+  useEffect(() => { if (firstGoal) mark('first_team_set') }, [firstGoal])
+  useEffect(() => { if (lastGoal) mark('last_team_set') }, [lastGoal])
 
   function toggleMinuto(m: number) {
     setError('')
@@ -65,6 +80,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
 
     if (dbError) setError('Errore nell\'invio. Riprova.')
     else {
+      logEvent('submit', { schedina_id: schedina.id, ms: Date.now() - openedAt.current })
       setSaved(true)
       setTimeout(() => router.push('/schedine'), 1800)
     }

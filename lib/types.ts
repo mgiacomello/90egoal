@@ -62,3 +62,18 @@ export interface ActivitySummary {
   ultimo_accesso: string
   giorni_attivi: number
 }
+
+export interface TimingSummary {
+  event: string
+  campioni: number
+  media_sec: number
+  mediana_sec: number
+  min_sec: number
+  max_sec: number
+}
+
+export interface SectionTime {
+  sezione: string
+  minuti_totali: number
+  utenti: number
+}
