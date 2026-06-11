@@ -71,9 +71,9 @@ export default async function SchedinePage() {
                     <h2 className="font-display font-bold text-2xl drop-shadow-lg">{s.nome.replace(' — Mondiali FIFA 2026', '')}</h2>
                     <p className="text-sm mt-0.5">
                       {isScaduta ? (
-                        <span className="text-red-300/90">Chiusa il {deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })}</span>
+                        <span className="text-red-300/90">Chiusa il {deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })}</span>
                       ) : (
-                        <span className="text-white/70">Scadenza <span className="text-white font-medium">{deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span></span>
+                        <span className="text-white/70">Scadenza <span className="text-white font-medium">{deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span></span>
                       )}
                     </p>
                   </div>
