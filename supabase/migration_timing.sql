@@ -32,11 +32,11 @@ grant usage on sequence public.events_id_seq to authenticated;
 create or replace view public.timing_summary with (security_invoker = true) as
 select
   event,
-  count(*)                       as campioni,
-  round(avg(ms) / 1000.0, 1)     as media_sec,
-  round((percentile_cont(0.5) within group (order by ms)) / 1000.0, 1) as mediana_sec,
-  round(min(ms) / 1000.0, 1)     as min_sec,
-  round(max(ms) / 1000.0, 1)     as max_sec
+  count(*)                                  as campioni,
+  round(avg(ms)::numeric / 1000.0, 1)       as media_sec,
+  round((percentile_cont(0.5) within group (order by ms))::numeric / 1000.0, 1) as mediana_sec,
+  round(min(ms)::numeric / 1000.0, 1)       as min_sec,
+  round(max(ms)::numeric / 1000.0, 1)       as max_sec
 from public.events
 where ms is not null and ms >= 0
 group by event;

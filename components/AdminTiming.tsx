@@ -18,10 +18,11 @@ const ORDER = ['register', 'minutes_done', 'recupero_set', 'first_team_set', 'la
 
 function fmtSec(s: number): string {
   if (s == null) return '—'
-  if (s < 60) return `${s.toFixed(0)} s`
-  const m = Math.floor(s / 60)
-  const r = Math.round(s % 60)
-  return `${m}m ${r}s`
+  const total = Math.round(s)
+  if (total < 60) return `${total} s`
+  const m = Math.floor(total / 60)
+  const r = total % 60
+  return r === 0 ? `${m}m` : `${m}m ${r}s`
 }
 
 export default function AdminTiming({ timing, sections }: Props) {
