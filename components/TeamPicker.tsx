@@ -30,7 +30,7 @@ export default function TeamPicker({ partite, value, onChange }: Props) {
           onClick={() => onChange(value === t ? '' : t)}
           className={`team-chip ${value === t ? 'is-on' : ''}`}
         >
-          <Flag team={t} w={40} className="w-5 h-3.5 shrink-0" />
+          <Flag team={t} w={40} className="w-5 h-3.5 shrink-0 mr-2" />
           <span className="truncate">{t}</span>
         </button>
       ))}

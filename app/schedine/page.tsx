@@ -73,7 +73,7 @@ export default async function SchedinePage() {
                       {isScaduta ? (
                         <span className="text-red-300/90">Chiusa il {deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })}</span>
                       ) : (
-                        <span className="text-white/70">Scadenza <span className="text-white font-medium">{deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })} · 24:00</span></span>
+                        <span className="text-white/70">Scadenza <span className="text-white font-medium">{deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span></span>
                       )}
                     </p>
                   </div>

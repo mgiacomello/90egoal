@@ -102,7 +102,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
           <div className="absolute bottom-0 inset-x-0 p-5">
             <h1 className="font-display font-bold text-3xl sm:text-4xl drop-shadow-lg">{schedina.nome.replace(' — Mondiali FIFA 2026', '')}</h1>
             <p className="text-sm mt-1 text-white/70">
-              Scadenza <span className="text-[var(--gold)] font-medium">{new Date(schedina.deadline).toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })} · 24:00</span>
+              Scadenza <span className="text-[var(--gold)] font-medium">{new Date(schedina.deadline).toLocaleDateString('it-IT', { day: '2-digit', month: 'long' })} · {new Date(schedina.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })}</span>
             </p>
           </div>
         </div>
@@ -175,12 +175,12 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
 
         {/* STEP 2 — Recupero */}
         <div className="glass rounded-2xl p-6">
-          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto</span></h2>
-          <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero (scegline uno).</p>
-          <div className="flex gap-3">
+          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto · facoltativo</span></h2>
+          <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero. Tocca un pulsante (puoi anche saltarlo).</p>
+          <div className="grid grid-cols-2 gap-3">
             {(['primo', 'secondo'] as const).map(t => (
               <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
-                className={`seg-btn flex-1 px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
+                className={`seg-btn px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
                 {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
               </button>
             ))}
@@ -189,8 +189,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
 
         {/* STEP 3 — Primo/Ultimo gol */}
         <div className="glass rounded-2xl p-6">
-          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">🏆</span> Prima e ultima rete <span className="text-xs font-normal text-[var(--gold)]">+3 / +10</span></h2>
-          <p className="text-xs text-[var(--muted)] mb-5">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite? Tocca una squadra.</p>
+          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">🏆</span> Prima e ultima rete <span className="text-xs font-normal text-[var(--gold)]">+3 / +10 · facoltativo</span></h2>
+          <p className="text-xs text-[var(--muted)] mb-5">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite? Tocca una squadra (puoi anche saltarlo).</p>
           <div className="space-y-6">
             <div>
               <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🥇 Prima squadra a segnare</label>
@@ -207,8 +207,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
           <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>
         )}
 
-        {/* Submit sticky */}
-        <div className="sticky bottom-4 z-10">
+        {/* Submit */}
+        <div>
           <button type="submit" disabled={saving || !completo} className="btn-primary w-full py-4 text-base shadow-2xl">
             {saving ? 'Invio…' : '🔒 Invia pronostico (definitivo)'}
           </button>
