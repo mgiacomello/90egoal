@@ -178,10 +178,11 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.10);
   color: #c7d0dc;
-  border-radius: 9px;
-  font-size: 0.8rem;
+  border-radius: 10px;
+  font-size: 1rem;
   font-weight: 600;
-  padding: 0.45rem 0;
+  min-height: 44px;            /* tocco comodo su mobile */
+  padding: 0.5rem 0;
   text-align: center;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.1s;

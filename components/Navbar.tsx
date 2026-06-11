@@ -32,7 +32,7 @@ export default function Navbar() {
   }
 
   const linkClass = (href: string) =>
-    `relative text-sm font-medium transition-colors px-3 py-2 rounded-lg ${
+    `relative text-sm font-medium transition-colors px-2.5 sm:px-3 py-2 rounded-lg ${
       pathname.startsWith(href)
         ? 'text-white bg-white/5'
         : 'text-[var(--muted)] hover:text-white'
@@ -59,12 +59,12 @@ export default function Navbar() {
         </Link>
 
         {user ? (
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 sm:gap-1">
             <Link href="/schedine" className={linkClass('/schedine')}>Schedine</Link>
             <Link href="/classifica" className={linkClass('/classifica')}>Classifica</Link>
             <button
               onClick={handleLogout}
-              className="ml-2 text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-3 py-2"
+              className="text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-2.5 sm:px-3 py-2"
             >
               Esci
             </button>

@@ -162,8 +162,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
             <div className="h-full bg-gradient-to-r from-[var(--accent-soft)] to-[var(--accent-cyan)] rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
           </div>
 
-          {/* Griglia 1–90: tocca per selezionare */}
-          <div className="grid grid-cols-9 sm:grid-cols-10 gap-1.5">
+          {/* Griglia 1–90: tocca per selezionare (numeri grandi su mobile) */}
+          <div className="grid grid-cols-5 min-[420px]:grid-cols-6 sm:grid-cols-9 lg:grid-cols-10 gap-2 sm:gap-1.5">
             {Array.from({ length: 90 }, (_, i) => i + 1).map(m => {
               const selected = minuti.includes(m)
               const disabled = !selected && completo
