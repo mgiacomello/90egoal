@@ -52,6 +52,7 @@ export interface ClassificaRow {
   punti_recupero: number
   punti_bonus: number
   totale: number
+  minuti_azzeccati?: number[]
 }
 
 export interface Profile {

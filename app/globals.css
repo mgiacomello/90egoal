@@ -359,6 +359,21 @@ select.input-field {
   animation: pulse-glow 2.5s ease-in-out infinite;
 }
 
+/* ===== Classifica animata ===== */
+@keyframes grow-up { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes leader-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(255,210,74,0.45), 0 10px 34px -10px rgba(255,210,74,0.4); }
+  50% { box-shadow: 0 0 0 1px rgba(255,210,74,0.8), 0 16px 44px -10px rgba(255,210,74,0.65); }
+}
+@keyframes pop-in { from { opacity: 0; transform: scale(0.6) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+.podium-col { transform-origin: bottom; animation: grow-up 0.8s cubic-bezier(0.2,0.8,0.2,1) both; }
+.podium-medal { animation: pop-in 0.6s cubic-bezier(0.2,1.4,0.5,1) both; }
+.points-bar-fill { transform-origin: left; animation: bar-grow 0.9s cubic-bezier(0.2,0.8,0.2,1) both; }
+.leader-row { animation: fade-up 0.5s cubic-bezier(0.2,0.8,0.2,1) both; }
+.is-leader { animation: leader-pulse 2.6s ease-in-out infinite; }
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
