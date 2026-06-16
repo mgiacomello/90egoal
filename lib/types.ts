@@ -25,6 +25,13 @@ export interface Pronostico {
   submitted_at: string
 }
 
+export interface MatchDetail {
+  home: string
+  away: string
+  score: string      // es. "2-0"
+  minuti: string[]   // es. ["9'", "45+5'", "67'"]
+}
+
 export interface Risultato {
   id: number
   schedina_id: number
@@ -33,6 +40,7 @@ export interface Risultato {
   first_goal_team: string | null
   last_goal_team: string | null
   note: string | null
+  dettagli?: MatchDetail[]
 }
 
 export interface ClassificaRow {

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Schedina, Pronostico } from '@/lib/types'
+import { Schedina, Pronostico, MatchDetail } from '@/lib/types'
 import Flag from '@/components/Flag'
 import { stadiumImage } from '@/lib/stadiums'
 
@@ -93,21 +93,59 @@ export default async function SchedinePage() {
                 </div>
               </div>
 
-              {/* Mini-griglia partite */}
-              <div className="p-6 pt-5 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                {s.partite.map((p, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm py-0.5">
-                    <span className="text-xs text-[var(--muted)] w-11 shrink-0 tabular-nums">
-                      {new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
-                    </span>
-                    <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
-                    <span className="text-white/85 truncate">{p.home}</span>
-                    <span className="text-white/25 text-xs">vs</span>
-                    <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
-                    <span className="text-white/85 truncate">{p.away}</span>
+              {/* Partite & risultati */}
+              {(() => {
+                const dett = (risultato?.dettagli as MatchDetail[] | undefined) ?? []
+                const dettMap = new Map(dett.map(d => [`${d.home}__${d.away}`, d]))
+                const giocate = s.partite.filter(p => dettMap.has(`${p.home}__${p.away}`)).length
+                return (
+                  <div className="p-5 sm:p-6 pt-5">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Partite &amp; risultati</p>
+                      <span className="text-xs text-[var(--muted)]">
+                        <span className="text-[var(--accent-soft)] font-semibold">{giocate}</span>/{s.partite.length} giocate
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {s.partite.map((p, i) => {
+                        const d = dettMap.get(`${p.home}__${p.away}`)
+                        const giocata = !!d
+                        return (
+                          <div key={i} className={`rounded-xl border px-3 py-2.5 transition-colors ${giocata ? 'bg-[var(--accent)]/[0.07] border-[var(--accent)]/25' : 'bg-white/[0.02] border-white/8'}`}>
+                            <div className="flex items-center gap-2 text-sm">
+                              <span className={`text-[10px] font-bold w-9 shrink-0 ${giocata ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
+                                {giocata ? 'FT' : new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end text-right">
+                                <span className={`truncate ${giocata ? 'font-semibold text-white' : 'text-white/80'}`}>{p.home}</span>
+                                <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
+                              </div>
+                              {giocata ? (
+                                <span className="font-display font-extrabold text-base px-2 tabular-nums text-white">{d!.score}</span>
+                              ) : (
+                                <span className="text-white/25 text-xs px-2.5">vs</span>
+                              )}
+                              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                                <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
+                                <span className={`truncate ${giocata ? 'font-semibold text-white' : 'text-white/80'}`}>{p.away}</span>
+                              </div>
+                            </div>
+                            {giocata && d!.minuti.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1 mt-2 pl-11">
+                                <span className="text-[11px] mr-0.5">⚽</span>
+                                {d!.minuti.map((m, j) => (
+                                  <span key={j} className="text-[11px] font-mono bg-white/8 text-white/80 px-1.5 py-0.5 rounded">{m}</span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
                   </div>
-                ))}
-              </div>
+                )
+              })()}
 
               {/* Il tuo pronostico (sola lettura) */}
               {pronostico && (
