@@ -4,6 +4,7 @@ import AdminPanel from '@/components/AdminPanel'
 import AdminAggregates from '@/components/AdminAggregates'
 import AdminStats from '@/components/AdminStats'
 import AdminUsers from '@/components/AdminUsers'
+import AdminUserSearch from '@/components/AdminUserSearch'
 import AdminTiming from '@/components/AdminTiming'
 import { Pronostico, Profile, ClassificaRow, ActivitySummary, TimingSummary, SectionTime } from '@/lib/types'
 
@@ -79,7 +80,13 @@ export default async function AdminPage() {
         schedine={schedine ?? []}
         profiles={(profiles as Profile[]) ?? []}
         pronostici={(pronostici as Pronostico[]) ?? []}
-        risultatiMap={Object.fromEntries(risultatiMap)}
+      />
+
+      {/* RICERCA GIOCATORE — apri le scommesse di un singolo utente */}
+      <AdminUserSearch
+        schedine={schedine ?? []}
+        profiles={(profiles as Profile[]) ?? []}
+        pronostici={(pronostici as Pronostico[]) ?? []}
         classifica={(classifica as ClassificaRow[]) ?? []}
       />
 
