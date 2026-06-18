@@ -50,33 +50,25 @@ export default function AdminTiming({ timing, sections }: Props) {
           {/* Tempi per fase */}
           {rows.length > 0 && (
             <div className="glass rounded-2xl p-6">
-              <h3 className="font-display font-bold text-lg mb-1">Tempo medio per fase</h3>
-              <p className="text-xs text-[var(--muted)] mb-4">Dall’apertura della schedina (o inizio registrazione) a ciascuna scelta.</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[480px]">
-                  <thead>
-                    <tr className="text-[var(--muted)] text-xs uppercase tracking-wider border-b border-white/8">
-                      <th className="text-left px-3 py-2">Fase</th>
-                      <th className="text-center px-3 py-2">Media</th>
-                      <th className="text-center px-3 py-2">Mediana</th>
-                      <th className="text-center px-3 py-2">Min</th>
-                      <th className="text-center px-3 py-2">Max</th>
-                      <th className="text-center px-3 py-2">Campioni</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {rows.map(r => (
-                      <tr key={r.key} className="border-b border-white/5 last:border-0">
-                        <td className="px-3 py-3"><span className="mr-1.5">{r.icon}</span>{r.label}</td>
-                        <td className="px-3 py-3 text-center font-display font-bold text-[var(--accent-soft)]">{fmtSec(r.t.media_sec)}</td>
-                        <td className="px-3 py-3 text-center text-white/70">{fmtSec(r.t.mediana_sec)}</td>
-                        <td className="px-3 py-3 text-center text-white/50">{fmtSec(r.t.min_sec)}</td>
-                        <td className="px-3 py-3 text-center text-white/50">{fmtSec(r.t.max_sec)}</td>
-                        <td className="px-3 py-3 text-center text-[var(--muted)] tabular-nums">{r.t.campioni}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <h3 className="font-display font-bold text-lg mb-1">Quanto tempo ci mettono</h3>
+              <p className="text-xs text-[var(--muted)] mb-4">Tempo dall’apertura della schedina (o inizio registrazione) a ciascuna scelta.</p>
+
+              <div className="space-y-2">
+                {rows.map(r => (
+                  <div key={r.key} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
+                    <span className="text-lg shrink-0">{r.icon}</span>
+                    <span className="flex-1 min-w-0 text-sm">{r.label}</span>
+                    <div className="text-right shrink-0">
+                      <div className="font-display font-extrabold text-[var(--accent-soft)] text-lg leading-none">{fmtSec(r.t.mediana_sec)}</div>
+                      <div className="text-[10px] text-[var(--muted)] mt-0.5">di solito · media {fmtSec(r.t.media_sec)}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 rounded-xl bg-[var(--accent)]/[0.06] border border-[var(--accent)]/20 px-4 py-3 text-xs text-[var(--muted)] leading-relaxed">
+                💡 <strong className="text-white">&quot;Di solito&quot;</strong> (mediana) = il tempo della persona &quot;di mezzo&quot;: metà sono più veloci, metà più lente. È il dato più realistico.
+                La <strong className="text-white/80">media</strong> invece può essere gonfiata da poche persone che lasciano la pagina aperta a lungo, quindi è meno indicativa.
               </div>
             </div>
           )}
@@ -85,7 +77,7 @@ export default function AdminTiming({ timing, sections }: Props) {
           {sezioniOrdinate.length > 0 && (
             <div className="glass rounded-2xl p-6">
               <h3 className="font-display font-bold text-lg mb-1">Permanenza per sezione</h3>
-              <p className="text-xs text-[var(--muted)] mb-4">Tempo totale trascorso dagli utenti in ogni parte del sito (≈ minuti).</p>
+              <p className="text-xs text-[var(--muted)] mb-4">Tempo totale dei giocatori in ogni parte del sito (≈ minuti, solo da loggati).</p>
               <div className="space-y-2.5">
                 {sezioniOrdinate.map(s => (
                   <div key={s.sezione} className="flex items-center gap-3 text-sm">

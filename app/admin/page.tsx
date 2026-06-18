@@ -5,6 +5,8 @@ import AdminAggregates from '@/components/AdminAggregates'
 import AdminStats from '@/components/AdminStats'
 import AdminUsers from '@/components/AdminUsers'
 import AdminUserSearch from '@/components/AdminUserSearch'
+import AdminPredictions from '@/components/AdminPredictions'
+import AdminGamification from '@/components/AdminGamification'
 import AdminTiming from '@/components/AdminTiming'
 import { Pronostico, Profile, ClassificaRow, ActivitySummary, TimingSummary, SectionTime } from '@/lib/types'
 
@@ -72,6 +74,20 @@ export default async function AdminPage() {
         schedine={schedine ?? []}
         profiles={(profiles as Profile[]) ?? []}
         pronostici={(pronostici as Pronostico[]) ?? []}
+        risultatiMap={Object.fromEntries(risultatiMap)}
+        classifica={(classifica as ClassificaRow[]) ?? []}
+      />
+
+      {/* PREMI & GAMIFICATION */}
+      <AdminGamification
+        profiles={(profiles as Profile[]) ?? []}
+        classifica={(classifica as ClassificaRow[]) ?? []}
+        activity={(activity as ActivitySummary[]) ?? []}
+      />
+
+      {/* PREVISIONI */}
+      <AdminPredictions
+        schedine={schedine ?? []}
         risultatiMap={Object.fromEntries(risultatiMap)}
         classifica={(classifica as ClassificaRow[]) ?? []}
       />
