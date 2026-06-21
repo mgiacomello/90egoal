@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { Schedina, Pronostico, MatchDetail } from '@/lib/types'
 import Flag from '@/components/Flag'
 import { stadiumImage } from '@/lib/stadiums'
+import Countdown from '@/components/Countdown'
+import LiveRefresh from '@/components/LiveRefresh'
 
 export default async function SchedinePage() {
   const supabase = await createClient()
@@ -22,6 +24,7 @@ export default async function SchedinePage() {
 
   return (
     <div className="animate-fade-up">
+      <LiveRefresh seconds={60} />
       <div className="mb-8">
         <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Le tue schedine</span>
         <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Compila i pronostici</h1>
@@ -76,6 +79,9 @@ export default async function SchedinePage() {
                         <span className="text-white/70">Scadenza <span className="text-white font-medium">{deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span></span>
                       )}
                     </p>
+                    {!isScaduta && !isCompilata && (
+                      <div className="mt-2"><Countdown deadline={s.deadline} /></div>
+                    )}
                   </div>
                   <div className="shrink-0">
                     {isCompilata ? (

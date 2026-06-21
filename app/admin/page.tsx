@@ -5,6 +5,7 @@ import AdminAggregates from '@/components/AdminAggregates'
 import AdminStats from '@/components/AdminStats'
 import AdminUsers from '@/components/AdminUsers'
 import AdminUserSearch from '@/components/AdminUserSearch'
+import AdminSignups from '@/components/AdminSignups'
 import AdminPredictions from '@/components/AdminPredictions'
 import AdminGamification from '@/components/AdminGamification'
 import AdminTiming from '@/components/AdminTiming'
@@ -76,6 +77,12 @@ export default async function AdminPage() {
         pronostici={(pronostici as Pronostico[]) ?? []}
         risultatiMap={Object.fromEntries(risultatiMap)}
         classifica={(classifica as ClassificaRow[]) ?? []}
+      />
+
+      {/* CRESCITA — registrazioni e ritorni */}
+      <AdminSignups
+        profiles={(profiles as Profile[]) ?? []}
+        activity={(activity as ActivitySummary[]) ?? []}
       />
 
       {/* PREMI & GAMIFICATION */}

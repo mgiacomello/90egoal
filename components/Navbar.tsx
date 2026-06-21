@@ -62,6 +62,7 @@ export default function Navbar() {
           <div className="flex items-center gap-0.5 sm:gap-1">
             <Link href="/schedine" className={linkClass('/schedine')}>Schedine</Link>
             <Link href="/classifica" className={linkClass('/classifica')}>Classifica</Link>
+            <Link href="/profilo" className={linkClass('/profilo')}>Profilo</Link>
             <button
               onClick={handleLogout}
               className="text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-2.5 sm:px-3 py-2"
