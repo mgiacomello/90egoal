@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Schedina, Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
+import AskAI from '@/components/AskAI'
 
 const STADIUM = 'https://images.unsplash.com/photo-1762013315117-1c8005ad2b41?w=1920&q=70&auto=format&fit=crop'
 
@@ -178,6 +179,9 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {/* ===== AI MODE (solo utenti loggati) ===== */}
+      {user && <AskAI />}
 
       {/* ===== CTA FINALE ===== */}
       {!user && (
