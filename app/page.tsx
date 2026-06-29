@@ -32,7 +32,7 @@ export default async function Home() {
         <div className="relative px-4 sm:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-white/80 mb-6 animate-fade-up">
             <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse-glow" />
-            LIVE · Mondiali FIFA 2026 · Beta tester
+            🏆 Fase a eliminazione diretta · Mondiali 2026
           </div>
 
           <h1 className="font-display font-extrabold text-5xl sm:text-7xl tracking-tight leading-[1.02] animate-fade-up drop-shadow-2xl">
@@ -41,8 +41,8 @@ export default async function Home() {
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-xl mx-auto animate-fade-up">
-            Il gioco di pronostici sui gol dei Mondiali. Scegli 13 minuti, sfida i tuoi amici
-            e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
+            La fase a gironi è andata: ora si fa sul serio coi <strong className="text-white">sedicesimi</strong>, dentro o fuori.
+            Scegli 13 minuti, prevedi i supplementari e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
           </p>
 
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center animate-fade-up">
@@ -80,8 +80,8 @@ export default async function Home() {
         <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto stagger">
           {[
             { n: '13', l: 'minuti da indovinare' },
-            { n: '20', l: 'nazionali in gioco' },
-            { n: '+10', l: 'punti bonus max' },
+            { n: '16', l: 'sfide ai sedicesimi' },
+            { n: '+5', l: 'bonus supplementari' },
           ].map((s) => (
             <div key={s.l} className="glass glass-hover rounded-2xl py-6 px-2 text-center">
               <div className="font-display font-extrabold text-4xl sm:text-5xl text-gradient">{s.n}</div>
@@ -101,8 +101,8 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
           {[
             { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
-            { icon: '➕', step: '02', title: 'Bonus recupero', desc: 'Prevedi se un gol arriverà nei minuti di recupero del primo o del secondo tempo per un punto extra.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
-            { icon: '🏆', step: '03', title: 'Primo & ultimo gol', desc: 'Indovina la squadra della prima e dell’ultima rete tra tutte le partite: bonus fino a 10 punti.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
+            { icon: '⏱️', step: '02', title: 'Prevedi i supplementari', desc: 'Nell’eliminazione diretta le sfide possono andare ai tempi supplementari: indovina se succederà e prendi +5 punti.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
+            { icon: '🏆', step: '03', title: 'Dentro o fuori', desc: 'Niente più gironi: ogni partita è decisiva. Segui la classifica live a ogni turno e arriva fino alla finale.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
           ].map((c) => (
             <div key={c.step} className="group relative glass glass-hover rounded-2xl p-6 text-left overflow-hidden">
               {/* glow d'angolo */}
@@ -161,14 +161,13 @@ export default async function Home() {
             <div>
               <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Il sistema di punti</span>
               <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2 mb-4">Ogni gol vale punti</h2>
-              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. I bonus su recupero e marcatori possono ribaltare tutto fino all’ultima partita.</p>
+              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. Nella fase a eliminazione diretta il bonus sui supplementari può ribaltare tutto fino all’ultimo turno.</p>
             </div>
             <div className="space-y-3">
               {[
                 { p: '+1', t: 'per ogni minuto esatto in cui viene segnato un gol', c: 'text-[var(--accent)]' },
-                { p: '+1', t: 'se indovini il recupero (primo o secondo tempo)', c: 'text-[var(--accent-cyan)]' },
-                { p: '+3', t: 'per la squadra del primo OPPURE dell’ultimo gol', c: 'text-[var(--gold)]' },
-                { p: '+10', t: 'se indovini ENTRAMBE le squadre, prima e ultima', c: 'text-[var(--gold)]' },
+                { p: '+5', t: 'se indovini se la sfida andrà ai tempi supplementari', c: 'text-[var(--accent-cyan)]' },
+                { p: 'KO', t: 'eliminazione diretta: ogni partita è dentro o fuori', c: 'text-[var(--gold)]' },
               ].map((r, i) => (
                 <div key={i} className="flex items-center gap-4 rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3 hover:border-white/15 transition-colors">
                   <span className={`font-display font-extrabold text-2xl w-12 ${r.c}`}>{r.p}</span>
