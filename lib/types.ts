@@ -11,6 +11,7 @@ export interface Schedina {
   deadline: string
   partite: Partita[]
   attiva: boolean
+  fase?: 'gironi' | 'eliminazione'
   created_at: string
 }
 
@@ -22,6 +23,7 @@ export interface Pronostico {
   recupero: 'primo' | 'secondo' | null
   first_goal: string | null
   last_goal: string | null
+  extra_time?: boolean | null
   submitted_at: string
 }
 
@@ -39,6 +41,7 @@ export interface Risultato {
   recupero: 'primo' | 'secondo' | 'entrambi' | 'nessuno'
   first_goal_team: string | null
   last_goal_team: string | null
+  extra_time?: boolean | null
   note: string | null
   dettagli?: MatchDetail[]
 }

@@ -26,6 +26,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
   const [recupero, setRecupero] = useState<string>('')
   const [firstGoal, setFirstGoal] = useState('')
   const [lastGoal, setLastGoal] = useState('')
+  const [extraTime, setExtraTime] = useState<boolean | null>(null)
   const [note, setNote] = useState('')
 
   function selectSchedina(id: number) {
@@ -35,6 +36,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
     setRecupero(r?.recupero ?? '')
     setFirstGoal(r?.first_goal_team ?? '')
     setLastGoal(r?.last_goal_team ?? '')
+    setExtraTime(r?.extra_time ?? null)
     setNote(r?.note ?? '')
     setMinutiInput('')
     setSaved(false)
@@ -61,6 +63,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
       recupero: recupero || 'nessuno',
       first_goal_team: firstGoal || null,
       last_goal_team: lastGoal || null,
+      extra_time: extraTime,
       note: note || null,
     }
     const { error: dbError } = esistente
@@ -124,30 +127,47 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
             <p className="text-xs text-[var(--muted)] mt-2">Totale: {minuti.length} gol</p>
           </div>
 
-          {/* Recupero */}
-          <div>
-            <label className="block text-sm font-medium text-[var(--muted)] mb-2">Gol nel recupero</label>
-            <div className="flex gap-2 flex-wrap">
-              {['primo', 'secondo', 'entrambi', 'nessuno'].map(v => (
-                <button key={v} type="button" onClick={() => setRecupero(v)}
-                  className={`seg-btn px-4 py-2 text-sm capitalize ${recupero === v ? 'is-active' : ''}`}>
-                  {v === 'primo' ? '1° tempo' : v === 'secondo' ? '2° tempo' : v}
-                </button>
-              ))}
+          {schedina.fase !== 'gironi' ? (
+            /* Eliminazione: esito supplementari */
+            <div>
+              <label className="block text-sm font-medium text-[var(--muted)] mb-2">⏱️ Almeno una partita è andata ai supplementari?</label>
+              <div className="flex gap-2 flex-wrap">
+                <button type="button" onClick={() => setExtraTime(extraTime === true ? null : true)}
+                  className={`seg-btn px-4 py-2 text-sm ${extraTime === true ? 'is-active' : ''}`}>Sì</button>
+                <button type="button" onClick={() => setExtraTime(extraTime === false ? null : false)}
+                  className={`seg-btn px-4 py-2 text-sm ${extraTime === false ? 'is-active' : ''}`}>No</button>
+                <button type="button" onClick={() => setExtraTime(null)}
+                  className="text-sm text-[var(--muted)] hover:text-red-400 transition-colors ml-1">Azzera</button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* Recupero */}
+              <div>
+                <label className="block text-sm font-medium text-[var(--muted)] mb-2">Gol nel recupero</label>
+                <div className="flex gap-2 flex-wrap">
+                  {['primo', 'secondo', 'entrambi', 'nessuno'].map(v => (
+                    <button key={v} type="button" onClick={() => setRecupero(v)}
+                      className={`seg-btn px-4 py-2 text-sm capitalize ${recupero === v ? 'is-active' : ''}`}>
+                      {v === 'primo' ? '1° tempo' : v === 'secondo' ? '2° tempo' : v}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          {/* Prima/ultima squadra */}
-          <div className="space-y-5">
-            <div>
-              <label className="block text-sm font-medium text-[var(--muted)] mb-2">🥇 Prima squadra a segnare</label>
-              <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-[var(--muted)] mb-2">🏁 Ultima squadra a segnare</label>
-              <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
-            </div>
-          </div>
+              {/* Prima/ultima squadra */}
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)] mb-2">🥇 Prima squadra a segnare</label>
+                  <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--muted)] mb-2">🏁 Ultima squadra a segnare</label>
+                  <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Note */}
           <div>

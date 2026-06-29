@@ -100,7 +100,7 @@ export default async function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
           {[
-            { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle 10 partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
+            { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
             { icon: '➕', step: '02', title: 'Bonus recupero', desc: 'Prevedi se un gol arriverà nei minuti di recupero del primo o del secondo tempo per un punto extra.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
             { icon: '🏆', step: '03', title: 'Primo & ultimo gol', desc: 'Indovina la squadra della prima e dell’ultima rete tra tutte le partite: bonus fino a 10 punti.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
           ].map((c) => (
