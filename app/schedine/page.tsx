@@ -44,20 +44,30 @@ export default async function SchedinePage() {
         </div>
       )}
 
-      {/* ===== ARCHIVIO ===== */}
+      {/* ===== ARCHIVIO (compatto, espandibile) ===== */}
       {archiviate.length > 0 && (
-        <details className="mt-12 group">
-          <summary className="cursor-pointer list-none flex items-center gap-2 mb-1 select-none">
-            <span className="text-xs font-semibold tracking-widest text-[var(--muted)] uppercase">📦 Archivio · fase a gironi</span>
-            <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90">▶</span>
-          </summary>
-          <p className="text-[var(--muted)] text-sm mb-5">Le schedine concluse dei gironi. I punti restano validi in classifica.</p>
-          <div className="space-y-5">
+        <div className="mt-12">
+          <span className="text-xs font-semibold tracking-widest text-[var(--muted)] uppercase">📦 Archivio · fase a gironi</span>
+          <p className="text-[var(--muted)] text-sm mt-1 mb-4">Schedine concluse. Tocca una riga per espanderla. I punti restano validi in classifica.</p>
+          <div className="space-y-2">
             {archiviate.map(s => (
-              <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} />
+              <details key={s.id} className="glass rounded-xl overflow-hidden group">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 select-none">
+                  <div className="min-w-0">
+                    <div className="font-display font-semibold text-sm truncate">{s.nome.replace(' — Mondiali FIFA 2026', '')}</div>
+                    <div className="text-xs text-[var(--muted)]">
+                      Gironi · {s.partite.length} partite · conclusa{pronosticoMap.get(s.id) ? ' · ✓ giocata' : ''}
+                    </div>
+                  </div>
+                  <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90 shrink-0">▶</span>
+                </summary>
+                <div className="px-1 pb-1">
+                  <SchedinaCard schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} />
+                </div>
+              </details>
             ))}
           </div>
-        </details>
+        </div>
       )}
     </div>
   )
