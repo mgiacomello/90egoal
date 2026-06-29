@@ -1,5 +1,12 @@
 // Mappa nome nazionale (italiano) → codice ISO per flagcdn.com
 const FLAG_CODES: Record<string, string> = {
+  // Sedicesimi (fase a eliminazione)
+  'Olanda': 'nl',
+  'Svezia': 'se',
+  'Congo': 'cd',
+  'Bosnia Erzegovina': 'ba',
+  'Austria': 'at',
+  'Svizzera': 'ch',
   'Messico': 'mx',
   'Sudafrica': 'za',
   'Stati Uniti': 'us',
