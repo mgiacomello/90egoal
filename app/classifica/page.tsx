@@ -57,11 +57,11 @@ export default async function ClassificaPage() {
 
           <section className="mb-10">
             <h2 className="font-display font-bold text-lg mb-3 text-[var(--gold)]">Classifica Generale</h2>
-            <LeaderList rows={generale.map(g => ({ ...g, key: g.user_id }))} maxTot={generale[0]?.totale ?? 1} currentUserId={user?.id} />
+            <LeaderList rows={generale.slice(0, 10).map(g => ({ ...g, key: g.user_id }))} maxTot={generale[0]?.totale ?? 1} currentUserId={user?.id} />
           </section>
 
           {schedine?.map(s => {
-            const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).map((r, i) => ({ ...r, pos: i + 1 }))
+            const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, 10).map((r, i) => ({ ...r, pos: i + 1 }))
             return (
               <section key={s.id} className="mb-8">
                 <h2 className="font-display font-semibold text-base mb-3 text-white/80">{s.nome.replace(' — Mondiali FIFA 2026', '')}</h2>
