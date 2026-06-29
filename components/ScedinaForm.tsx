@@ -75,8 +75,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
       schedina_id: schedina.id,
       minuti,
       recupero: isKnockout ? null : (recupero ?? null),
-      first_goal: isKnockout ? null : (firstGoal || null),
-      last_goal: isKnockout ? null : (lastGoal || null),
+      first_goal: firstGoal || null,
+      last_goal: lastGoal || null,
       extra_time: isKnockout ? extraTime : null,
     }
 
@@ -195,8 +195,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
           </p>
         </div>
 
-        {isKnockout ? (
-          /* STEP 2 (eliminazione) — Supplementari */
+        {/* Supplementari — solo eliminazione diretta */}
+        {isKnockout && (
           <div className="glass rounded-2xl p-6">
             <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">⏱️</span> Supplementari <span className="text-xs font-normal text-[var(--gold)]">+5 punti · facoltativo</span></h2>
             <p className="text-xs text-[var(--muted)] mb-4">Nell&apos;eliminazione diretta le partite possono andare ai tempi supplementari. Pensi che <strong className="text-white">almeno una</strong> partita di questa schedina andrà ai supplementari?</p>
@@ -211,39 +211,39 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
               </button>
             </div>
           </div>
-        ) : (
-          <>
-            {/* STEP 2 — Recupero */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto · facoltativo</span></h2>
-              <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero. Tocca un pulsante (puoi anche saltarlo).</p>
-              <div className="grid grid-cols-2 gap-3">
-                {(['primo', 'secondo'] as const).map(t => (
-                  <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
-                    className={`seg-btn px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
-                    {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* STEP 3 — Primo/Ultimo gol */}
-            <div className="glass rounded-2xl p-6">
-              <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">🏆</span> Prima e ultima rete <span className="text-xs font-normal text-[var(--gold)]">+3 / +10 · facoltativo</span></h2>
-              <p className="text-xs text-[var(--muted)] mb-5">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite? Tocca una squadra (puoi anche saltarlo).</p>
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🥇 Prima squadra a segnare</label>
-                  <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
-                </div>
-                <div>
-                  <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🏁 Ultima squadra a segnare</label>
-                  <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
-                </div>
-              </div>
-            </div>
-          </>
         )}
+
+        {/* Recupero — solo fase a gironi */}
+        {!isKnockout && (
+          <div className="glass rounded-2xl p-6">
+            <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto · facoltativo</span></h2>
+            <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero. Tocca un pulsante (puoi anche saltarlo).</p>
+            <div className="grid grid-cols-2 gap-3">
+              {(['primo', 'secondo'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
+                  className={`seg-btn px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
+                  {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Prima/Ultima rete — sempre */}
+        <div className="glass rounded-2xl p-6">
+          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">🏆</span> Prima e ultima rete <span className="text-xs font-normal text-[var(--gold)]">+3 / +10 · facoltativo</span></h2>
+          <p className="text-xs text-[var(--muted)] mb-5">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite? Tocca una squadra (puoi anche saltarlo).</p>
+          <div className="space-y-6">
+            <div>
+              <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🥇 Prima squadra a segnare</label>
+              <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
+            </div>
+            <div>
+              <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🏁 Ultima squadra a segnare</label>
+              <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
+            </div>
+          </div>
+        </div>
 
         {error && (
           <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>

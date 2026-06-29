@@ -44,7 +44,7 @@ export default async function Home() {
 
           <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-xl mx-auto animate-fade-up">
             La fase a gironi è andata: ora si fa sul serio coi <strong className="text-white">sedicesimi</strong>, dentro o fuori.
-            Scegli 13 minuti, prevedi i supplementari e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
+            Scegli 13 minuti, prevedi supplementari e marcatori, e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
           </p>
 
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center animate-fade-up">
@@ -83,7 +83,7 @@ export default async function Home() {
           {[
             { n: '13', l: 'minuti da indovinare' },
             { n: '16', l: 'sfide ai sedicesimi' },
-            { n: '+5', l: 'bonus supplementari' },
+            { n: '+10', l: 'punti bonus max' },
           ].map((s) => (
             <div key={s.l} className="glass glass-hover rounded-2xl py-6 px-2 text-center">
               <div className="font-display font-extrabold text-4xl sm:text-5xl text-gradient">{s.n}</div>
@@ -104,7 +104,7 @@ export default async function Home() {
           {[
             { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
             { icon: '⏱️', step: '02', title: 'Prevedi i supplementari', desc: 'Nell’eliminazione diretta le sfide possono andare ai tempi supplementari: indovina se succederà e prendi +5 punti.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
-            { icon: '🏆', step: '03', title: 'Dentro o fuori', desc: 'Niente più gironi: ogni partita è decisiva. Segui la classifica live a ogni turno e arriva fino alla finale.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
+            { icon: '🏆', step: '03', title: 'Primo & ultimo gol', desc: 'Indovina la squadra che segnerà la prima e l’ultima rete tra tutte le partite: bonus fino a +10 punti.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
           ].map((c) => (
             <div key={c.step} className="group relative glass glass-hover rounded-2xl p-6 text-left overflow-hidden">
               {/* glow d'angolo */}
@@ -163,13 +163,14 @@ export default async function Home() {
             <div>
               <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Il sistema di punti</span>
               <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2 mb-4">Ogni gol vale punti</h2>
-              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. Nella fase a eliminazione diretta il bonus sui supplementari può ribaltare tutto fino all’ultimo turno.</p>
+              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. Nella fase a eliminazione i bonus su supplementari e marcatori possono ribaltare tutto fino all’ultimo turno.</p>
             </div>
             <div className="space-y-3">
               {[
                 { p: '+1', t: 'per ogni minuto esatto in cui viene segnato un gol', c: 'text-[var(--accent)]' },
-                { p: '+5', t: 'se indovini se la sfida andrà ai tempi supplementari', c: 'text-[var(--accent-cyan)]' },
-                { p: 'KO', t: 'eliminazione diretta: ogni partita è dentro o fuori', c: 'text-[var(--gold)]' },
+                { p: '+5', t: 'se indovini se la sfida andrà ai supplementari', c: 'text-[var(--accent-cyan)]' },
+                { p: '+3', t: 'per la squadra del primo OPPURE dell’ultimo gol', c: 'text-[var(--gold)]' },
+                { p: '+10', t: 'se indovini ENTRAMBE le squadre, prima e ultima', c: 'text-[var(--gold)]' },
               ].map((r, i) => (
                 <div key={i} className="flex items-center gap-4 rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3 hover:border-white/15 transition-colors">
                   <span className={`font-display font-extrabold text-2xl w-12 ${r.c}`}>{r.p}</span>
