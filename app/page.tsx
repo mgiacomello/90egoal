@@ -11,7 +11,9 @@ export default async function Home() {
   const { data: { user } } = await supabase.auth.getUser()
   const { data: schedine } = await supabase.from('schedine').select('*').order('id')
 
-  const partite: Partita[] = (schedine as Schedina[] | null)?.flatMap(s => s.partite) ?? []
+  // Solo le schedine attive (fase corrente): la home mostra solo queste partite
+  const attive = (schedine as Schedina[] | null)?.filter(s => s.attiva !== false) ?? []
+  const partite: Partita[] = attive.flatMap(s => s.partite)
   const squadre = [...new Set(partite.flatMap(p => [p.home, p.away]))]
 
   return (
