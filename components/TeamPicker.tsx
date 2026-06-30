@@ -19,7 +19,7 @@ export default function TeamPicker({ partite, value, onChange }: Props) {
       <button
         type="button"
         onClick={() => onChange('')}
-        className={`team-chip justify-center ${value === '' ? 'is-on' : ''}`}
+        className={`team-chip justify-center col-span-2 sm:col-span-3 ${value === '' ? 'is-on' : ''}`}
       >
         — Nessuna —
       </button>
