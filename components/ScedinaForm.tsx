@@ -74,7 +74,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
       user_id: userId,
       schedina_id: schedina.id,
       minuti,
-      recupero: isKnockout ? null : (recupero ?? null),
+      recupero: recupero ?? null,
       first_goal: firstGoal || null,
       last_goal: lastGoal || null,
       extra_time: isKnockout ? extraTime : null,
@@ -213,21 +213,19 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
           </div>
         )}
 
-        {/* Recupero — solo fase a gironi */}
-        {!isKnockout && (
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto · facoltativo</span></h2>
-            <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero. Tocca un pulsante (puoi anche saltarlo).</p>
-            <div className="grid grid-cols-2 gap-3">
-              {(['primo', 'secondo'] as const).map(t => (
-                <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
-                  className={`seg-btn px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
-                  {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
-                </button>
-              ))}
-            </div>
+        {/* Recupero — sempre */}
+        <div className="glass rounded-2xl p-6">
+          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto · facoltativo</span></h2>
+          <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero (primo o secondo tempo). Tocca un pulsante (puoi anche saltarlo).</p>
+          <div className="grid grid-cols-2 gap-3">
+            {(['primo', 'secondo'] as const).map(t => (
+              <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
+                className={`seg-btn px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
+                {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         {/* Prima/Ultima rete — sempre */}
         <div className="glass rounded-2xl p-6">

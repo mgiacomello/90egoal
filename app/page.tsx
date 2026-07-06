@@ -172,6 +172,7 @@ export default async function Home() {
             <div className="space-y-3">
               {[
                 { p: '+1', t: 'per ogni minuto esatto in cui viene segnato un gol', c: 'text-[var(--accent)]' },
+                { p: '+1', t: 'se indovini il recupero (primo o secondo tempo)', c: 'text-[var(--accent)]' },
                 { p: '+5', t: 'se indovini se la sfida andrà ai supplementari', c: 'text-[var(--accent-cyan)]' },
                 { p: '+3', t: 'per la squadra del primo OPPURE dell’ultimo gol', c: 'text-[var(--gold)]' },
                 { p: '+10', t: 'se indovini ENTRAMBE le squadre, prima e ultima', c: 'text-[var(--gold)]' },

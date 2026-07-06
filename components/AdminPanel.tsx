@@ -142,20 +142,18 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
             </div>
           )}
 
-          {/* Recupero — solo gironi */}
-          {schedina.fase === 'gironi' && (
-            <div>
-              <label className="block text-sm font-medium text-[var(--muted)] mb-2">Gol nel recupero</label>
-              <div className="flex gap-2 flex-wrap">
-                {['primo', 'secondo', 'entrambi', 'nessuno'].map(v => (
-                  <button key={v} type="button" onClick={() => setRecupero(v)}
-                    className={`seg-btn px-4 py-2 text-sm capitalize ${recupero === v ? 'is-active' : ''}`}>
-                    {v === 'primo' ? '1° tempo' : v === 'secondo' ? '2° tempo' : v}
-                  </button>
-                ))}
-              </div>
+          {/* Recupero — sempre */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--muted)] mb-2">Gol nel recupero</label>
+            <div className="flex gap-2 flex-wrap">
+              {['primo', 'secondo', 'entrambi', 'nessuno'].map(v => (
+                <button key={v} type="button" onClick={() => setRecupero(v)}
+                  className={`seg-btn px-4 py-2 text-sm capitalize ${recupero === v ? 'is-active' : ''}`}>
+                  {v === 'primo' ? '1° tempo' : v === 'secondo' ? '2° tempo' : v}
+                </button>
+              ))}
             </div>
-          )}
+          </div>
 
           {/* Prima/ultima squadra — sempre */}
           <div className="space-y-5">
