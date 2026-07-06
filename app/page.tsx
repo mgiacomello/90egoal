@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Schedina, Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
 import AskAI from '@/components/AskAI'
+import { flagCode } from '@/lib/flags'
 
 const STADIUM = 'https://images.unsplash.com/photo-1762013315117-1c8005ad2b41?w=1920&q=70&auto=format&fit=crop'
 
@@ -14,7 +15,10 @@ export default async function Home() {
   // Solo le schedine attive (fase corrente): la home mostra solo queste partite
   const attive = (schedine as Schedina[] | null)?.filter(s => s.attiva !== false) ?? []
   const partite: Partita[] = attive.flatMap(s => s.partite)
-  const squadre = [...new Set(partite.flatMap(p => [p.home, p.away]))]
+  // Solo squadre/partite con nazionale reale (esclude segnaposto tipo "Vinc. USA-Belgio")
+  const noto = (t: string) => flagCode(t) !== 'un'
+  const squadre = [...new Set(partite.flatMap(p => [p.home, p.away]))].filter(noto)
+  const partiteReali = partite.filter(p => noto(p.home) && noto(p.away))
 
   return (
     <div className="flex flex-col gap-20 sm:gap-28">
@@ -123,7 +127,7 @@ export default async function Home() {
       </section>
 
       {/* ===== ESEMPIO PARTITE (con bandiere) ===== */}
-      {partite.length > 0 && (
+      {partiteReali.length > 0 && (
         <section>
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -134,7 +138,7 @@ export default async function Home() {
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3 stagger">
-            {partite.slice(0, 6).map((p, i) => (
+            {partiteReali.slice(0, 6).map((p, i) => (
               <div key={i} className="group glass glass-hover rounded-xl p-4 flex items-center gap-4">
                 <span className="text-[10px] font-mono text-[var(--muted)] w-12 shrink-0 uppercase">
                   {new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
