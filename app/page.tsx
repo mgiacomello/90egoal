@@ -38,7 +38,7 @@ export default async function Home() {
         <div className="relative px-4 sm:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-white/80 mb-6 animate-fade-up">
             <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse-glow" />
-            🏆 Fase a eliminazione diretta · Mondiali 2026
+            🏆 Fase finale · dagli ottavi alla finale · Mondiali 2026
           </div>
 
           <h1 className="font-display font-extrabold text-5xl sm:text-7xl tracking-tight leading-[1.02] animate-fade-up drop-shadow-2xl">
@@ -47,8 +47,8 @@ export default async function Home() {
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-xl mx-auto animate-fade-up">
-            La fase a gironi è andata: ora si fa sul serio coi <strong className="text-white">sedicesimi</strong>, dentro o fuori.
-            Scegli 13 minuti, prevedi supplementari e marcatori, e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
+            Gironi e sedicesimi alle spalle: ora è la <strong className="text-white">fase finale</strong>, dagli ottavi alla finale, tutto dentro o fuori.
+            Scegli 13 minuti, gioca i bonus e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
           </p>
 
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center animate-fade-up">
@@ -86,7 +86,7 @@ export default async function Home() {
         <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto stagger">
           {[
             { n: '13', l: 'minuti da indovinare' },
-            { n: '16', l: 'sfide ai sedicesimi' },
+            { n: '10', l: 'sfide fino alla finale' },
             { n: '+10', l: 'punti bonus max' },
           ].map((s) => (
             <div key={s.l} className="glass glass-hover rounded-2xl py-6 px-2 text-center">
@@ -107,7 +107,7 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
           {[
             { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
-            { icon: '⏱️', step: '02', title: 'Prevedi i supplementari', desc: 'Nell’eliminazione diretta le sfide possono andare ai tempi supplementari: indovina se succederà e prendi +5 punti.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
+            { icon: '⏱️', step: '02', title: 'Recupero & supplementari', desc: 'Prevedi un gol nel recupero (+1) e se una sfida andrà ai tempi supplementari (+5): due bonus in più.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
             { icon: '🏆', step: '03', title: 'Primo & ultimo gol', desc: 'Indovina la squadra che segnerà la prima e l’ultima rete tra tutte le partite: bonus fino a +10 punti.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
           ].map((c) => (
             <div key={c.step} className="group relative glass glass-hover rounded-2xl p-6 text-left overflow-hidden">
