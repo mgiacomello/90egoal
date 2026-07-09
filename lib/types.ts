@@ -27,11 +27,17 @@ export interface Pronostico {
   submitted_at: string
 }
 
+export interface GoalScored {
+  min: string        // es. "67'" o "90+2'"
+  team: string       // squadra che ha segnato (autogol → squadra che ne beneficia)
+}
+
 export interface MatchDetail {
   home: string
   away: string
-  score: string      // es. "2-0"
-  minuti: string[]   // es. ["9'", "45+5'", "67'"]
+  score: string          // es. "2-0"
+  minuti: string[]       // es. ["9'", "45+5'", "67'"] — retrocompatibilità/display rapido
+  gol?: GoalScored[]     // marcatore per gol (per analisi per-squadra); assente sui dati vecchi
 }
 
 export interface Risultato {

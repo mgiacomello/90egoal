@@ -1,6 +1,7 @@
-import { GoalStats } from '@/lib/goalStats'
+import { GoalStats, TeamGoalStats } from '@/lib/goalStats'
+import Flag from '@/components/Flag'
 
-export default function GoalStatsPanel({ stats }: { stats: GoalStats }) {
+export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats; teamStats?: TeamGoalStats[] }) {
   if (stats.totalGoals === 0) return null
   const maxBand = Math.max(1, ...stats.bands.map(b => b.count))
 
@@ -68,6 +69,24 @@ export default function GoalStatsPanel({ stats }: { stats: GoalStats }) {
             </div>
           )}
         </div>
+
+        {/* Per squadra (quando disponibile il marcatore per gol) */}
+        {teamStats && teamStats.length > 0 && (
+          <div className="mt-5">
+            <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">Quando segnano le squadre</div>
+            <div className="grid sm:grid-cols-2 gap-1.5">
+              {teamStats.slice(0, 12).map(t => (
+                <div key={t.team} className="flex items-center gap-2 rounded-lg bg-white/[0.03] border border-white/8 px-3 py-2 text-sm">
+                  <Flag team={t.team} w={40} className="w-5 h-3.5 shrink-0" />
+                  <span className="font-medium truncate">{t.team}</span>
+                  <span className="text-[var(--muted)] text-xs ml-auto shrink-0">
+                    {t.count} gol{t.hottest ? ` · ${t.hottest}` : ''}{t.recupero ? ` · +${t.recupero} rec.` : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <p className="text-[11px] text-[var(--muted)] mt-4 leading-relaxed">
           Dati dalle partite già giocate del torneo. Ti aiutano a orientarti, ma il bello del gioco resta la sorpresa. ⚽

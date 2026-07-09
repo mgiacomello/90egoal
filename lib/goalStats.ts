@@ -18,6 +18,13 @@ export interface GoalStats {
   topMinutes: { m: number; count: number }[]
 }
 
+export interface TeamGoalStats {
+  team: string
+  count: number
+  hottest: string | null   // fascia in cui segna più spesso
+  recupero: number         // gol nel recupero
+}
+
 const BANDS: [number, number, string][] = [
   [1, 15, "1-15'"],
   [16, 30, "16-30'"],
@@ -79,4 +86,38 @@ export function computeGoalStats(risultati: Risultato[]): GoalStats {
     recuperoPct: total ? Math.round(((rec1 + rec2) / total) * 100) : 0,
     topMinutes,
   }
+}
+
+// Analisi per-squadra: usa il marcatore per gol (campo `gol`), quando presente.
+export function computeTeamGoalStats(risultati: Risultato[]): TeamGoalStats[] {
+  const perTeam = new Map<string, { bands: number[]; recupero: number; count: number }>()
+  for (const r of risultati) {
+    const dett = (r.dettagli as MatchDetail[] | undefined) ?? []
+    for (const d of dett) {
+      if (!d.gol || d.gol.length === 0) continue
+      for (const g of d.gol) {
+        const t = perTeam.get(g.team) ?? { bands: new Array(BANDS.length).fill(0), recupero: 0, count: 0 }
+        t.count++
+        const s = String(g.min).replace(/['\s]/g, '')
+        if (s.includes('+')) t.recupero++
+        else {
+          const m = parseInt(s, 10)
+          const bi = BANDS.findIndex(([a, b]) => m >= a && m <= b)
+          if (bi >= 0) t.bands[bi]++
+        }
+        perTeam.set(g.team, t)
+      }
+    }
+  }
+  return [...perTeam.entries()]
+    .map(([team, t]) => {
+      const maxi = t.bands.indexOf(Math.max(...t.bands))
+      return {
+        team,
+        count: t.count,
+        hottest: t.bands[maxi] > 0 ? BANDS[maxi][2] : null,
+        recupero: t.recupero,
+      }
+    })
+    .sort((a, b) => b.count - a.count)
 }
