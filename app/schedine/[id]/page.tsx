@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import ScedinaForm from '@/components/ScedinaForm'
+import { computeGoalStats } from '@/lib/goalStats'
+import { Risultato } from '@/lib/types'
 
 export default async function ScedinaPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -30,11 +32,16 @@ export default async function ScedinaPage({ params }: { params: Promise<{ id: st
 
   if (pronostico) redirect('/schedine')
 
+  // Statistiche gol del torneo (sessione tecnica) — da tutte le partite giocate
+  const { data: risultati } = await supabase.from('risultati').select('*')
+  const goalStats = computeGoalStats((risultati as Risultato[] | null) ?? [])
+
   return (
     <ScedinaForm
       schedina={schedina}
       pronosticoEsistente={null}
       userId={user.id}
+      goalStats={goalStats}
     />
   )
 }

@@ -21,7 +21,7 @@ export default async function ClassificaPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { data: schedine } = await supabase.from('schedine').select('id, nome').order('id')
+  const { data: schedine } = await supabase.from('schedine').select('id, nome, attiva').order('id')
   const { data: classifica } = await supabase.from('classifica').select('*')
 
   const bySchedina = new Map<number, ClassificaRow[]>()
@@ -38,6 +38,14 @@ export default async function ClassificaPage() {
     else generalMap.set(r.user_id, { user_id: r.user_id, username: r.username, full_name: r.full_name, totale: r.totale, pos: 0 })
   })
   const generale = [...generalMap.values()].sort((a, b) => b.totale - a.totale).map((r, i) => ({ ...r, pos: i + 1 }))
+
+  // Albo d'oro: campione di ogni fase CONCLUSA (schedina archiviata)
+  const albo = ((schedine ?? []) as { id: number; nome: string; attiva: boolean }[])
+    .filter(s => s.attiva === false)
+    .flatMap(s => {
+      const rows = (bySchedina.get(s.id) ?? []).slice().sort((a, b) => b.totale - a.totale)
+      return rows.length ? [{ nome: s.nome.replace(' — Mondiali FIFA 2026', ''), champ: rows[0] }] : []
+    })
 
   return (
     <div className="animate-fade-up">
@@ -59,6 +67,24 @@ export default async function ClassificaPage() {
             <h2 className="font-display font-bold text-lg mb-3 text-[var(--gold)]">Classifica Generale</h2>
             <LeaderList rows={generale.slice(0, 10).map(g => ({ ...g, key: g.user_id }))} maxTot={generale[0]?.totale ?? 1} currentUserId={user?.id} />
           </section>
+
+          {albo.length > 0 && (
+            <section className="mb-10">
+              <h2 className="font-display font-bold text-lg mb-1 text-[var(--gold)]">🏅 Albo d&apos;oro</h2>
+              <p className="text-[var(--muted)] text-sm mb-3">Il miglior Tredicista di ogni fase conclusa.</p>
+              <div className="space-y-2">
+                {albo.map((c, i) => (
+                  <div key={i} className="glass rounded-xl px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs text-[var(--muted)]">{c.nome}</div>
+                      <div className="font-display font-semibold truncate">🏆 {c.champ.username}</div>
+                    </div>
+                    <span className="font-display font-extrabold text-[var(--gold)] tabular-nums shrink-0">{c.champ.totale} pt</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {schedine?.map(s => {
             const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, 10).map((r, i) => ({ ...r, pos: i + 1 }))

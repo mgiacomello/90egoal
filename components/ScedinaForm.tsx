@@ -4,8 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Schedina, Pronostico, Partita } from '@/lib/types'
+import { GoalStats } from '@/lib/goalStats'
 import Flag from '@/components/Flag'
 import TeamPicker from '@/components/TeamPicker'
+import GoalStatsPanel from '@/components/GoalStatsPanel'
 import { stadiumImage } from '@/lib/stadiums'
 import { logEvent } from '@/lib/track'
 
@@ -15,9 +17,10 @@ interface Props {
   schedina: Schedina
   pronosticoEsistente: Pronostico | null
   userId: string
+  goalStats?: GoalStats
 }
 
-export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: Props) {
+export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goalStats }: Props) {
   const router = useRouter()
 
   const isKnockout = schedina.fase !== 'gironi'
@@ -150,6 +153,9 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId }: P
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+
+        {/* Sessione tecnica — statistiche gol del torneo */}
+        {goalStats && <GoalStatsPanel stats={goalStats} />}
 
         {/* STEP 1 — Minuti */}
         <div className="glass rounded-2xl p-6">
