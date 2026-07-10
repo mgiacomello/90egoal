@@ -23,7 +23,9 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
+  // /auth/reset va raggiunta anche da loggati: il link di recupero crea una sessione
   const isAuthPage = request.nextUrl.pathname.startsWith('/auth')
+    && !request.nextUrl.pathname.startsWith('/auth/reset')
   const isProtected = ['/schedine', '/classifica', '/admin', '/profilo'].some(p =>
     request.nextUrl.pathname.startsWith(p)
   )
