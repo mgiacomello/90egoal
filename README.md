@@ -45,7 +45,14 @@ Mini-gioco per bambini incluso nell'app, pensato per tablet e telefono.
     lo chignon), di lato le treccine, verso il basso tornano sciolti.
   - ✂️ **Forbici** — si tocca all'altezza voluta e lì i capelli si accorciano
     (con ciocche che cadono e schiocco delle lame); 🪄 li fa ricrescere.
-  - 🧴 **Shampoo** — si strofina, arriva la schiuma, poi 🚿 risciacqua e restano lucidi.
+  - 🧴 **Shampoo** — si strofina e arrivano le bolle di schiuma.
+  - 🥥 **Balsamo** — si spalma sui capelli bagnati: dopo il phon restano lisci e
+    lucidi invece che gonfi.
+  - 🚿 **Doccia** — l'acqua scorre dove passi il dito, porta via la schiuma un po'
+    alla volta e **sbiadisce le tinte fantasia** (rosa, azzurro, lilla, menta)
+    fino a riportare il colore naturale.
+  - 🌬️ **Phon** — asciuga i capelli bagnati e mentre si asciugano si gonfiano
+    (col balsamo restano morbidi). Acqua e phon hanno anche il loro rumore.
 - Si trucca **col dito** disegnando sul viso (rossetto, ombretto, fard sfumato,
   glitter, gomma per correggere) oltre al trucco veloce a pastiglie; più ciglia,
   lentiggini e glitter.

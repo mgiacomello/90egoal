@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import { ACCONCIATURE, OPACITA_PENNELLO, PELLI, SFONDI, tono, type Look, type Traccia } from './data'
+import { ACCONCIATURE, mescola, OPACITA_PENNELLO, PELLI, SFONDI, tono, type Look, type Traccia } from './data'
 
 // Disegno vettoriale della modella. Nessun testo: così l'esportazione in PNG
 // non dipende dai font e viene identica su tutti i dispositivi.
@@ -105,7 +105,10 @@ export default function Avatar({
   const pelle = PELLI.find((p) => p.id === look.pelle) ?? PELLI[0]
   const sfondo = SFONDI.find((s) => s.id === look.sfondo) ?? SFONDI[0]
   const stile = ACCONCIATURE.find((a) => a.id === look.capelli) ?? ACCONCIATURE[0]
-  const cap = look.capelliColore
+  // Bagnati: colore più scuro e ciocche appiccicate. Asciugati col phon: volume.
+  const bagnatura = Math.max(0, Math.min(1, look.bagnatura ?? 0))
+  const volume = Math.max(0, Math.min(1, look.volume ?? 0))
+  const cap = bagnatura > 0 ? mescola(look.capelliColore, '#141019', 0.3 * bagnatura) : look.capelliColore
   const capScuro = tono(cap, -0.35)
   const capChiaro = tono(cap, 0.3)
   // Lunghezza: 0.2 = al mento, 1.6 = sotto le spalle. Le forbici la accorciano.
@@ -119,6 +122,9 @@ export default function Avatar({
   const pennellate: Traccia[] = Array.isArray(look.pennellate) ? look.pennellate : []
 
   const fineCiocca = FINE_CAPELLI(lung)
+  const larghezzaCapelli = 1 + 0.26 * volume - 0.08 * bagnatura
+  const altezzaCapelli = 1 + 0.1 * volume
+  const trasformaCapelli = `translate(${CX} ${CY}) scale(${larghezzaCapelli.toFixed(3)} ${altezzaCapelli.toFixed(3)}) translate(${-CX} ${-CY})`
 
   function capelliDietro() {
     const alone = (
@@ -471,7 +477,27 @@ export default function Avatar({
       <ellipse cx={CX} cy={392} rx={130} ry={26} fill="#000000" opacity={0.06} />
 
       {/* capelli dietro */}
-      {capelliDietro()}
+      <g transform={trasformaCapelli}>
+        {capelliDietro()}
+        {volume > 0.35 && (
+          <g stroke={tono(cap, 0.15)} strokeWidth={2.6} strokeLinecap="round" fill="none" opacity={Math.min(0.8, (volume - 0.3) * 1.8)}>
+            {Array.from({ length: 22 }).map((_, i) => {
+              const ang = ((202 - (i / 21) * 224) * Math.PI) / 180
+              const cos = Math.cos(ang)
+              const sin = Math.sin(ang)
+              const x = CX + cos * (RX + 6)
+              const y = 146 - sin * (RY + 4)
+              const lungo = 9 + ((i * 5) % 7)
+              return (
+                <path
+                  key={i}
+                  d={`M${x.toFixed(1)},${y.toFixed(1)} q${(cos * lungo * 0.7).toFixed(1)},${(-sin * lungo * 0.7).toFixed(1)} ${(cos * lungo + (i % 2 ? 3 : -3)).toFixed(1)},${(-sin * lungo).toFixed(1)}`}
+                />
+              )
+            })}
+          </g>
+        )}
+      </g>
 
       {/* collo e busto */}
       <path d="M138,206 L182,206 L182,252 C182,262 138,262 138,252 Z" fill={pelle.base} />
@@ -595,6 +621,7 @@ export default function Avatar({
       )}
 
       {/* capelli davanti */}
+      <g transform={trasformaCapelli}>
       {stile.back !== 'afro' && stile.back !== 'ricci' && (
         <>
           <path d={CAPPELLI_FRONTE[stile.cap]} fill={cap} />
@@ -612,6 +639,25 @@ export default function Avatar({
       {(stile.back === 'afro' || stile.back === 'ricci') && (
         <path d={CAPPELLI_FRONTE[stile.cap]} fill={cap} />
       )}
+      </g>
+
+      {/* gocce d'acqua sui capelli bagnati */}
+      {bagnatura > 0.3 && (
+        <g fill="#9fd8f5" opacity={0.75 * bagnatura}>
+          {[
+            [96, fineCiocca - 30],
+            [224, fineCiocca - 44],
+            [108, fineCiocca + 6],
+            [214, fineCiocca - 6],
+            [160, 96],
+          ].map(([x, y], i) => (
+            <g key={i}>
+              <ellipse cx={x} cy={y} rx={5} ry={7} />
+              <ellipse cx={x - 1.5} cy={y - 2} rx={1.6} ry={2.2} fill="#ffffff" opacity={0.8} />
+            </g>
+          ))}
+        </g>
+      )}
 
       {look.lucidi && (
         <g pointerEvents="none">
@@ -621,7 +667,7 @@ export default function Avatar({
             strokeWidth={8}
             strokeLinecap="round"
             fill="none"
-            opacity={0.45}
+            opacity={look.balsamo ? 0.62 : 0.45}
           />
           <path
             d="M218,140 C226,164 226,192 218,214"

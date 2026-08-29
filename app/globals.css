@@ -453,3 +453,51 @@ select.input-field {
 @media (prefers-reduced-motion: reduce) {
   .salone-bolla { animation: none; }
 }
+
+/* ===== Salone: balsamo, acqua della doccia e aria del phon ===== */
+.salone-bolla.crema {
+  background:
+    radial-gradient(circle at 34% 30%, #fff8ef, #ffe3c9 55%, #f6c9a2 82%);
+  box-shadow: inset 0 0 6px rgba(255, 220, 190, 0.9);
+}
+
+.salone-goccia,
+.salone-soffio {
+  position: absolute;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.salone-goccia {
+  width: 7px;
+  height: 13px;
+  border-radius: 60% 60% 55% 55% / 75% 75% 40% 40%;
+  background: linear-gradient(180deg, rgba(220, 245, 255, 0.95), rgba(120, 200, 240, 0.9));
+  box-shadow: inset 0 -2px 3px rgba(255, 255, 255, 0.7);
+  animation: salone-acqua 0.85s linear forwards;
+}
+
+.salone-soffio {
+  width: 26px;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85));
+  animation: salone-aria 0.6s ease-out forwards;
+}
+
+@keyframes salone-acqua {
+  0% { transform: translate(-50%, -50%) scaleY(0.6); opacity: 0; }
+  15% { opacity: 0.95; }
+  100% { transform: translate(-50%, 190px) scaleY(1.25); opacity: 0; }
+}
+
+@keyframes salone-aria {
+  0% { transform: translate(-50%, -50%) scaleX(0.4); opacity: 0; }
+  30% { opacity: 0.9; }
+  100% { transform: translate(30px, -50%) scaleX(1.3); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salone-goccia,
+  .salone-soffio { animation: none; opacity: 0; }
+}

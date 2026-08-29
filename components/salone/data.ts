@@ -25,7 +25,11 @@ export type Look = {
   occhi: string
   capelli: string
   capelliColore: string
+  coloreNaturale: string
   lunghezza: number
+  bagnatura: number
+  balsamo: boolean
+  volume: number
   rossetto: string | null
   ombretto: string | null
   fard: string | null
@@ -49,7 +53,7 @@ export type Look = {
   fotoRot: number
 }
 
-export type Opzione = { id: string; label: string; colore: string }
+export type Opzione = { id: string; label: string; colore: string; fantasia?: boolean }
 
 export const PELLI: { id: string; label: string; base: string; ombra: string }[] = [
   { id: 'chiara', label: 'Chiara', base: '#ffdfc9', ombra: '#f2c1a5' },
@@ -96,10 +100,10 @@ export const COLORI_CAPELLI: Opzione[] = [
   { id: 'platino', label: 'Platino', colore: '#efdfb4' },
   { id: 'nero', label: 'Nero', colore: '#221c1c' },
   { id: 'rame', label: 'Rosso rame', colore: '#c1440e' },
-  { id: 'rosa', label: 'Rosa', colore: '#ff8fc7' },
-  { id: 'lilla', label: 'Lilla', colore: '#b57edc' },
-  { id: 'azzurro', label: 'Azzurro', colore: '#5ec8e5' },
-  { id: 'menta', label: 'Menta', colore: '#5fd6a5' },
+  { id: 'rosa', label: 'Rosa', colore: '#ff8fc7', fantasia: true },
+  { id: 'lilla', label: 'Lilla', colore: '#b57edc', fantasia: true },
+  { id: 'azzurro', label: 'Azzurro', colore: '#5ec8e5', fantasia: true },
+  { id: 'menta', label: 'Menta', colore: '#5fd6a5', fantasia: true },
   { id: 'argento', label: 'Argento', colore: '#c6cfd6' },
 ]
 
@@ -219,7 +223,11 @@ export const LOOK_BASE: Look = {
   occhi: '#6b4423',
   capelli: 'lunghi',
   capelliColore: '#5a3620',
+  coloreNaturale: '#5a3620',
   lunghezza: 1,
+  bagnatura: 0,
+  balsamo: false,
+  volume: 0,
   rossetto: null,
   ombretto: null,
   fard: null,
@@ -247,27 +255,27 @@ export const LOOK_BASE: Look = {
 export const MODELLE: { id: string; look: Look }[] = [
   {
     id: 'olivia',
-    look: { ...LOOK_BASE, nome: 'Olivia', pelle: 'chiara', occhi: '#4aa3d8', capelli: 'frangia', capelliColore: '#8b5a2b', vestitoColore: '#ff7eb6', fantasia: 'cuori', lentiggini: true },
+    look: { ...LOOK_BASE, nome: 'Olivia', pelle: 'chiara', occhi: '#4aa3d8', capelli: 'frangia', capelliColore: '#8b5a2b', coloreNaturale: '#8b5a2b', vestitoColore: '#ff7eb6', fantasia: 'cuori', lentiggini: true },
   },
   {
     id: 'aisha',
-    look: { ...LOOK_BASE, nome: 'Aisha', pelle: 'castana', occhi: '#6b4423', capelli: 'trecce', capelliColore: '#221c1c', vestito: 'abito', vestitoColore: '#e6bd4f', sfondo: 'tramonto' },
+    look: { ...LOOK_BASE, nome: 'Aisha', pelle: 'castana', occhi: '#6b4423', capelli: 'trecce', capelliColore: '#221c1c', coloreNaturale: '#221c1c', vestito: 'abito', vestitoColore: '#e6bd4f', sfondo: 'tramonto' },
   },
   {
     id: 'sofia',
-    look: { ...LOOK_BASE, nome: 'Sofia', pelle: 'dorata', occhi: '#3f8f5a', capelli: 'ricci', capelliColore: '#c1440e', vestito: 'felpa', vestitoColore: '#5fd6c3', fantasia: 'stelle' },
+    look: { ...LOOK_BASE, nome: 'Sofia', pelle: 'dorata', occhi: '#3f8f5a', capelli: 'ricci', capelliColore: '#c1440e', coloreNaturale: '#c1440e', vestito: 'felpa', vestitoColore: '#5fd6c3', fantasia: 'stelle' },
   },
   {
     id: 'nina',
-    look: { ...LOOK_BASE, nome: 'Nina', pelle: 'rosata', occhi: '#8b5cf6', capelli: 'chignon', capelliColore: '#ff8fc7', vestito: 'abito', vestitoColore: '#8b5cf6', sfondo: 'notte', glitter: true },
+    look: { ...LOOK_BASE, nome: 'Nina', pelle: 'rosata', occhi: '#8b5cf6', capelli: 'chignon', capelliColore: '#ff8fc7', coloreNaturale: '#8b5a2b', vestito: 'abito', vestitoColore: '#8b5cf6', sfondo: 'notte', glitter: true },
   },
   {
     id: 'malik',
-    look: { ...LOOK_BASE, nome: 'Malik', pelle: 'ebano', occhi: '#6b4423', capelli: 'afro', capelliColore: '#221c1c', vestito: 'tuta', vestitoColore: '#37d67a', sfondo: 'menta' },
+    look: { ...LOOK_BASE, nome: 'Malik', pelle: 'ebano', occhi: '#6b4423', capelli: 'afro', capelliColore: '#221c1c', coloreNaturale: '#221c1c', vestito: 'tuta', vestitoColore: '#37d67a', sfondo: 'menta' },
   },
   {
     id: 'leo',
-    look: { ...LOOK_BASE, nome: 'Leo', pelle: 'olivastra', occhi: '#8b98a5', capelli: 'corti', capelliColore: '#221c1c', vestito: 'giacca', vestitoColore: '#3f51b5', occhiali: 'vista', sfondo: 'studio' },
+    look: { ...LOOK_BASE, nome: 'Leo', pelle: 'olivastra', occhi: '#8b98a5', capelli: 'corti', capelliColore: '#221c1c', coloreNaturale: '#221c1c', vestito: 'giacca', vestitoColore: '#3f51b5', occhiali: 'vista', sfondo: 'studio' },
   },
 ]
 
@@ -285,6 +293,25 @@ export function tono(hex: string, amount: number): string {
   return `#${to2(canale(16))}${to2(canale(8))}${to2(canale(0))}`
 }
 
+// Miscela due colori: quota 0 = il primo, 1 = il secondo.
+export function mescola(a: string, b: string, quota: number): string {
+  const leggi = (hex: string) => {
+    const h = hex.replace('#', '')
+    const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h
+    const n = parseInt(full, 16)
+    return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+  }
+  const [r1, g1, b1] = leggi(a)
+  const [r2, g2, b2] = leggi(b)
+  const t = Math.max(0, Math.min(1, quota))
+  const to2 = (v: number) => Math.round(v).toString(16).padStart(2, '0')
+  return `#${to2(r1 + (r2 - r1) * t)}${to2(g1 + (g2 - g1) * t)}${to2(b1 + (b2 - b1) * t)}`
+}
+
+export function eFantasia(colore: string): boolean {
+  return COLORI_CAPELLI.some((c) => c.colore === colore && c.fantasia)
+}
+
 function scegli<T>(lista: T[]): T {
   return lista[Math.floor(Math.random() * lista.length)]
 }
@@ -296,6 +323,10 @@ export function completaLook(look: Look): Look {
     ...look,
     pennellate: Array.isArray(look.pennellate) ? look.pennellate : [],
     lucidi: Boolean(look.lucidi),
+    coloreNaturale: look.coloreNaturale ?? '#5a3620',
+    bagnatura: typeof look.bagnatura === 'number' ? look.bagnatura : 0,
+    balsamo: Boolean(look.balsamo),
+    volume: typeof look.volume === 'number' ? look.volume : 0,
   }
 }
 
@@ -308,6 +339,8 @@ export function lookCasuale(precedente: Look): Look {
     occhi: scegli(COLORI_OCCHI).colore,
     capelli: scegli(ACCONCIATURE).id,
     capelliColore: scegli(COLORI_CAPELLI).colore,
+    bagnatura: 0,
+    volume: 0,
     lunghezza: Math.round((0.35 + Math.random() * 1.15) * 20) / 20,
     rossetto: forse(scegli(ROSSETTI).colore),
     ombretto: forse(scegli(OMBRETTI).colore, 0.5),

@@ -21,6 +21,8 @@ import {
   VESTITI,
   lookCasuale,
   completaLook,
+  eFantasia,
+  mescola,
   type Look,
   type Opzione,
   type StrumentoTrucco,
@@ -31,6 +33,73 @@ type Tab = 'modella' | 'capelli' | 'trucco' | 'vestiti' | 'foto'
 
 type Scatto = { id: string; nome: string; quando: number; look: Look }
 
+const STRUMENTI_CAPELLI: {
+  id: StrumentoCapelli
+  label: string
+  emoji: string
+  colore: string
+  testo: string
+  titolo: string
+  aiuto: string
+}[] = [
+  {
+    id: 'mani',
+    label: 'Mani',
+    emoji: '🤲',
+    colore: '#ffd24a',
+    testo: '#2b2100',
+    titolo: '🤲 Pettina con le dita',
+    aiuto:
+      'Prendi i capelli sul ritratto e trascina: verso l’alto esce la coda (fino in cima lo chignon), di lato le treccine, verso il basso tornano sciolti.',
+  },
+  {
+    id: 'forbici',
+    label: 'Forbici',
+    emoji: '✂️',
+    colore: '#ff5fa2',
+    testo: '#2b0a1b',
+    titolo: '✂️ Taglia i capelli',
+    aiuto: 'Tocca il ritratto all’altezza in cui vuoi tagliare: i capelli si accorciano lì.',
+  },
+  {
+    id: 'shampoo',
+    label: 'Shampoo',
+    emoji: '🧴',
+    colore: '#5ec8e5',
+    testo: '#04222b',
+    titolo: '🧴 Fai lo shampoo',
+    aiuto: 'Strofina i capelli col dito: si riempiono di schiuma. Poi prendi la doccia per sciacquarli.',
+  },
+  {
+    id: 'doccia',
+    label: 'Doccia',
+    emoji: '🚿',
+    colore: '#7cc4ef',
+    testo: '#04222b',
+    titolo: '🚿 Sciacqua con l’acqua',
+    aiuto:
+      'Passa l’acqua sui capelli: porta via la schiuma un po’ alla volta e sbiadisce anche le tinte colorate (rosa, azzurro, lilla, menta).',
+  },
+  {
+    id: 'balsamo',
+    label: 'Balsamo',
+    emoji: '🥥',
+    colore: '#a7e8c9',
+    testo: '#04291c',
+    titolo: '🥥 Metti il balsamo',
+    aiuto: 'Spalmalo sui capelli bagnati e poi risciacqua: dopo il phon restano lisci e lucidi invece che gonfi.',
+  },
+  {
+    id: 'phon',
+    label: 'Phon',
+    emoji: '🌬️',
+    colore: '#ffb38a',
+    testo: '#331500',
+    titolo: '🌬️ Asciuga col phon',
+    aiuto: 'Passa il phon sui capelli bagnati: mentre si asciugano si gonfiano (col balsamo restano morbidi).',
+  },
+]
+
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: 'modella', label: 'Modella', emoji: '🙋‍♀️' },
   { id: 'capelli', label: 'Capelli', emoji: '✂️' },
@@ -38,6 +107,10 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: 'vestiti', label: 'Vestiti', emoji: '👗' },
   { id: 'foto', label: 'Foto', emoji: '📸' },
 ]
+
+function strumentoDaId(id: StrumentoCapelli) {
+  return STRUMENTI_CAPELLI.find((s) => s.id === id) ?? STRUMENTI_CAPELLI[0]
+}
 
 const CHIAVE_BOOK = 'salone-book-v1'
 const MAX_BOOK = 12
@@ -276,9 +349,50 @@ function acconciaturaDaGesto(g: Gesto): { id: string; nome: string; emoji: strin
   return null
 }
 
+// Rumore continuo (acqua o phon), generato al volo: niente file audio.
+function avviaRumore(tipo: 'acqua' | 'phon'): { ctx: AudioContext; stop: () => void } | null {
+  try {
+    const Contesto =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Contesto) return null
+    const ctx = new Contesto()
+    const secondi = 1
+    const buffer = ctx.createBuffer(1, ctx.sampleRate * secondi, ctx.sampleRate)
+    const dati = buffer.getChannelData(0)
+    for (let i = 0; i < dati.length; i++) dati[i] = Math.random() * 2 - 1
+    const sorgente = ctx.createBufferSource()
+    sorgente.buffer = buffer
+    sorgente.loop = true
+    const filtro = ctx.createBiquadFilter()
+    filtro.type = tipo === 'acqua' ? 'bandpass' : 'lowpass'
+    filtro.frequency.value = tipo === 'acqua' ? 2200 : 900
+    const gain = ctx.createGain()
+    gain.gain.value = 0.0001
+    gain.gain.exponentialRampToValueAtTime(tipo === 'acqua' ? 0.05 : 0.08, ctx.currentTime + 0.15)
+    sorgente.connect(filtro).connect(gain).connect(ctx.destination)
+    sorgente.start()
+    return {
+      ctx,
+      stop: () => {
+        try {
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.12)
+          sorgente.stop(ctx.currentTime + 0.15)
+          window.setTimeout(() => void ctx.close(), 300)
+        } catch {
+          /* già chiuso */
+        }
+      },
+    }
+  } catch {
+    return null
+  }
+}
+
 type Ciocca = { id: number; x: number; y: number; ruota: number; colore: string }
-type Bolla = { id: number; x: number; y: number; r: number }
-type Strumento = 'mani' | 'forbici' | 'shampoo' | StrumentoTrucco | 'gomma'
+type Bolla = { id: number; x: number; y: number; r: number; tipo: 'schiuma' | 'crema' }
+type Goccia = { id: number; x: number; y: number; ritardo: number }
+type Strumento = 'mani' | 'forbici' | 'shampoo' | 'doccia' | 'balsamo' | 'phon' | StrumentoTrucco | 'gomma'
+type StrumentoCapelli = 'mani' | 'forbici' | 'shampoo' | 'doccia' | 'balsamo' | 'phon'
 type Gesto = { x0: number; y0: number; x: number; y: number }
 
 const MAX_PENNELLATE = 80
@@ -300,7 +414,7 @@ export default function SaloneGame() {
     }
   }, [bookGrezzo])
   const [avviso, setAvviso] = useState<string | null>(null)
-  const [strumentoCapelli, setStrumentoCapelli] = useState<'mani' | 'forbici' | 'shampoo'>('forbici')
+  const [strumentoCapelli, setStrumentoCapelli] = useState<StrumentoCapelli>('forbici')
   const [gesto, setGesto] = useState<Gesto | null>(null)
   const [strumentoTrucco, setStrumentoTrucco] = useState<StrumentoTrucco | 'gomma'>('rossetto')
   const [coloriPennello, setColoriPennello] = useState<Record<StrumentoTrucco, string>>({
@@ -312,6 +426,7 @@ export default function SaloneGame() {
   const [schiuma, setSchiuma] = useState(0)
   const [bolle, setBolle] = useState<Bolla[]>([])
   const [risciacquo, setRisciacquo] = useState(false)
+  const [gocce, setGocce] = useState<Goccia[]>([])
   const [audio, setAudio] = useState(true)
   const [rigaTaglio, setRigaTaglio] = useState<number | null>(null)
   const [ciocche, setCiocche] = useState<Ciocca[]>([])
@@ -321,6 +436,8 @@ export default function SaloneGame() {
   const animazione = useRef<number | null>(null)
   const contaCiocche = useRef(0)
   const contaBolle = useRef(0)
+  const contaGocce = useRef(0)
+  const rumore = useRef<{ ctx: AudioContext; stop: () => void } | null>(null)
   const contaTracce = useRef(0)
   const premuto = useRef(false)
 
@@ -351,6 +468,8 @@ export default function SaloneGame() {
 
   useEffect(() => () => {
     if (animazione.current !== null) window.cancelAnimationFrame(animazione.current)
+    rumore.current?.stop()
+    rumore.current = null
   }, [])
 
   useEffect(() => {
@@ -493,29 +612,116 @@ export default function SaloneGame() {
 
   /* ---- shampoo ---- */
 
-  function insapona(p: { x: number; y: number }) {
+  function insapona(p: { x: number; y: number }, tipo: 'schiuma' | 'crema' = 'schiuma') {
     const nuove: Bolla[] = Array.from({ length: 2 }, () => {
       contaBolle.current += 1
       return {
         id: contaBolle.current,
         x: ((p.x + (Math.random() * 40 - 20)) / LARGHEZZA_SVG) * 100,
         y: ((p.y + (Math.random() * 34 - 17)) / ALTEZZA_SVG) * 100,
-        r: 10 + Math.random() * 16,
+        r: tipo === 'crema' ? 12 + Math.random() * 12 : 10 + Math.random() * 16,
+        tipo,
       }
     })
     setBolle((b) => [...b, ...nuove].slice(-70))
-    setSchiuma((v) => Math.min(1, v + 0.05))
+    if (tipo === 'schiuma') setSchiuma((v) => Math.min(1, v + 0.05))
+    setLook((l) => (l.bagnatura >= 1 ? l : { ...l, bagnatura: 1 }))
   }
 
-  function risciacqua() {
+  /* ---- balsamo ---- */
+
+  function metticiBalsamo(p: { x: number; y: number }) {
+    insapona(p, 'crema')
+    setLook((l) => (l.balsamo ? l : { ...l, balsamo: true }))
+  }
+
+  /* ---- doccia: l'acqua porta via schiuma e tinta ---- */
+
+  function sciacqua(p: { x: number; y: number }) {
+    const px = (p.x / LARGHEZZA_SVG) * 100
+    const py = (p.y / ALTEZZA_SVG) * 100
+    const nuoveGocce: Goccia[] = Array.from({ length: 3 }, (_, i) => {
+      contaGocce.current += 1
+      return {
+        id: contaGocce.current,
+        x: px + (Math.random() * 16 - 8),
+        y: py - 4 + Math.random() * 4,
+        ritardo: i * 70 + Math.random() * 80,
+      }
+    })
+    const idGocce = new Set(nuoveGocce.map((g) => g.id))
+    setGocce((g) => [...g, ...nuoveGocce].slice(-40))
+    window.setTimeout(() => setGocce((g) => g.filter((x) => !idGocce.has(x.id))), 1000)
+
+    let rimaste = 0
+    setBolle((b) => {
+      const restano = b.filter((x) => {
+        const dx = x.x - px
+        const dy = x.y - py
+        const sottoIlGetto = Math.abs(dx) < 8 && dy > 0 && dy < 28
+        return dx * dx + dy * dy > 121 && !sottoIlGetto
+      })
+      rimaste = restano.length
+      return restano
+    })
+    setSchiuma((v) => (rimaste === 0 ? 0 : Math.max(0, v - 0.03)))
+
+    setLook((l) => {
+      const prossimo = { ...l, bagnatura: 1 }
+      // La tinta fantasia se ne va poco alla volta sotto l'acqua.
+      if (eFantasia(l.capelliColore) || l.capelliColore !== l.coloreNaturale) {
+        const sbiadito = mescola(l.capelliColore, l.coloreNaturale, eFantasia(l.capelliColore) ? 0.022 : 0.008)
+        prossimo.capelliColore = sbiadito
+        if (sbiadito.toLowerCase() === l.coloreNaturale.toLowerCase()) prossimo.capelliColore = l.coloreNaturale
+      }
+      return prossimo
+    })
+
+    if (rimaste === 0 && schiuma > 0) {
+      setLook((l) => ({ ...l, lucidi: true }))
+      setAvviso('Risciacquati! Ora asciugali col phon 🌬️')
+    }
+  }
+
+  function risciacquaTutto() {
     setRisciacquo(true)
     window.setTimeout(() => {
       setBolle([])
       setSchiuma(0)
       setRisciacquo(false)
-      setLook((l) => ({ ...l, lucidi: true }))
-      setAvviso('Capelli lavati: puliti e lucidissimi! ✨')
+      setLook((l) => ({ ...l, lucidi: true, bagnatura: 1 }))
+      setAvviso('Tutto risciacquato! Ora tocca al phon 🌬️')
     }, 700)
+  }
+
+  /* ---- phon: asciuga e gonfia i capelli ---- */
+
+  function asciuga(p: { x: number; y: number }) {
+    const nuoveGocce: Goccia[] = Array.from({ length: 2 }, (_, i) => {
+      contaGocce.current += 1
+      return {
+        id: contaGocce.current,
+        x: (p.x / LARGHEZZA_SVG) * 100 + (Math.random() * 20 - 10),
+        y: (p.y / ALTEZZA_SVG) * 100 + (Math.random() * 10 - 5),
+        ritardo: i * 60,
+      }
+    })
+    const idGocce = new Set(nuoveGocce.map((g) => g.id))
+    setGocce((g) => [...g, ...nuoveGocce].slice(-40))
+    window.setTimeout(() => setGocce((g) => g.filter((x) => !idGocce.has(x.id))), 700)
+
+    setLook((l) => {
+      if (l.bagnatura <= 0) return l
+      const bagnatura = Math.max(0, l.bagnatura - 0.035)
+      // Col balsamo restano lisci e lucidi, senza diventano belli gonfi.
+      const obiettivo = l.balsamo ? 0.18 : 0.8
+      const volume = l.volume + (obiettivo - l.volume) * 0.08
+      const asciutti = bagnatura === 0
+      if (asciutti) {
+        setAvviso(l.balsamo ? 'Asciutti, morbidi e lucidi! 💫' : 'Asciutti e belli gonfi! 🌬️')
+      }
+      return { ...l, bagnatura, volume, lucidi: l.lucidi || (asciutti && l.balsamo) }
+    })
   }
 
   /* ---- trucco col dito ---- */
@@ -597,9 +803,15 @@ export default function SaloneGame() {
     if (!p) return
     premuto.current = true
     e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (strumentoAttivo === 'doccia' || strumentoAttivo === 'phon') {
+      if (audio && !rumore.current) rumore.current = avviaRumore(strumentoAttivo === 'doccia' ? 'acqua' : 'phon')
+    }
     if (strumentoAttivo === 'mani') setGesto({ x0: p.x, y0: p.y, x: p.x, y: p.y })
     else if (strumentoAttivo === 'forbici') taglia(p.y)
     else if (strumentoAttivo === 'shampoo') insapona(p)
+    else if (strumentoAttivo === 'balsamo') metticiBalsamo(p)
+    else if (strumentoAttivo === 'doccia') sciacqua(p)
+    else if (strumentoAttivo === 'phon') asciuga(p)
     else if (strumentoAttivo === 'gomma') cancellaVicino(p)
     else iniziaTraccia(p)
   }
@@ -615,14 +827,26 @@ export default function SaloneGame() {
     if (!premuto.current) return
     if (strumentoAttivo === 'mani') setGesto((g) => (g ? { ...g, x: p.x, y: p.y } : g))
     else if (strumentoAttivo === 'shampoo') insapona(p)
+    else if (strumentoAttivo === 'balsamo') metticiBalsamo(p)
+    else if (strumentoAttivo === 'doccia') sciacqua(p)
+    else if (strumentoAttivo === 'phon') asciuga(p)
     else if (strumentoAttivo === 'gomma') cancellaVicino(p)
     else continuaTraccia(p)
   }
 
+  function fermaRumore() {
+    rumore.current?.stop()
+    rumore.current = null
+  }
+
   function suSulPalco() {
+    fermaRumore()
     if (premuto.current) {
       if (strumentoAttivo === 'mani') fineGesto()
-      else if (strumentoAttivo && strumentoAttivo !== 'forbici' && strumentoAttivo !== 'shampoo' && strumentoAttivo !== 'gomma') {
+      else if (
+        strumentoAttivo &&
+        !['forbici', 'shampoo', 'doccia', 'balsamo', 'phon', 'gomma'].includes(strumentoAttivo)
+      ) {
         chiudiTraccia()
       }
     }
@@ -641,8 +865,18 @@ export default function SaloneGame() {
         : 'Scegli un taglio lungo per usare le forbici'
       : strumentoAttivo === 'shampoo'
         ? schiuma >= 1
-          ? '🚿 Pieni di schiuma: ora risciacqua!'
+          ? '🫧 Pieni di schiuma: ora passa alla doccia!'
           : '🧴 Strofina i capelli col dito'
+        : strumentoAttivo === 'doccia'
+          ? bolle.length > 0
+            ? '🚿 Passa l\u2019acqua per portare via la schiuma'
+            : '🚿 Sciacqua: l\u2019acqua porta via anche la tinta'
+          : strumentoAttivo === 'balsamo'
+            ? '🥥 Spalma il balsamo, poi risciacqua con la doccia'
+            : strumentoAttivo === 'phon'
+              ? look.bagnatura > 0
+                ? '🌬️ Passa il phon: si asciugano e si gonfiano'
+                : '🌬️ Sono già asciutti!'
         : strumentoAttivo === 'gomma'
           ? '🧽 Passa il dito per togliere il trucco'
           : strumentoAttivo
@@ -739,8 +973,15 @@ export default function SaloneGame() {
               {bolle.map((b) => (
                 <span
                   key={b.id}
-                  className={`salone-bolla${risciacquo ? ' via' : ''}`}
+                  className={`salone-bolla${b.tipo === 'crema' ? ' crema' : ''}${risciacquo ? ' via' : ''}`}
                   style={{ left: `${b.x}%`, top: `${b.y}%`, width: b.r, height: b.r }}
+                />
+              ))}
+              {gocce.map((g) => (
+                <span
+                  key={g.id}
+                  className={strumentoAttivo === 'phon' ? 'salone-soffio' : 'salone-goccia'}
+                  style={{ left: `${g.x}%`, top: `${g.y}%`, animationDelay: `${g.ritardo}ms` }}
                 />
               ))}
               {suggerimento && (
@@ -751,14 +992,14 @@ export default function SaloneGame() {
                 </div>
               )}
             </div>
-            {strumentoAttivo === 'shampoo' && (
+            {tab === 'capelli' && bolle.length > 0 && (
               <button
                 type="button"
-                onClick={risciacqua}
-                disabled={bolle.length === 0 || risciacquo}
-                className="mt-3 w-full rounded-2xl bg-[#5ec8e5] text-[#04222b] py-3 text-sm font-bold disabled:opacity-40 hover:brightness-110 transition"
+                onClick={risciacquaTutto}
+                disabled={risciacquo}
+                className="mt-3 w-full text-xs text-[var(--muted)] hover:text-white transition disabled:opacity-40"
               >
-                🚿 Risciacqua {schiuma >= 1 ? '(pieni di schiuma!)' : ''}
+                🚿 …oppure risciacqua tutto in una volta
               </button>
             )}
             {tab === 'trucco' && pennellate.length > 0 && (
@@ -919,55 +1160,33 @@ export default function SaloneGame() {
                 </Sezione>
 
                 <Sezione
-                  titolo={
-                    strumentoCapelli === 'shampoo'
-                      ? '🧴 Lava i capelli'
-                      : strumentoCapelli === 'mani'
-                        ? '🤲 Pettina con le dita'
-                        : '✂️ Taglia i capelli'
-                  }
+                  titolo={strumentoDaId(strumentoCapelli).titolo}
                   aiuto={
-                    strumentoCapelli === 'mani'
-                      ? 'Prendi i capelli sul ritratto e trascina: verso l\u2019alto esce la coda (fino in cima lo chignon), di lato le treccine, verso il basso tornano sciolti.'
-                      : strumentoCapelli === 'shampoo'
-                        ? 'Strofina i capelli col dito sul ritratto: arriva la schiuma, poi premi 🚿 Risciacqua.'
-                        : stileAttivo.allungabile
-                          ? 'Tocca il ritratto all\u2019altezza in cui vuoi tagliare: i capelli si accorciano lì.'
-                          : 'Questo taglio è già cortissimo: scegli un\u2019acconciatura lunga per usare le forbici.'
+                    strumentoCapelli === 'forbici' && !stileAttivo.allungabile
+                      ? 'Questo taglio è già cortissimo: scegli un’acconciatura lunga per usare le forbici.'
+                      : strumentoDaId(strumentoCapelli).aiuto
                   }
                 >
-                  <div className="grid grid-cols-3 gap-2 mb-2">
-                    <button
-                      type="button"
-                      onClick={() => setStrumentoCapelli('mani')}
-                      aria-pressed={strumentoCapelli === 'mani'}
-                      className={`rounded-2xl px-3 py-3 min-h-[52px] text-sm font-bold transition ${
-                        strumentoCapelli === 'mani' ? 'bg-[#ffd24a] text-[#2b2100]' : 'bg-white/5 text-white/85 border border-white/10'
-                      }`}
-                    >
-                      🤲 Mani
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStrumentoCapelli('forbici')}
-                      aria-pressed={strumentoCapelli === 'forbici'}
-                      className={`rounded-2xl px-4 py-3 min-h-[52px] text-sm font-bold transition ${
-                        strumentoCapelli === 'forbici' ? 'bg-[#ff5fa2] text-[#2b0a1b]' : 'bg-white/5 text-white/85 border border-white/10'
-                      }`}
-                    >
-                      ✂️ Forbici
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setStrumentoCapelli('shampoo')}
-                      aria-pressed={strumentoCapelli === 'shampoo'}
-                      className={`rounded-2xl px-4 py-3 min-h-[52px] text-sm font-bold transition ${
-                        strumentoCapelli === 'shampoo' ? 'bg-[#5ec8e5] text-[#04222b]' : 'bg-white/5 text-white/85 border border-white/10'
-                      }`}
-                    >
-                      🧴 Shampoo
-                    </button>
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {STRUMENTI_CAPELLI.map((st) => (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => setStrumentoCapelli(st.id)}
+                        aria-pressed={strumentoCapelli === st.id}
+                        className={`rounded-2xl px-2 py-3 min-h-[52px] text-sm font-bold transition ${
+                          strumentoCapelli === st.id ? '' : 'bg-white/5 text-white/85 border border-white/10 hover:bg-white/10'
+                        }`}
+                        style={
+                          strumentoCapelli === st.id ? { backgroundColor: st.colore, color: st.testo } : undefined
+                        }
+                      >
+                        {st.emoji} {st.label}
+                      </button>
+                    ))}
                   </div>
+                  {strumentoCapelli === 'forbici' && (
+                    <>
                   <div className="grid sm:grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -1003,17 +1222,57 @@ export default function SaloneGame() {
                       </button>
                     ))}
                   </div>
+                    </>
+                  )}
+                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold">
+                    {schiuma > 0 && (
+                      <span className="rounded-full bg-white/10 text-white/85 px-3 py-1.5">
+                        🫧 Schiuma {Math.round(schiuma * 100)}%
+                      </span>
+                    )}
+                    {look.bagnatura > 0 && (
+                      <span className="rounded-full bg-[#7cc4ef]/20 text-[#bfe4fb] px-3 py-1.5">
+                        💧 Bagnati {Math.round(look.bagnatura * 100)}%
+                      </span>
+                    )}
+                    {look.balsamo && (
+                      <span className="rounded-full bg-[#a7e8c9]/20 text-[#bff3dc] px-3 py-1.5">🥥 Col balsamo</span>
+                    )}
+                    {look.volume > 0.5 && (
+                      <span className="rounded-full bg-[#ffb38a]/20 text-[#ffd9c2] px-3 py-1.5">🌬️ Belli gonfi</span>
+                    )}
+                    {look.lucidi && look.bagnatura === 0 && (
+                      <span className="rounded-full bg-white/10 text-white/85 px-3 py-1.5">✨ Puliti e lucidi</span>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={() => setAudio((a) => !a)}
                     className="mt-2 text-xs text-[var(--muted)] hover:text-white transition"
                   >
-                    {audio ? '🔊 Suono forbici acceso' : '🔇 Suono forbici spento'}
+                    {audio ? '🔊 Suoni accesi' : '🔇 Suoni spenti'}
                   </button>
                 </Sezione>
 
                 <Sezione titolo="Colore dei capelli" aiuto="Anche i colori fantasia valgono!">
-                  <Pastiglie opzioni={COLORI_CAPELLI} valore={look.capelliColore} onChange={(v) => aggiorna('capelliColore', v ?? COLORI_CAPELLI[0].colore)} />
+                  <Pastiglie
+                    opzioni={COLORI_CAPELLI}
+                    valore={look.capelliColore}
+                    onChange={(v) => {
+                      const colore = v ?? COLORI_CAPELLI[0].colore
+                      setLook((l) => ({
+                        ...l,
+                        capelliColore: colore,
+                        // Le tinte fantasia se ne vanno lavandole: sotto resta il colore vero.
+                        coloreNaturale: eFantasia(colore) ? l.coloreNaturale : colore,
+                      }))
+                    }}
+                  />
+                  {eFantasia(look.capelliColore) && (
+                    <p className="text-xs text-[var(--muted)] mt-2">
+                      💡 Questa è una tinta: lavandola con la doccia torna piano piano al colore naturale.
+                    </p>
+                  )}
                 </Sezione>
               </>
             )}
