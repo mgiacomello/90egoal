@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## 🎀 Salone di Bellezza (`/salone`)
+
+Mini-gioco per bambini incluso nell'app, pensato per tablet e telefono.
+
+- Si sceglie una modella già pronta (6 personaggi) oppure si carica una foto.
+- Si cambiano acconciatura (9 tagli), lunghezza con le "forbici" e colore dei capelli.
+- Si trucca il viso: rossetto, ombretto, fard, ciglia, lentiggini, glitter.
+- Si veste: 6 capi, 12 colori, 5 fantasie, occhiali, corona/cerchietto/cappello, gioielli.
+- Il look si salva nel "book" (fino a 12, nel browser) e si scarica come PNG.
+
+Note tecniche: è tutto client-side, il disegno è un SVG (`components/salone/Avatar.tsx`)
+esportato in PNG via canvas. **Le foto caricate non lasciano mai il dispositivo**: vengono
+ridimensionate nel browser e tenute in memoria, nessun upload verso il server o Supabase.
+La pagina è pubblica (non richiede login).

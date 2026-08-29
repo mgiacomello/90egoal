@@ -61,6 +61,7 @@ export default function Navbar() {
         {user ? (
           <div className="flex items-center gap-0.5 sm:gap-1">
             <Link href="/schedine" className={linkClass('/schedine')}>Schedine</Link>
+            <Link href="/salone" className={linkClass('/salone')}>Salone</Link>
             <Link href="/classifica" className={linkClass('/classifica')}>Classifica</Link>
             <Link href="/profilo" className={linkClass('/profilo')}>Profilo</Link>
             <button
@@ -72,6 +73,7 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
+            <Link href="/salone" className={linkClass('/salone')}>Salone</Link>
             <Link href="/auth/login" className="text-sm text-[var(--muted)] hover:text-white transition-colors px-3 py-2">
               Accedi
             </Link>
