@@ -40,8 +40,15 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 Mini-gioco per bambini incluso nell'app, pensato per tablet e telefono.
 
 - Si sceglie una modella già pronta (6 personaggi) oppure si carica una foto.
-- Si cambiano acconciatura (9 tagli), lunghezza con le "forbici" e colore dei capelli.
-- Si trucca il viso: rossetto, ombretto, fard, ciglia, lentiggini, glitter.
+- Sui capelli si lavora **direttamente sul ritratto**, col dito o col mouse:
+  - 🤲 **Mani** — si trascina una ciocca: verso l'alto esce la coda (fino in cima
+    lo chignon), di lato le treccine, verso il basso tornano sciolti.
+  - ✂️ **Forbici** — si tocca all'altezza voluta e lì i capelli si accorciano
+    (con ciocche che cadono e schiocco delle lame); 🪄 li fa ricrescere.
+  - 🧴 **Shampoo** — si strofina, arriva la schiuma, poi 🚿 risciacqua e restano lucidi.
+- Si trucca **col dito** disegnando sul viso (rossetto, ombretto, fard sfumato,
+  glitter, gomma per correggere) oltre al trucco veloce a pastiglie; più ciglia,
+  lentiggini e glitter.
 - Si veste: 6 capi, 12 colori, 5 fantasie, occhiali, corona/cerchietto/cappello, gioielli.
 - Il look si salva nel "book" (fino a 12, nel browser) e si scarica come PNG.
 

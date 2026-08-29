@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import { ACCONCIATURE, PELLI, SFONDI, tono, type Look } from './data'
+import { ACCONCIATURE, OPACITA_PENNELLO, PELLI, SFONDI, tono, type Look, type Traccia } from './data'
 
 // Disegno vettoriale della modella. Nessun testo: così l'esportazione in PNG
 // non dipende dai font e viene identica su tutti i dispositivi.
@@ -12,6 +12,13 @@ const CX = 160
 const CY = 152
 const RX = 68
 const RY = 78
+
+function percorso(punti: number[]): string {
+  if (punti.length < 4) return ''
+  const parti: string[] = [`M${punti[0]},${punti[1]}`]
+  for (let i = 2; i < punti.length; i += 2) parti.push(`L${punti[i]},${punti[i + 1]}`)
+  return parti.join(' ')
+}
 
 function stella(cx: number, cy: number, r: number, punte = 5): string {
   const passi: string[] = []
@@ -26,6 +33,13 @@ function stella(cx: number, cy: number, r: number, punte = 5): string {
 function cuore(cx: number, cy: number, r: number): string {
   return `M${cx},${cy + r * 0.9} C${cx - r * 1.6},${cy - r * 0.4} ${cx - r * 0.6},${cy - r * 1.5} ${cx},${cy - r * 0.4} C${cx + r * 0.6},${cy - r * 1.5} ${cx + r * 1.6},${cy - r * 0.4} ${cx},${cy + r * 0.9} Z`
 }
+
+// Dove finiscono i capelli, in coordinate SVG: serve sia al disegno sia alle
+// forbici (il punto toccato sullo schermo diventa la nuova lunghezza).
+export const CAPELLI_TOP = 128
+export const CAPELLI_FONDO = 332
+export const FINE_CAPELLI = (lunghezza: number) =>
+  CAPELLI_TOP + (CAPELLI_FONDO - CAPELLI_TOP) * lunghezza
 
 const CIOCCA = (fine: number) =>
   `M84,128 C68,190 62,${fine - 54} 74,${fine - 6} C88,${fine + 14} 118,${fine + 8} 124,${fine - 28} C116,${fine - 80} 112,200 118,136 Z`
@@ -94,14 +108,17 @@ export default function Avatar({
   const cap = look.capelliColore
   const capScuro = tono(cap, -0.35)
   const capChiaro = tono(cap, 0.3)
-  const lung = stile.allungabile ? Math.max(0.6, Math.min(1.6, look.lunghezza)) : 1
+  // Lunghezza: 0.2 = al mento, 1.6 = sotto le spalle. Le forbici la accorciano.
+  const lung = stile.allungabile ? Math.max(0.2, Math.min(1.6, look.lunghezza)) : 1
   const conFoto = Boolean(look.foto)
 
   const idSfondo = `sf-${uid}`
   const idTesta = `testa-${uid}`
   const idBusto = `busto-${uid}`
+  const idSfuma = `sfuma-${uid}`
+  const pennellate: Traccia[] = Array.isArray(look.pennellate) ? look.pennellate : []
 
-  const fineCiocca = 236 + 96 * lung
+  const fineCiocca = FINE_CAPELLI(lung)
 
   function capelliDietro() {
     const alone = (
@@ -135,7 +152,7 @@ export default function Avatar({
           </>
         )
       case 'coda': {
-        const fine = 214 + 96 * lung
+        const fine = FINE_CAPELLI(lung) - 16
         return (
           <>
             <ellipse cx={CX} cy={144} rx={RX + 6} ry={RY + 4} fill={cap} />
@@ -158,7 +175,7 @@ export default function Avatar({
         )
       }
       case 'trecce': {
-        const nodi = Math.round(3 + 3 * lung)
+        const nodi = Math.max(2, Math.round(1 + 5 * lung))
         const treccia = (
           <g>
             {Array.from({ length: nodi }).map((_, i) => (
@@ -183,7 +200,7 @@ export default function Avatar({
         )
       }
       case 'ricci': {
-        const fine = 216 + 70 * lung
+        const fine = FINE_CAPELLI(lung) - 20
         const riccioli: React.ReactNode[] = []
         for (let i = 0; i < 14; i++) {
           const ang = ((200 - (i / 13) * 220) * Math.PI) / 180
@@ -430,6 +447,9 @@ export default function Avatar({
           <stop offset="0%" stopColor={sfondo.da} />
           <stop offset="100%" stopColor={sfondo.a} />
         </linearGradient>
+        <filter id={idSfuma} filterUnits="userSpaceOnUse" x={0} y={0} width={W} height={H}>
+          <feGaussianBlur stdDeviation="7" />
+        </filter>
         <clipPath id={idTesta}>
           <ellipse cx={CX} cy={CY} rx={RX} ry={RY} />
         </clipPath>
@@ -541,6 +561,39 @@ export default function Avatar({
         </g>
       )}
 
+      {/* trucco dato col dito: resta dentro la sagoma del viso */}
+      {pennellate.length > 0 && (
+        <g clipPath={`url(#${idTesta})`}>
+          {pennellate.map((t) =>
+            t.tipo === 'glitter' ? (
+              <g key={t.id} fill={t.colore}>
+                {Array.from({ length: Math.floor(t.punti.length / 2) }).map((_, i) =>
+                  i % 2 === 0 ? (
+                    <path
+                      key={i}
+                      d={stella(t.punti[i * 2], t.punti[i * 2 + 1], 4 + ((i * 7) % 3), 4)}
+                      opacity={0.7 + ((i * 3) % 3) * 0.1}
+                    />
+                  ) : null,
+                )}
+              </g>
+            ) : (
+              <path
+                key={t.id}
+                d={percorso(t.punti)}
+                stroke={t.colore}
+                strokeWidth={t.spessore}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                fill="none"
+                opacity={OPACITA_PENNELLO[t.tipo]}
+                filter={t.tipo === 'fard' ? `url(#${idSfuma})` : undefined}
+              />
+            ),
+          )}
+        </g>
+      )}
+
       {/* capelli davanti */}
       {stile.back !== 'afro' && stile.back !== 'ricci' && (
         <>
@@ -558,6 +611,32 @@ export default function Avatar({
       )}
       {(stile.back === 'afro' || stile.back === 'ricci') && (
         <path d={CAPPELLI_FRONTE[stile.cap]} fill={cap} />
+      )}
+
+      {look.lucidi && (
+        <g pointerEvents="none">
+          <path
+            d="M114,112 C132,90 158,80 184,86"
+            stroke="#ffffff"
+            strokeWidth={8}
+            strokeLinecap="round"
+            fill="none"
+            opacity={0.45}
+          />
+          <path
+            d="M218,140 C226,164 226,192 218,214"
+            stroke="#ffffff"
+            strokeWidth={5}
+            strokeLinecap="round"
+            fill="none"
+            opacity={0.25}
+          />
+          <g fill="#ffffff" opacity={0.9}>
+            <path d={stella(120, 96, 6, 4)} />
+            <path d={stella(206, 108, 5, 4)} />
+            <path d={stella(96, 168, 4, 4)} />
+          </g>
+        </g>
       )}
 
       {occhialiSvg()}

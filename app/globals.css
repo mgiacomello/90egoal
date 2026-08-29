@@ -395,3 +395,61 @@ select.input-field {
 .stagger > *:nth-child(4) { animation-delay: 0.26s; }
 .stagger > *:nth-child(5) { animation-delay: 0.33s; }
 .stagger > *:nth-child(6) { animation-delay: 0.40s; }
+
+/* ===== Salone: ciocche che cadono quando si taglia ===== */
+.salone-ciocca {
+  position: absolute;
+  width: 6px;
+  height: 16px;
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0.95;
+  animation: salone-caduta 1.2s cubic-bezier(0.35, 0.1, 0.6, 1) forwards;
+}
+
+@keyframes salone-caduta {
+  0% {
+    transform: translateY(0) rotate(var(--ruota, 0deg)) scale(1);
+    opacity: 0.95;
+  }
+  100% {
+    transform: translateY(150px) rotate(calc(var(--ruota, 0deg) + 220deg)) scale(0.85);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salone-ciocca {
+    animation-duration: 0.01ms;
+    opacity: 0;
+  }
+}
+
+/* ===== Salone: schiuma dello shampoo ===== */
+.salone-bolla {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.55) 45%, rgba(210, 240, 255, 0.35) 70%);
+  box-shadow: inset 0 0 6px rgba(255, 255, 255, 0.8);
+  animation: salone-bolla-nasce 0.35s ease-out;
+}
+
+.salone-bolla.via {
+  animation: salone-bolla-via 0.7s ease-in forwards;
+}
+
+@keyframes salone-bolla-nasce {
+  from { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+@keyframes salone-bolla-via {
+  to { transform: translate(-50%, 120px) scale(0.5); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salone-bolla { animation: none; }
+}

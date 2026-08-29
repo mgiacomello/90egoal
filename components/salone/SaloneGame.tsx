@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import Avatar from './Avatar'
+import Avatar, { CAPELLI_FONDO, CAPELLI_TOP, FINE_CAPELLI } from './Avatar'
 import {
   ACCONCIATURE,
+  PENNELLI,
   COLORI_CAPELLI,
   COLORI_OCCHI,
   COLORI_VESTITO,
@@ -19,8 +20,11 @@ import {
   TESTA,
   VESTITI,
   lookCasuale,
+  completaLook,
   type Look,
   type Opzione,
+  type StrumentoTrucco,
+  type Traccia,
 } from './data'
 
 type Tab = 'modella' | 'capelli' | 'trucco' | 'vestiti' | 'foto'
@@ -223,6 +227,64 @@ function Cursore({
   )
 }
 
+const LUNG_MIN = 0.2
+const LUNG_MAX = 1.6
+const ALTEZZA_SVG = 400
+
+// Il punto toccato sul ritratto diventa la nuova lunghezza dei capelli.
+function lunghezzaDaY(ySvg: number): number {
+  const quota = (ySvg - CAPELLI_TOP) / (CAPELLI_FONDO - CAPELLI_TOP)
+  return Math.max(LUNG_MIN, Math.min(LUNG_MAX, quota))
+}
+
+// "Snip": due schiocchi brevissimi, senza file audio.
+function suonoForbici() {
+  try {
+    const Contesto = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!Contesto) return
+    const ctx = new Contesto()
+    const schiocco = (ritardo: number) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'triangle'
+      osc.frequency.setValueAtTime(2600, ctx.currentTime + ritardo)
+      osc.frequency.exponentialRampToValueAtTime(900, ctx.currentTime + ritardo + 0.05)
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime + ritardo)
+      gain.gain.exponentialRampToValueAtTime(0.14, ctx.currentTime + ritardo + 0.005)
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + ritardo + 0.07)
+      osc.connect(gain).connect(ctx.destination)
+      osc.start(ctx.currentTime + ritardo)
+      osc.stop(ctx.currentTime + ritardo + 0.09)
+    }
+    schiocco(0)
+    schiocco(0.09)
+    window.setTimeout(() => void ctx.close(), 400)
+  } catch {
+    /* niente audio: pazienza */
+  }
+}
+
+// Trascinare i capelli con le dita: su = coda (o chignon in cima),
+// di lato = treccine, giù = sciolti.
+function acconciaturaDaGesto(g: Gesto): { id: string; nome: string; emoji: string } | null {
+  const dx = g.x - g.x0
+  const dy = g.y - g.y0
+  if (dy < -35 && g.y < 96) return { id: 'chignon', nome: 'Chignon', emoji: '🩰' }
+  if (dy < -35 && Math.abs(dy) > Math.abs(dx)) return { id: 'coda', nome: 'Coda alta', emoji: '🐴' }
+  if (Math.abs(dx) > 45) return { id: 'trecce', nome: 'Treccine', emoji: '🧶' }
+  if (dy > 35) return { id: 'lunghi', nome: 'Capelli sciolti', emoji: '💇‍♀️' }
+  return null
+}
+
+type Ciocca = { id: number; x: number; y: number; ruota: number; colore: string }
+type Bolla = { id: number; x: number; y: number; r: number }
+type Strumento = 'mani' | 'forbici' | 'shampoo' | StrumentoTrucco | 'gomma'
+type Gesto = { x0: number; y0: number; x: number; y: number }
+
+const MAX_PENNELLATE = 80
+const MAX_PUNTI = 500
+const LARGHEZZA_SVG = 320
+
 /* ---------- gioco ---------- */
 
 export default function SaloneGame() {
@@ -238,11 +300,57 @@ export default function SaloneGame() {
     }
   }, [bookGrezzo])
   const [avviso, setAvviso] = useState<string | null>(null)
+  const [strumentoCapelli, setStrumentoCapelli] = useState<'mani' | 'forbici' | 'shampoo'>('forbici')
+  const [gesto, setGesto] = useState<Gesto | null>(null)
+  const [strumentoTrucco, setStrumentoTrucco] = useState<StrumentoTrucco | 'gomma'>('rossetto')
+  const [coloriPennello, setColoriPennello] = useState<Record<StrumentoTrucco, string>>({
+    rossetto: PENNELLI[0].colori[0].colore,
+    ombretto: PENNELLI[1].colori[0].colore,
+    fard: PENNELLI[2].colori[0].colore,
+    glitter: PENNELLI[3].colori[0].colore,
+  })
+  const [schiuma, setSchiuma] = useState(0)
+  const [bolle, setBolle] = useState<Bolla[]>([])
+  const [risciacquo, setRisciacquo] = useState(false)
+  const [audio, setAudio] = useState(true)
+  const [rigaTaglio, setRigaTaglio] = useState<number | null>(null)
+  const [ciocche, setCiocche] = useState<Ciocca[]>([])
   const exportRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const palcoRef = useRef<HTMLDivElement>(null)
+  const animazione = useRef<number | null>(null)
+  const contaCiocche = useRef(0)
+  const contaBolle = useRef(0)
+  const contaTracce = useRef(0)
+  const premuto = useRef(false)
 
   const aggiorna = useCallback(<K extends keyof Look>(chiave: K, valore: Look[K]) => {
     setLook((l) => ({ ...l, [chiave]: valore }))
+  }, [])
+
+  // Porta la lunghezza al valore voluto in mezzo secondo, così si vede il gesto.
+  const animaLunghezza = useCallback((verso: number, durata = 320) => {
+    if (animazione.current !== null) window.cancelAnimationFrame(animazione.current)
+    const partenza = performance.now()
+    let da: number | null = null
+    const passo = (ora: number) => {
+      setLook((l) => {
+        if (da === null) da = l.lunghezza
+        const t = Math.min(1, (ora - partenza) / durata)
+        const morbido = 1 - Math.pow(1 - t, 3)
+        return { ...l, lunghezza: da + (verso - da) * morbido }
+      })
+      if (ora - partenza < durata) {
+        animazione.current = window.requestAnimationFrame(passo)
+      } else {
+        animazione.current = null
+      }
+    }
+    animazione.current = window.requestAnimationFrame(passo)
+  }, [])
+
+  useEffect(() => () => {
+    if (animazione.current !== null) window.cancelAnimationFrame(animazione.current)
   }, [])
 
   useEffect(() => {
@@ -338,6 +446,208 @@ export default function SaloneGame() {
   }
 
   const stileAttivo = ACCONCIATURE.find((a) => a.id === look.capelli) ?? ACCONCIATURE[0]
+  const strumentoAttivo: Strumento | null =
+    tab === 'capelli' ? strumentoCapelli : tab === 'trucco' ? strumentoTrucco : null
+  const modoTaglio = strumentoAttivo === 'forbici'
+  const puoTagliare = modoTaglio && stileAttivo.allungabile
+  const pennellate = look.pennellate ?? []
+
+  function puntoDaEvento(e: React.PointerEvent<HTMLDivElement>): { x: number; y: number } | null {
+    const area = palcoRef.current?.getBoundingClientRect()
+    if (!area || area.height === 0 || area.width === 0) return null
+    return {
+      x: ((e.clientX - area.left) / area.width) * LARGHEZZA_SVG,
+      y: ((e.clientY - area.top) / area.height) * ALTEZZA_SVG,
+    }
+  }
+
+  /* ---- forbici ---- */
+
+  function taglia(y: number) {
+    if (!stileAttivo.allungabile) {
+      setAvviso('Questo taglio è già cortissimo: scegline uno lungo per usare le forbici.')
+      return
+    }
+    setRigaTaglio(y)
+    const nuova = lunghezzaDaY(y)
+    if (nuova >= look.lunghezza - 0.03) {
+      setAvviso('Le forbici accorciano soltanto! Per allungarli usa 🪄 Fai ricrescere.')
+      return
+    }
+    const cadute: Ciocca[] = Array.from({ length: 10 }, () => {
+      contaCiocche.current += 1
+      return {
+        id: contaCiocche.current,
+        x: 14 + Math.random() * 72,
+        y: (y / ALTEZZA_SVG) * 100,
+        ruota: Math.random() * 180 - 90,
+        colore: look.capelliColore,
+      }
+    })
+    const idCadute = new Set(cadute.map((c) => c.id))
+    setCiocche((c) => [...c, ...cadute])
+    window.setTimeout(() => setCiocche((c) => c.filter((x) => !idCadute.has(x.id))), 1300)
+    if (audio) suonoForbici()
+    animaLunghezza(nuova)
+  }
+
+  /* ---- shampoo ---- */
+
+  function insapona(p: { x: number; y: number }) {
+    const nuove: Bolla[] = Array.from({ length: 2 }, () => {
+      contaBolle.current += 1
+      return {
+        id: contaBolle.current,
+        x: ((p.x + (Math.random() * 40 - 20)) / LARGHEZZA_SVG) * 100,
+        y: ((p.y + (Math.random() * 34 - 17)) / ALTEZZA_SVG) * 100,
+        r: 10 + Math.random() * 16,
+      }
+    })
+    setBolle((b) => [...b, ...nuove].slice(-70))
+    setSchiuma((v) => Math.min(1, v + 0.05))
+  }
+
+  function risciacqua() {
+    setRisciacquo(true)
+    window.setTimeout(() => {
+      setBolle([])
+      setSchiuma(0)
+      setRisciacquo(false)
+      setLook((l) => ({ ...l, lucidi: true }))
+      setAvviso('Capelli lavati: puliti e lucidissimi! ✨')
+    }, 700)
+  }
+
+  /* ---- trucco col dito ---- */
+
+  function iniziaTraccia(p: { x: number; y: number }) {
+    if (strumentoTrucco === 'gomma') return
+    const pennello = PENNELLI.find((b) => b.id === strumentoTrucco)
+    if (!pennello) return
+    contaTracce.current += 1
+    const traccia: Traccia = {
+      id: contaTracce.current,
+      tipo: pennello.id,
+      colore: coloriPennello[pennello.id],
+      spessore: pennello.spessore,
+      punti: [Math.round(p.x), Math.round(p.y)],
+    }
+    setLook((l) => ({ ...l, pennellate: [...(l.pennellate ?? []).slice(-(MAX_PENNELLATE - 1)), traccia] }))
+  }
+
+  function continuaTraccia(p: { x: number; y: number }) {
+    setLook((l) => {
+      const tutte = l.pennellate ?? []
+      const ultima = tutte[tutte.length - 1]
+      if (!ultima || ultima.punti.length >= MAX_PUNTI) return l
+      const dx = p.x - ultima.punti[ultima.punti.length - 2]
+      const dy = p.y - ultima.punti[ultima.punti.length - 1]
+      if (dx * dx + dy * dy < 16) return l
+      const agg: Traccia = { ...ultima, punti: [...ultima.punti, Math.round(p.x), Math.round(p.y)] }
+      return { ...l, pennellate: [...tutte.slice(0, -1), agg] }
+    })
+  }
+
+  function chiudiTraccia() {
+    setLook((l) => {
+      const tutte = l.pennellate ?? []
+      const ultima = tutte[tutte.length - 1]
+      if (!ultima || ultima.punti.length !== 2) return l
+      // un tocco singolo: due punti vicini così il tratto si vede lo stesso
+      const agg: Traccia = { ...ultima, punti: [...ultima.punti, ultima.punti[0] + 1, ultima.punti[1] + 1] }
+      return { ...l, pennellate: [...tutte.slice(0, -1), agg] }
+    })
+  }
+
+  function cancellaVicino(p: { x: number; y: number }) {
+    setLook((l) => {
+      const tutte = l.pennellate ?? []
+      const restano = tutte.filter((t) => {
+        for (let i = 0; i < t.punti.length; i += 2) {
+          const dx = t.punti[i] - p.x
+          const dy = t.punti[i + 1] - p.y
+          if (dx * dx + dy * dy < 22 * 22) return false
+        }
+        return true
+      })
+      return restano.length === tutte.length ? l : { ...l, pennellate: restano }
+    })
+  }
+
+  /* ---- mani: coda, treccine, chignon ---- */
+
+  function fineGesto() {
+    if (!gesto) return
+    const scelta = acconciaturaDaGesto(gesto)
+    setGesto(null)
+    if (!scelta) {
+      setAvviso('Trascina un po\u2019 di più: su per la coda, di lato per le treccine.')
+      return
+    }
+    if (look.capelli === scelta.id) return
+    aggiorna('capelli', scelta.id)
+    setAvviso(`${scelta.emoji} ${scelta.nome}!`)
+  }
+
+  /* ---- gesti sul ritratto ---- */
+
+  function giuSulPalco(e: React.PointerEvent<HTMLDivElement>) {
+    if (!strumentoAttivo) return
+    const p = puntoDaEvento(e)
+    if (!p) return
+    premuto.current = true
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    if (strumentoAttivo === 'mani') setGesto({ x0: p.x, y0: p.y, x: p.x, y: p.y })
+    else if (strumentoAttivo === 'forbici') taglia(p.y)
+    else if (strumentoAttivo === 'shampoo') insapona(p)
+    else if (strumentoAttivo === 'gomma') cancellaVicino(p)
+    else iniziaTraccia(p)
+  }
+
+  function muoviSulPalco(e: React.PointerEvent<HTMLDivElement>) {
+    if (!strumentoAttivo) return
+    const p = puntoDaEvento(e)
+    if (!p) return
+    if (strumentoAttivo === 'forbici') {
+      if (puoTagliare) setRigaTaglio(p.y)
+      return
+    }
+    if (!premuto.current) return
+    if (strumentoAttivo === 'mani') setGesto((g) => (g ? { ...g, x: p.x, y: p.y } : g))
+    else if (strumentoAttivo === 'shampoo') insapona(p)
+    else if (strumentoAttivo === 'gomma') cancellaVicino(p)
+    else continuaTraccia(p)
+  }
+
+  function suSulPalco() {
+    if (premuto.current) {
+      if (strumentoAttivo === 'mani') fineGesto()
+      else if (strumentoAttivo && strumentoAttivo !== 'forbici' && strumentoAttivo !== 'shampoo' && strumentoAttivo !== 'gomma') {
+        chiudiTraccia()
+      }
+    }
+    premuto.current = false
+  }
+
+  const anteprimaGesto = gesto ? acconciaturaDaGesto(gesto) : null
+  const suggerimento =
+    strumentoAttivo === 'mani'
+      ? anteprimaGesto
+        ? `${anteprimaGesto.emoji} lascia per fare: ${anteprimaGesto.nome}`
+        : '🤲 Trascina i capelli: su = coda, di lato = treccine, giù = sciolti'
+      : strumentoAttivo === 'forbici'
+      ? stileAttivo.allungabile
+        ? '✂️ Tocca i capelli dove vuoi tagliarli'
+        : 'Scegli un taglio lungo per usare le forbici'
+      : strumentoAttivo === 'shampoo'
+        ? schiuma >= 1
+          ? '🚿 Pieni di schiuma: ora risciacqua!'
+          : '🧴 Strofina i capelli col dito'
+        : strumentoAttivo === 'gomma'
+          ? '🧽 Passa il dito per togliere il trucco'
+          : strumentoAttivo
+            ? '👆 Trucca col dito direttamente sul viso'
+            : ''
 
   return (
     <div className="pb-4">
@@ -362,11 +672,113 @@ export default function SaloneGame() {
         {/* palco */}
         <div className="lg:sticky lg:top-20">
           <div className="glass rounded-3xl p-3">
-            <Avatar
-              look={look}
-              guide={tab === 'foto' && Boolean(look.foto)}
-              className="w-full h-auto rounded-2xl overflow-hidden"
-            />
+            <div
+              ref={palcoRef}
+              onPointerMove={muoviSulPalco}
+              onPointerLeave={() => {
+                setRigaTaglio(null)
+                suSulPalco()
+              }}
+              onPointerDown={giuSulPalco}
+              onPointerUp={suSulPalco}
+              onPointerCancel={suSulPalco}
+              className={`relative select-none ${strumentoAttivo ? 'cursor-crosshair touch-none' : ''}`}
+            >
+              <Avatar
+                look={look}
+                guide={tab === 'foto' && Boolean(look.foto)}
+                className="w-full h-auto rounded-2xl overflow-hidden"
+              />
+
+              {puoTagliare && (
+                <div
+                  className="pointer-events-none absolute left-1 right-1 border-t-2 border-dashed border-white/50"
+                  style={{ top: `${(FINE_CAPELLI(look.lunghezza) / ALTEZZA_SVG) * 100}%` }}
+                />
+              )}
+              {puoTagliare && rigaTaglio !== null && (
+                <div
+                  className="pointer-events-none absolute left-0 right-0"
+                  style={{ top: `${(rigaTaglio / ALTEZZA_SVG) * 100}%` }}
+                >
+                  <div className="border-t-[3px] border-dashed border-[#ff2d87]" />
+                  <span className="absolute -top-4 -left-1 text-2xl drop-shadow">✂️</span>
+                </div>
+              )}
+              {ciocche.map((c) => (
+                <span
+                  key={c.id}
+                  className="salone-ciocca"
+                  style={{
+                    left: `${c.x}%`,
+                    top: `${c.y}%`,
+                    backgroundColor: c.colore,
+                    ['--ruota' as string]: `${c.ruota}deg`,
+                  }}
+                />
+              ))}
+              {gesto && (
+                <svg
+                  viewBox={`0 0 ${LARGHEZZA_SVG} ${ALTEZZA_SVG}`}
+                  className="pointer-events-none absolute inset-0 w-full h-full"
+                >
+                  <line
+                    x1={gesto.x0}
+                    y1={gesto.y0}
+                    x2={gesto.x}
+                    y2={gesto.y}
+                    stroke="#ff2d87"
+                    strokeWidth={5}
+                    strokeLinecap="round"
+                    strokeDasharray="10 8"
+                  />
+                  <circle cx={gesto.x0} cy={gesto.y0} r={9} fill="#ff2d87" opacity={0.85} />
+                  <circle cx={gesto.x} cy={gesto.y} r={13} fill="#ffffff" opacity={0.85} />
+                </svg>
+              )}
+              {bolle.map((b) => (
+                <span
+                  key={b.id}
+                  className={`salone-bolla${risciacquo ? ' via' : ''}`}
+                  style={{ left: `${b.x}%`, top: `${b.y}%`, width: b.r, height: b.r }}
+                />
+              ))}
+              {suggerimento && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-2 text-center">
+                  <span className="inline-block rounded-full bg-black/55 text-white text-[11px] font-semibold px-3 py-1.5 backdrop-blur">
+                    {suggerimento}
+                  </span>
+                </div>
+              )}
+            </div>
+            {strumentoAttivo === 'shampoo' && (
+              <button
+                type="button"
+                onClick={risciacqua}
+                disabled={bolle.length === 0 || risciacquo}
+                className="mt-3 w-full rounded-2xl bg-[#5ec8e5] text-[#04222b] py-3 text-sm font-bold disabled:opacity-40 hover:brightness-110 transition"
+              >
+                🚿 Risciacqua {schiuma >= 1 ? '(pieni di schiuma!)' : ''}
+              </button>
+            )}
+            {tab === 'trucco' && pennellate.length > 0 && (
+              <div className="grid grid-cols-2 gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setLook((l) => ({ ...l, pennellate: (l.pennellate ?? []).slice(0, -1) }))}
+                  className="btn-ghost text-sm py-2.5 font-semibold"
+                >
+                  ↩️ Annulla
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLook((l) => ({ ...l, pennellate: [] }))}
+                  className="btn-ghost text-sm py-2.5 font-semibold"
+                >
+                  🧽 Struccala
+                </button>
+              </div>
+            )}
             <div className="mt-3 px-1">
               <label className="block">
                 <span className="text-xs text-[var(--muted)]">Come si chiama?</span>
@@ -422,7 +834,7 @@ export default function SaloneGame() {
                     : 'bg-white/5 text-white/80 border border-white/10 hover:bg-white/10'
                 }`}
               >
-                <span className="mr-1.5">{t.emoji}</span>
+                <span className="mr-1.5">{t.emoji}</span>{' '}
                 {t.label}
               </button>
             ))}
@@ -506,16 +918,98 @@ export default function SaloneGame() {
                   </div>
                 </Sezione>
 
-                <Sezione titolo="✂️ Forbici: quanto lunghi?" aiuto={stileAttivo.allungabile ? 'Trascina per accorciare o allungare.' : 'Questo taglio è già cortissimo: prova i lunghi per usare le forbici.'}>
-                  <Cursore
-                    label="Lunghezza"
-                    valore={look.lunghezza}
-                    min={0.6}
-                    max={1.6}
-                    step={0.05}
-                    onChange={(v) => aggiorna('lunghezza', v)}
-                    formato={(v) => (v < 0.85 ? 'corti' : v < 1.15 ? 'medi' : v < 1.4 ? 'lunghi' : 'lunghissimi')}
-                  />
+                <Sezione
+                  titolo={
+                    strumentoCapelli === 'shampoo'
+                      ? '🧴 Lava i capelli'
+                      : strumentoCapelli === 'mani'
+                        ? '🤲 Pettina con le dita'
+                        : '✂️ Taglia i capelli'
+                  }
+                  aiuto={
+                    strumentoCapelli === 'mani'
+                      ? 'Prendi i capelli sul ritratto e trascina: verso l\u2019alto esce la coda (fino in cima lo chignon), di lato le treccine, verso il basso tornano sciolti.'
+                      : strumentoCapelli === 'shampoo'
+                        ? 'Strofina i capelli col dito sul ritratto: arriva la schiuma, poi premi 🚿 Risciacqua.'
+                        : stileAttivo.allungabile
+                          ? 'Tocca il ritratto all\u2019altezza in cui vuoi tagliare: i capelli si accorciano lì.'
+                          : 'Questo taglio è già cortissimo: scegli un\u2019acconciatura lunga per usare le forbici.'
+                  }
+                >
+                  <div className="grid grid-cols-3 gap-2 mb-2">
+                    <button
+                      type="button"
+                      onClick={() => setStrumentoCapelli('mani')}
+                      aria-pressed={strumentoCapelli === 'mani'}
+                      className={`rounded-2xl px-3 py-3 min-h-[52px] text-sm font-bold transition ${
+                        strumentoCapelli === 'mani' ? 'bg-[#ffd24a] text-[#2b2100]' : 'bg-white/5 text-white/85 border border-white/10'
+                      }`}
+                    >
+                      🤲 Mani
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStrumentoCapelli('forbici')}
+                      aria-pressed={strumentoCapelli === 'forbici'}
+                      className={`rounded-2xl px-4 py-3 min-h-[52px] text-sm font-bold transition ${
+                        strumentoCapelli === 'forbici' ? 'bg-[#ff5fa2] text-[#2b0a1b]' : 'bg-white/5 text-white/85 border border-white/10'
+                      }`}
+                    >
+                      ✂️ Forbici
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStrumentoCapelli('shampoo')}
+                      aria-pressed={strumentoCapelli === 'shampoo'}
+                      className={`rounded-2xl px-4 py-3 min-h-[52px] text-sm font-bold transition ${
+                        strumentoCapelli === 'shampoo' ? 'bg-[#5ec8e5] text-[#04222b]' : 'bg-white/5 text-white/85 border border-white/10'
+                      }`}
+                    >
+                      🧴 Shampoo
+                    </button>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (look.lunghezza >= LUNG_MAX - 0.02) {
+                          setAvviso('Sono già lunghissimi!')
+                          return
+                        }
+                        animaLunghezza(LUNG_MAX, 900)
+                        setAvviso('I capelli stanno ricrescendo… 🪄')
+                      }}
+                      className="btn-ghost text-sm py-3 font-semibold"
+                    >
+                      🪄 Fai ricrescere
+                    </button>
+                  </div>
+                  <div className="mt-2 grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Al mento', valore: 0.28 },
+                      { label: 'Alle spalle', valore: 0.75 },
+                      { label: 'Lunghissimi', valore: LUNG_MAX },
+                    ].map((p) => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => {
+                          if (p.valore < look.lunghezza && audio) suonoForbici()
+                          animaLunghezza(p.valore, p.valore > look.lunghezza ? 700 : 320)
+                        }}
+                        className="rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 px-2 py-3 text-xs font-semibold text-white/85 transition"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAudio((a) => !a)}
+                    className="mt-2 text-xs text-[var(--muted)] hover:text-white transition"
+                  >
+                    {audio ? '🔊 Suono forbici acceso' : '🔇 Suono forbici spento'}
+                  </button>
                 </Sezione>
 
                 <Sezione titolo="Colore dei capelli" aiuto="Anche i colori fantasia valgono!">
@@ -526,7 +1020,47 @@ export default function SaloneGame() {
 
             {tab === 'trucco' && (
               <>
-                <Sezione titolo="💋 Rossetto">
+                <Sezione
+                  titolo="👆 Trucca col dito"
+                  aiuto="Scegli un pennello e un colore, poi disegna direttamente sul viso del ritratto."
+                >
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {PENNELLI.map((b) => (
+                      <BottoneOpzione
+                        key={b.id}
+                        attivo={strumentoTrucco === b.id}
+                        onClick={() => setStrumentoTrucco(b.id)}
+                        emoji={b.emoji}
+                        label={b.label}
+                      />
+                    ))}
+                    <BottoneOpzione
+                      attivo={strumentoTrucco === 'gomma'}
+                      onClick={() => setStrumentoTrucco('gomma')}
+                      emoji="🧽"
+                      label="Gomma"
+                    />
+                  </div>
+                  {strumentoTrucco !== 'gomma' && (
+                    <div className="mt-3">
+                      <Pastiglie
+                        opzioni={PENNELLI.find((b) => b.id === strumentoTrucco)?.colori ?? []}
+                        valore={coloriPennello[strumentoTrucco]}
+                        onChange={(v) =>
+                          v && setColoriPennello((c) => ({ ...c, [strumentoTrucco]: v }))
+                        }
+                      />
+                    </div>
+                  )}
+                  {pennellate.length > 0 && (
+                    <p className="text-xs text-[var(--muted)] mt-3">
+                      {pennellate.length} passat{pennellate.length === 1 ? 'a' : 'e'} di trucco · i pulsanti ↩️ e 🧽 sono
+                      sotto al ritratto.
+                    </p>
+                  )}
+                </Sezione>
+
+                <Sezione titolo="💋 Rossetto (veloce)">
                   <Pastiglie opzioni={ROSSETTI} valore={look.rossetto} onChange={(v) => aggiorna('rossetto', v)} conNessuno />
                 </Sezione>
                 <Sezione titolo="👁️ Ombretto">
@@ -643,8 +1177,8 @@ export default function SaloneGame() {
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                       {book.map((s) => (
                         <div key={s.id} className="rounded-2xl bg-white/5 border border-white/10 p-1.5">
-                          <button type="button" onClick={() => setLook(s.look)} className="block w-full">
-                            <Avatar look={s.look} className="w-full h-auto rounded-xl overflow-hidden" />
+                          <button type="button" onClick={() => setLook(completaLook(s.look))} className="block w-full">
+                            <Avatar look={completaLook(s.look)} className="w-full h-auto rounded-xl overflow-hidden" />
                             <span className="block text-[11px] font-semibold mt-1 text-white/85 truncate">{s.nome}</span>
                           </button>
                           <button

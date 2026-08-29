@@ -6,6 +6,17 @@ export type VestitoKind = 'maglietta' | 'felpa' | 'abito' | 'tuta' | 'giacca' | 
 export type CapelliBack = 'nessuno' | 'lunghi' | 'caschetto' | 'coda' | 'trecce' | 'ricci' | 'chignon' | 'afro'
 export type CapelliCap = 'frangia' | 'ciuffo' | 'riga' | 'indietro'
 export type Occhiali = 'nessuno' | 'vista' | 'sole'
+export type StrumentoTrucco = 'rossetto' | 'ombretto' | 'fard' | 'glitter'
+
+// Una passata di trucco fatta col dito: i punti sono in coordinate del disegno,
+// salvati piatti (x,y,x,y...) per non gonfiare il book nel localStorage.
+export type Traccia = {
+  id: number
+  tipo: StrumentoTrucco
+  colore: string
+  spessore: number
+  punti: number[]
+}
 export type Testa = 'niente' | 'corona' | 'cerchietto' | 'cappello' | 'fiore'
 
 export type Look = {
@@ -29,6 +40,8 @@ export type Look = {
   orecchini: boolean
   collana: boolean
   sfondo: string
+  pennellate: Traccia[]
+  lucidi: boolean
   foto: string | null
   fotoZoom: number
   fotoX: number
@@ -169,6 +182,37 @@ export const SFONDI: { id: string; label: string; da: string; a: string; stelle:
   { id: 'studio', label: 'Studio', da: '#f4f7fb', a: '#dfe6ee', stelle: false },
 ]
 
+export const PENNELLI: {
+  id: StrumentoTrucco
+  label: string
+  emoji: string
+  spessore: number
+  colori: Opzione[]
+}[] = [
+  { id: 'rossetto', label: 'Rossetto', emoji: '💄', spessore: 11, colori: ROSSETTI },
+  { id: 'ombretto', label: 'Ombretto', emoji: '👁️', spessore: 13, colori: OMBRETTI },
+  { id: 'fard', label: 'Fard', emoji: '🌸', spessore: 30, colori: FARD },
+  {
+    id: 'glitter',
+    label: 'Glitter',
+    emoji: '✨',
+    spessore: 9,
+    colori: [
+      { id: 'oro', label: 'Oro', colore: '#ffd24a' },
+      { id: 'argento', label: 'Argento', colore: '#ffffff' },
+      { id: 'rosa', label: 'Rosa', colore: '#ff8fc7' },
+      { id: 'azzurro', label: 'Azzurro', colore: '#7cc4ef' },
+    ],
+  },
+]
+
+export const OPACITA_PENNELLO: Record<StrumentoTrucco, number> = {
+  rossetto: 0.85,
+  ombretto: 0.6,
+  fard: 0.45,
+  glitter: 1,
+}
+
 export const LOOK_BASE: Look = {
   nome: 'Olivia',
   pelle: 'chiara',
@@ -190,6 +234,8 @@ export const LOOK_BASE: Look = {
   orecchini: false,
   collana: false,
   sfondo: 'salone',
+  pennellate: [],
+  lucidi: false,
   foto: null,
   fotoZoom: 1,
   fotoX: 0,
@@ -244,6 +290,15 @@ function scegli<T>(lista: T[]): T {
 }
 
 // "Sorpresa!": un look casuale, mantenendo nome ed eventuale foto caricata.
+// I look salvati nel book prima di queste funzioni non hanno i campi nuovi.
+export function completaLook(look: Look): Look {
+  return {
+    ...look,
+    pennellate: Array.isArray(look.pennellate) ? look.pennellate : [],
+    lucidi: Boolean(look.lucidi),
+  }
+}
+
 export function lookCasuale(precedente: Look): Look {
   const forse = <T,>(valore: T, probabilita = 0.6): T | null =>
     Math.random() < probabilita ? valore : null
@@ -253,7 +308,7 @@ export function lookCasuale(precedente: Look): Look {
     occhi: scegli(COLORI_OCCHI).colore,
     capelli: scegli(ACCONCIATURE).id,
     capelliColore: scegli(COLORI_CAPELLI).colore,
-    lunghezza: Math.round((0.7 + Math.random() * 0.8) * 10) / 10,
+    lunghezza: Math.round((0.35 + Math.random() * 1.15) * 20) / 20,
     rossetto: forse(scegli(ROSSETTI).colore),
     ombretto: forse(scegli(OMBRETTI).colore, 0.5),
     fard: forse(scegli(FARD).colore, 0.5),
