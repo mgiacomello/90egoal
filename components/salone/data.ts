@@ -44,6 +44,7 @@ export type Look = {
   orecchini: boolean
   collana: boolean
   sfondo: string
+  vasca: boolean
   pennellate: Traccia[]
   lucidi: boolean
   foto: string | null
@@ -242,6 +243,7 @@ export const LOOK_BASE: Look = {
   orecchini: false,
   collana: false,
   sfondo: 'salone',
+  vasca: false,
   pennellate: [],
   lucidi: false,
   foto: null,
@@ -323,6 +325,7 @@ export function completaLook(look: Look): Look {
     ...look,
     pennellate: Array.isArray(look.pennellate) ? look.pennellate : [],
     lucidi: Boolean(look.lucidi),
+    vasca: Boolean(look.vasca),
     coloreNaturale: look.coloreNaturale ?? '#5a3620',
     bagnatura: typeof look.bagnatura === 'number' ? look.bagnatura : 0,
     balsamo: Boolean(look.balsamo),

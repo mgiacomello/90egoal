@@ -112,11 +112,102 @@ function strumentoDaId(id: StrumentoCapelli) {
   return STRUMENTI_CAPELLI.find((s) => s.id === id) ?? STRUMENTI_CAPELLI[0]
 }
 
+const CHIAVE_TUTORIAL = 'salone-tutorial-v1'
+
+const PASSI: { emoji: string; titolo: string; testo: string; tab?: Tab }[] = [
+  {
+    emoji: '👋',
+    titolo: 'Ciao, benvenuta nel salone!',
+    testo: 'Questa è la tua cliente. Tutto quello che fai si vede subito su di lei.',
+  },
+  {
+    emoji: '🙋‍♀️',
+    titolo: 'Scegli chi acconciare',
+    testo: 'Tocca una modella, poi scegli pelle, occhi e sfondo. Puoi anche usare una foto vera.',
+    tab: 'modella',
+  },
+  {
+    emoji: '🤲',
+    titolo: 'Pettina con le dita',
+    testo: 'Prendi i capelli sul disegno e trascina: in su viene la coda, di lato le treccine, in giù tornano sciolti.',
+    tab: 'capelli',
+  },
+  {
+    emoji: '✂️',
+    titolo: 'Taglia i capelli',
+    testo: 'Prendi le forbici e tocca i capelli all’altezza che vuoi. Con la bacchetta 🪄 ricrescono.',
+    tab: 'capelli',
+  },
+  {
+    emoji: '🛁',
+    titolo: 'Fai il bagnetto',
+    testo: 'Shampoo per la schiuma, doccia per l’acqua (si va nella vasca!), balsamo e phon per asciugare.',
+    tab: 'capelli',
+  },
+  {
+    emoji: '💄',
+    titolo: 'Trucca col dito',
+    testo: 'Scegli rossetto, ombretto, fard o glitter e disegna sul viso. La gomma cancella tutto.',
+    tab: 'trucco',
+  },
+  {
+    emoji: '👗',
+    titolo: 'Vestila come vuoi',
+    testo: 'Vestiti, colori, fantasie, occhiali, corona e gioielli: prova quello che ti piace.',
+    tab: 'vestiti',
+  },
+  {
+    emoji: '🎁',
+    titolo: 'Dalle una merenda',
+    testo: 'Premi Sorpresa sotto al ritratto: esce del cibo. Trascinalo sulla bocca e lei lo mangia!',
+  },
+  {
+    emoji: '💖',
+    titolo: 'Salva il tuo lavoro',
+    testo: 'Con Salva look lo metti nel book, e dalla scheda Foto puoi scaricare la fotografia. Buon divertimento!',
+    tab: 'foto',
+  },
+]
+
 const CHIAVE_BOOK = 'salone-book-v1'
 const MAX_BOOK = 12
 
 /* Il book vive nel localStorage: lo leggiamo come "store esterno" così la
    pagina si idrata senza differenze fra server e browser. */
+let tutorialCache: string | null = null
+let tutorialLetto = false
+const ascoltatoriTutorial = new Set<() => void>()
+
+function iscriviTutorial(callback: () => void) {
+  ascoltatoriTutorial.add(callback)
+  return () => {
+    ascoltatoriTutorial.delete(callback)
+  }
+}
+
+function leggiTutorial(): string | null {
+  if (!tutorialLetto) {
+    try {
+      tutorialCache = window.localStorage.getItem(CHIAVE_TUTORIAL)
+    } catch {
+      tutorialCache = null
+    }
+    tutorialLetto = true
+  }
+  return tutorialCache
+}
+
+function segnaTutorialVisto() {
+  try {
+    window.localStorage.setItem(CHIAVE_TUTORIAL, 'si')
+  } catch {
+    /* niente memoria: pazienza, si rivedrà */
+  }
+  tutorialCache = 'si'
+  tutorialLetto = true
+  ascoltatoriTutorial.forEach((f) => f())
+}
+
 let bookCache: string | null = null
 let bookLetto = false
 const ascoltatori = new Set<() => void>()
@@ -389,12 +480,20 @@ function avviaRumore(tipo: 'acqua' | 'phon'): { ctx: AudioContext; stop: () => v
 }
 
 type Ciocca = { id: number; x: number; y: number; ruota: number; colore: string }
+type Cibo = { id: number; emoji: string; x: number; y: number }
 type Bolla = { id: number; x: number; y: number; r: number; tipo: 'schiuma' | 'crema' }
 type Goccia = { id: number; x: number; y: number; ritardo: number }
 type Strumento = 'mani' | 'forbici' | 'shampoo' | 'doccia' | 'balsamo' | 'phon' | StrumentoTrucco | 'gomma'
 type StrumentoCapelli = 'mani' | 'forbici' | 'shampoo' | 'doccia' | 'balsamo' | 'phon'
 type Gesto = { x0: number; y0: number; x: number; y: number }
 
+const CIBI = ['🍎', '🍓', '🍕', '🍦', '🍪', '🍇', '🍌', '🧁', '🥕', '🍩', '🍉', '🥪']
+const MAX_CIBO = 6
+const BOCCA = { x: 50, y: 49 }
+// Basta lasciare il cibo sul viso: per una bimba di otto anni centrare la
+// bocca al pixel sarebbe troppo difficile.
+const VISO = { x: 50, y: 38, rx: 24, ry: 22 }
+const MAX_BOLLE = 150
 const MAX_PENNELLATE = 80
 const MAX_PUNTI = 500
 const LARGHEZZA_SVG = 320
@@ -404,6 +503,7 @@ const LARGHEZZA_SVG = 320
 export default function SaloneGame() {
   const [look, setLook] = useState<Look>(MODELLE[0].look)
   const [tab, setTab] = useState<Tab>('modella')
+  const tutorialVisto = useSyncExternalStore(iscriviTutorial, leggiTutorial, () => 'si')
   const bookGrezzo = useSyncExternalStore(iscriviBook, leggiBook, () => null)
   const book = useMemo<Scatto[]>(() => {
     if (!bookGrezzo) return []
@@ -427,6 +527,15 @@ export default function SaloneGame() {
   const [bolle, setBolle] = useState<Bolla[]>([])
   const [risciacquo, setRisciacquo] = useState(false)
   const [gocce, setGocce] = useState<Goccia[]>([])
+  const [cibo, setCibo] = useState<Cibo[]>([])
+  const [ciboPreso, setCiboPreso] = useState<{ id: number; mosso: boolean } | null>(null)
+  const [bocca, setBocca] = useState<'normale' | 'aperta' | 'felice'>('normale')
+  const [pasti, setPasti] = useState(0)
+  const [passo, setPasso] = useState(0)
+  const [tutorialChiuso, setTutorialChiuso] = useState(false)
+  const [tutorialAperto, setTutorialAperto] = useState(false)
+  const mostraTutorial = tutorialAperto || (tutorialVisto !== 'si' && !tutorialChiuso)
+  const [cuori, setCuori] = useState<{ id: number; x: number; y: number; emoji: string }[]>([])
   const [audio, setAudio] = useState(true)
   const [rigaTaglio, setRigaTaglio] = useState<number | null>(null)
   const [ciocche, setCiocche] = useState<Ciocca[]>([])
@@ -437,6 +546,9 @@ export default function SaloneGame() {
   const contaCiocche = useRef(0)
   const contaBolle = useRef(0)
   const contaGocce = useRef(0)
+  const contaCibo = useRef(0)
+  const contaCuori = useRef(0)
+  const tempiBocca = useRef<number[]>([])
   const rumore = useRef<{ ctx: AudioContext; stop: () => void } | null>(null)
   const contaTracce = useRef(0)
   const premuto = useRef(false)
@@ -470,6 +582,7 @@ export default function SaloneGame() {
     if (animazione.current !== null) window.cancelAnimationFrame(animazione.current)
     rumore.current?.stop()
     rumore.current = null
+    tempiBocca.current.forEach((t) => window.clearTimeout(t))
   }, [])
 
   useEffect(() => {
@@ -613,7 +726,7 @@ export default function SaloneGame() {
   /* ---- shampoo ---- */
 
   function insapona(p: { x: number; y: number }, tipo: 'schiuma' | 'crema' = 'schiuma') {
-    const nuove: Bolla[] = Array.from({ length: 2 }, () => {
+    const candidate: Bolla[] = Array.from({ length: 2 }, () => {
       contaBolle.current += 1
       return {
         id: contaBolle.current,
@@ -623,9 +736,16 @@ export default function SaloneGame() {
         tipo,
       }
     })
-    setBolle((b) => [...b, ...nuove].slice(-70))
-    if (tipo === 'schiuma') setSchiuma((v) => Math.min(1, v + 0.05))
-    setLook((l) => (l.bagnatura >= 1 ? l : { ...l, bagnatura: 1 }))
+    setBolle((b) => {
+      if (b.length >= MAX_BOLLE) return b
+      // Aggiungiamo solo dove non c'è già schiuma: così quella messa prima resta.
+      const aggiunte = candidate.filter(
+        (n) => !b.some((v) => (v.x - n.x) ** 2 + (v.y - n.y) ** 2 < 9),
+      )
+      return aggiunte.length ? [...b, ...aggiunte].slice(0, MAX_BOLLE) : b
+    })
+    if (tipo === 'schiuma') setSchiuma((v) => Math.min(1, v + 0.04))
+    setLook((l) => (l.bagnatura >= 1 && l.vasca ? l : { ...l, bagnatura: 1, vasca: true }))
   }
 
   /* ---- balsamo ---- */
@@ -667,7 +787,7 @@ export default function SaloneGame() {
     setSchiuma((v) => (rimaste === 0 ? 0 : Math.max(0, v - 0.03)))
 
     setLook((l) => {
-      const prossimo = { ...l, bagnatura: 1 }
+      const prossimo = { ...l, bagnatura: 1, vasca: true }
       // La tinta fantasia se ne va poco alla volta sotto l'acqua.
       if (eFantasia(l.capelliColore) || l.capelliColore !== l.coloreNaturale) {
         const sbiadito = mescola(l.capelliColore, l.coloreNaturale, eFantasia(l.capelliColore) ? 0.022 : 0.008)
@@ -689,7 +809,7 @@ export default function SaloneGame() {
       setBolle([])
       setSchiuma(0)
       setRisciacquo(false)
-      setLook((l) => ({ ...l, lucidi: true, bagnatura: 1 }))
+      setLook((l) => ({ ...l, lucidi: true, bagnatura: 1, vasca: true }))
       setAvviso('Tutto risciacquato! Ora tocca al phon 🌬️')
     }, 700)
   }
@@ -720,7 +840,13 @@ export default function SaloneGame() {
       if (asciutti) {
         setAvviso(l.balsamo ? 'Asciutti, morbidi e lucidi! 💫' : 'Asciutti e belli gonfi! 🌬️')
       }
-      return { ...l, bagnatura, volume, lucidi: l.lucidi || (asciutti && l.balsamo) }
+      return {
+        ...l,
+        bagnatura,
+        volume,
+        lucidi: l.lucidi || (asciutti && l.balsamo),
+        vasca: asciutti ? false : l.vasca,
+      }
     })
   }
 
@@ -793,6 +919,80 @@ export default function SaloneGame() {
     if (look.capelli === scelta.id) return
     aggiorna('capelli', scelta.id)
     setAvviso(`${scelta.emoji} ${scelta.nome}!`)
+  }
+
+  /* ---- cibo: esce dalla sorpresa e si dà da mangiare ---- */
+
+  function sorpresa() {
+    if (cibo.length >= MAX_CIBO) {
+      setAvviso('C\u2019è già tanto da mangiare: dalle prima quello! 😋')
+      return
+    }
+    contaCibo.current += 1
+    const nuovo: Cibo = {
+      id: contaCibo.current,
+      emoji: CIBI[Math.floor(Math.random() * CIBI.length)],
+      x: Math.random() < 0.5 ? 8 + Math.random() * 14 : 78 + Math.random() * 14,
+      y: 10 + Math.random() * 30,
+    }
+    setCibo((c) => [...c, nuovo])
+    setAvviso('Sorpresa! Trascina il cibo sulla faccia (o toccalo) per darglielo 😋')
+  }
+
+  function mangia(item: Cibo) {
+    setCibo((c) => c.filter((x) => x.id !== item.id))
+    setPasti((n) => n + 1)
+    setBocca('aperta')
+    const festa = [item.emoji, '💛', '✨'].map((emoji, i) => {
+      contaCuori.current += 1
+      return {
+      id: contaCuori.current,
+      x: BOCCA.x + (i - 1) * 13,
+      y: BOCCA.y + 1,
+      emoji,
+      }
+    })
+    const idFesta = new Set(festa.map((f) => f.id))
+    setCuori((c) => [...c, ...festa])
+    if (audio) suonoForbici()
+    tempiBocca.current.push(
+      window.setTimeout(() => setBocca('felice'), 420),
+      window.setTimeout(() => setBocca('normale'), 1300),
+      window.setTimeout(() => setCuori((c) => c.filter((x) => !idFesta.has(x.id))), 1400),
+    )
+    setAvviso('Gnam gnam! 😋')
+  }
+
+  function prendiCibo(e: React.PointerEvent<HTMLSpanElement>, item: Cibo) {
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    setCiboPreso({ id: item.id, mosso: false })
+  }
+
+  function trascinaCibo(e: React.PointerEvent<HTMLSpanElement>, item: Cibo) {
+    if (ciboPreso?.id !== item.id) return
+    e.stopPropagation()
+    const p = puntoDaEvento(e as unknown as React.PointerEvent<HTMLDivElement>)
+    if (!p) return
+    setCiboPreso((c) => (c ? { ...c, mosso: true } : c))
+    setCibo((c) =>
+      c.map((x) =>
+        x.id === item.id ? { ...x, x: (p.x / LARGHEZZA_SVG) * 100, y: (p.y / ALTEZZA_SVG) * 100 } : x,
+      ),
+    )
+  }
+
+  function lasciaCibo(e: React.PointerEvent<HTMLSpanElement>, item: Cibo) {
+    if (ciboPreso?.id !== item.id) return
+    e.stopPropagation()
+    const trascinato = ciboPreso.mosso
+    setCiboPreso(null)
+    const attuale = cibo.find((x) => x.id === item.id) ?? item
+    const vicino =
+      ((attuale.x - VISO.x) / VISO.rx) ** 2 + ((attuale.y - VISO.y) / VISO.ry) ** 2 < 1
+    // Un tocco senza trascinare vale come "dagliela": più facile per i piccoli.
+    if (vicino || !trascinato) mangia(attuale)
+    else setAvviso('Portalo sulla faccia per darglielo 😋')
   }
 
   /* ---- gesti sul ritratto ---- */
@@ -894,6 +1094,16 @@ export default function SaloneGame() {
           Scegli una modella (o carica una foto), poi taglia e colora i capelli, trucca il viso e scegli il vestito.
           Alla fine salva il look nel tuo book!
         </p>
+        <button
+          type="button"
+          onClick={() => {
+            setPasso(0)
+            setTutorialAperto(true)
+          }}
+          className="btn-ghost text-sm px-5 py-2.5 font-semibold mt-3"
+        >
+          ❓ Come si gioca
+        </button>
       </header>
 
       {avviso && (
@@ -920,9 +1130,36 @@ export default function SaloneGame() {
             >
               <Avatar
                 look={look}
+                bocca={bocca}
                 guide={tab === 'foto' && Boolean(look.foto)}
                 className="w-full h-auto rounded-2xl overflow-hidden"
               />
+              {cibo.map((c) => (
+                <span
+                  key={c.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Dai da mangiare: ${c.emoji}`}
+                  onPointerDown={(e) => prendiCibo(e, c)}
+                  onPointerMove={(e) => trascinaCibo(e, c)}
+                  onPointerUp={(e) => lasciaCibo(e, c)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      mangia(c)
+                    }
+                  }}
+                  className={`salone-cibo${ciboPreso?.id === c.id ? ' preso' : ''}`}
+                  style={{ left: `${c.x}%`, top: `${c.y}%` }}
+                >
+                  {c.emoji}
+                </span>
+              ))}
+              {cuori.map((c) => (
+                <span key={c.id} className="salone-cuore" style={{ left: `${c.x}%`, top: `${c.y}%` }}>
+                  {c.emoji}
+                </span>
+              ))}
 
               {puoTagliare && (
                 <div
@@ -992,6 +1229,20 @@ export default function SaloneGame() {
                 </div>
               )}
             </div>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setLook((l) => ({ ...l, vasca: !l.vasca }))}
+                className={`rounded-2xl py-2.5 text-sm font-bold transition ${
+                  look.vasca ? 'bg-[#7cc4ef] text-[#04222b]' : 'btn-ghost font-semibold'
+                }`}
+              >
+                {look.vasca ? '🚪 Esci dalla vasca' : '🛁 Nella vasca'}
+              </button>
+              <span className="rounded-2xl bg-white/5 border border-white/10 py-2.5 text-sm font-semibold text-white/80 text-center">
+                😋 Merende: {pasti}
+              </span>
+            </div>
             {tab === 'capelli' && bolle.length > 0 && (
               <button
                 type="button"
@@ -1034,10 +1285,10 @@ export default function SaloneGame() {
             <div className="grid grid-cols-2 gap-2 mt-3">
               <button
                 type="button"
-                onClick={() => setLook((l) => lookCasuale(l))}
+                onClick={sorpresa}
                 className="btn-ghost text-sm py-3 font-semibold"
               >
-                🎲 Sorpresa!
+                🎁 Sorpresa!
               </button>
               <button
                 type="button"
@@ -1098,6 +1349,16 @@ export default function SaloneGame() {
                       </button>
                     ))}
                   </div>
+                </Sezione>
+
+                <Sezione titolo="Tutto a caso" aiuto="Se non sai da dove partire, lascia scegliere al gioco.">
+                  <button
+                    type="button"
+                    onClick={() => setLook((l) => lookCasuale(l))}
+                    className="btn-ghost text-sm px-5 py-3 font-semibold"
+                  >
+                    🎲 Cambia tutto a caso
+                  </button>
                 </Sezione>
 
                 <Sezione titolo="Colore della pelle">
@@ -1340,6 +1601,18 @@ export default function SaloneGame() {
 
             {tab === 'vestiti' && (
               <>
+                {look.vasca && (
+                  <div className="mb-4 rounded-2xl border border-[#7cc4ef]/40 bg-[#7cc4ef]/10 px-4 py-3 flex items-center justify-between gap-3">
+                    <span className="text-sm text-white/85">🛁 È nella vasca: il vestito è sott’acqua.</span>
+                    <button
+                      type="button"
+                      onClick={() => setLook((l) => ({ ...l, vasca: false }))}
+                      className="rounded-xl bg-[#7cc4ef] text-[#04222b] px-4 py-2 text-sm font-bold shrink-0"
+                    >
+                      Esci
+                    </button>
+                  </div>
+                )}
                 <Sezione titolo="Vestito">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {VESTITI.map((v) => (
@@ -1457,6 +1730,74 @@ export default function SaloneGame() {
           </div>
         </div>
       </div>
+
+      {mostraTutorial && (
+        <div className="fixed inset-x-0 bottom-0 z-50 p-3 sm:p-4 pointer-events-none">
+          <div className="max-w-2xl mx-auto rounded-3xl border border-[#ff5fa2]/40 bg-[#160a12]/95 backdrop-blur-xl p-4 sm:p-5 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.9)] pointer-events-auto">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl leading-none">{PASSI[passo].emoji}</span>
+              <div className="flex-1">
+                <h3 className="font-display font-bold text-white text-base">{PASSI[passo].titolo}</h3>
+                <p className="text-sm text-white/75 mt-1">{PASSI[passo].testo}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3 mt-4">
+              <div className="flex gap-1.5" aria-hidden>
+                {PASSI.map((_, i) => (
+                  <span
+                    key={i}
+                    className={`w-2 h-2 rounded-full ${i === passo ? 'bg-[#ff5fa2]' : 'bg-white/20'}`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    segnaTutorialVisto()
+                    setTutorialChiuso(true)
+                    setTutorialAperto(false)
+                  }}
+                  className="text-xs text-[var(--muted)] hover:text-white transition px-3 py-2"
+                >
+                  Salta
+                </button>
+                {passo > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prossimo = passo - 1
+                      setPasso(prossimo)
+                      if (PASSI[prossimo].tab) setTab(PASSI[prossimo].tab)
+                    }}
+                    className="btn-ghost text-sm px-4 py-2.5 font-semibold"
+                  >
+                    Indietro
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (passo === PASSI.length - 1) {
+                      segnaTutorialVisto()
+                      setTutorialChiuso(true)
+                      setTutorialAperto(false)
+                      setAvviso('Buon divertimento! ✨')
+                      return
+                    }
+                    const prossimo = passo + 1
+                    setPasso(prossimo)
+                    if (PASSI[prossimo].tab) setTab(PASSI[prossimo].tab)
+                  }}
+                  className="rounded-2xl bg-[#ff5fa2] text-[#2b0a1b] text-sm px-5 py-2.5 font-bold hover:brightness-110 transition"
+                >
+                  {passo === PASSI.length - 1 ? 'Ho capito!' : 'Avanti'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* copia nascosta, senza guide: è quella che finisce nel PNG */}
       <div aria-hidden className="fixed -left-[9999px] top-0 w-[320px] h-[400px] pointer-events-none opacity-0">

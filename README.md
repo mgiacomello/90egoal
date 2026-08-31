@@ -57,6 +57,12 @@ Mini-gioco per bambini incluso nell'app, pensato per tablet e telefono.
   glitter, gomma per correggere) oltre al trucco veloce a pastiglie; più ciglia,
   lentiggini e glitter.
 - Si veste: 6 capi, 12 colori, 5 fantasie, occhiali, corona/cerchietto/cappello, gioielli.
+- Durante shampoo e doccia la scena cambia: bagno piastrellato e personaggio
+  **nella vasca** (con paperella). Si entra e si esce anche col pulsante 🛁;
+  quando il phon finisce, esce da sola.
+- **🎁 Sorpresa** fa uscire del cibo: si trascina (o si tocca) sulla bocca e il
+  personaggio lo mangia, con tanto di bocca aperta e cuoricini.
+- Un **tutorial** in nove passi guida al primo avvio e si riapre con "❓ Come si gioca".
 - Il look si salva nel "book" (fino a 12, nel browser) e si scarica come PNG.
 
 Note tecniche: è tutto client-side, il disegno è un SVG (`components/salone/Avatar.tsx`)

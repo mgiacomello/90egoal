@@ -93,11 +93,13 @@ const LENTIGGINI: { x: number; y: number }[] = [
 export default function Avatar({
   look,
   guide = false,
+  bocca = 'normale',
   className,
   svgRef,
 }: {
   look: Look
   guide?: boolean
+  bocca?: 'normale' | 'aperta' | 'felice'
   className?: string
   svgRef?: React.Ref<SVGSVGElement>
 }) {
@@ -464,7 +466,30 @@ export default function Avatar({
         </clipPath>
       </defs>
 
-      <rect width={W} height={H} fill={`url(#${idSfondo})`} />
+      {look.vasca ? (
+        <g>
+          {/* stanza da bagno: piastrelle, mensola e asciugamano */}
+          <rect width={W} height={H} fill="#dff1fb" />
+          <g stroke="#c6e5f6" strokeWidth={2}>
+            {Array.from({ length: 9 }).map((_, i) => (
+              <line key={`v${i}`} x1={i * 40} y1={0} x2={i * 40} y2={300} />
+            ))}
+            {Array.from({ length: 8 }).map((_, i) => (
+              <line key={`o${i}`} x1={0} y1={i * 40} x2={W} y2={i * 40} />
+            ))}
+          </g>
+          <rect x={14} y={104} width={74} height={9} rx={4} fill="#ffffff" />
+          <rect x={22} y={70} width={20} height={34} rx={6} fill="#ff8fc7" />
+          <rect x={28} y={62} width={8} height={10} rx={3} fill="#ffffff" />
+          <rect x={50} y={78} width={18} height={26} rx={6} fill="#7fd6b1" />
+          <rect x={55} y={71} width={8} height={9} rx={3} fill="#ffffff" />
+          <rect x={250} y={54} width={48} height={82} rx={12} fill="#ffd9ec" />
+          <rect x={250} y={78} width={48} height={10} fill="#ffffff" opacity={0.75} />
+          <rect x={250} y={104} width={48} height={10} fill="#ffffff" opacity={0.75} />
+        </g>
+      ) : (
+        <rect width={W} height={H} fill={`url(#${idSfondo})`} />
+      )}
       {sfondo.stelle && (
         <g fill="#ffffff" opacity={0.8}>
           {[
@@ -474,7 +499,7 @@ export default function Avatar({
           ))}
         </g>
       )}
-      <ellipse cx={CX} cy={392} rx={130} ry={26} fill="#000000" opacity={0.06} />
+      {!look.vasca && <ellipse cx={CX} cy={392} rx={130} ry={26} fill="#000000" opacity={0.06} />}
 
       {/* capelli dietro */}
       <g transform={trasformaCapelli}>
@@ -569,14 +594,35 @@ export default function Avatar({
           <path d="M171,150 C176,138 196,138 201,152 C194,144 178,144 171,150 Z" fill={look.ombretto} />
         </g>
       )}
-      {look.rossetto ? (
+      {bocca === 'aperta' && !conFoto ? (
+        <g>
+          <ellipse cx={160} cy={200} rx={17} ry={15} fill="#8e3b3b" />
+          <ellipse cx={160} cy={208} rx={11} ry={7} fill="#e2707f" />
+          {look.rossetto && (
+            <ellipse cx={160} cy={200} rx={19} ry={17} fill="none" stroke={look.rossetto} strokeWidth={5} />
+          )}
+        </g>
+      ) : look.rossetto ? (
         <g opacity={conFoto ? 0.6 : 1}>
-          <path d={`M140,198 C150,190 170,190 180,198 C172,214 148,214 140,198 Z`} fill={look.rossetto} />
+          <path
+            d={
+              bocca === 'felice'
+                ? 'M136,194 C148,186 172,186 184,194 C176,216 144,216 136,194 Z'
+                : 'M140,198 C150,190 170,190 180,198 C172,214 148,214 140,198 Z'
+            }
+            fill={look.rossetto}
+          />
           <path d="M148,197 C156,193 164,193 172,197" stroke={tono(look.rossetto, 0.45)} strokeWidth={3} fill="none" strokeLinecap="round" />
         </g>
       ) : (
         !conFoto && (
-          <path d="M142,196 C152,208 168,208 178,196" stroke="#c2605c" strokeWidth={5} fill="none" strokeLinecap="round" />
+          <path
+            d={bocca === 'felice' ? 'M138,192 C150,214 170,214 182,192' : 'M142,196 C152,208 168,208 178,196'}
+            stroke="#c2605c"
+            strokeWidth={5}
+            fill="none"
+            strokeLinecap="round"
+          />
         )
       )}
       {look.lentiggini && !conFoto && (
@@ -694,6 +740,27 @@ export default function Avatar({
             <path key={i} d={stella(s.x, s.y, s.r, 4)} opacity={0.55 + (i % 3) * 0.15} />
           ))}
           <path d={stella(242, 210, 5, 4)} fill="#ffd24a" opacity={0.9} />
+        </g>
+      )}
+
+      {/* la vasca davanti: il personaggio ci sta dentro */}
+      {look.vasca && (
+        <g>
+          <path d="M14,302 L306,302 L306,376 Q306,396 282,396 L38,396 Q14,396 14,376 Z" fill="#8ecfee" />
+          <path d="M40,332 q26,-9 54,0 M186,350 q26,-9 54,0" stroke="#ffffff" strokeWidth={4} strokeLinecap="round" fill="none" opacity={0.55} />
+          <g fill="#ffffff">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <circle key={i} cx={22 + i * 26} cy={302 + ((i % 3) - 1) * 5} r={11 + ((i * 5) % 6)} opacity={0.95} />
+            ))}
+          </g>
+          <g transform="translate(246,278)">
+            <ellipse cx={0} cy={12} rx={20} ry={13} fill="#ffd24a" />
+            <circle cx={11} cy={-3} r={11} fill="#ffd24a" />
+            <path d="M20,-3 L31,1 L20,5 Z" fill="#ff9f43" />
+            <circle cx={14} cy={-6} r={2.4} fill="#2b2f38" />
+          </g>
+          <rect x={8} y={288} width={304} height={17} rx={9} fill="#ffffff" />
+          <rect x={8} y={288} width={304} height={6} rx={3} fill="#e8f4fb" />
         </g>
       )}
 

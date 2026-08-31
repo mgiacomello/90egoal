@@ -501,3 +501,45 @@ select.input-field {
   .salone-goccia,
   .salone-soffio { animation: none; opacity: 0; }
 }
+
+/* ===== Salone: merende e cuoricini ===== */
+.salone-cibo {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 34px;
+  line-height: 1;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+  animation: salone-cibo-arriva 0.4s cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+
+.salone-cibo.preso {
+  cursor: grabbing;
+  transform: translate(-50%, -50%) scale(1.2);
+}
+
+.salone-cuore {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 26px;
+  pointer-events: none;
+  animation: salone-cuore-sale 1.3s ease-out forwards;
+}
+
+@keyframes salone-cibo-arriva {
+  from { transform: translate(-50%, -140%) scale(0.3); opacity: 0; }
+  to { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+
+@keyframes salone-cuore-sale {
+  0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: translate(-50%, -220%) scale(1.15); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .salone-cibo { animation: none; }
+  .salone-cuore { animation-duration: 0.01ms; opacity: 0; }
+}
