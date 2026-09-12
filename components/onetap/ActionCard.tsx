@@ -34,6 +34,7 @@ const COPY = {
     replies: 'Tocca una risposta',
     again: 'Nuova cattura',
     gcal: 'Apri in Google Calendar',
+    draft: 'Testo pronto',
     nothing: 'Non ho trovato niente su cui agire.',
     done: 'Fatto',
   },
@@ -48,6 +49,7 @@ const COPY = {
     replies: 'Tap a reply',
     again: 'New capture',
     gcal: 'Open in Google Calendar',
+    draft: 'Ready to send',
     nothing: 'Nothing here to act on.',
     done: 'Done',
   },
@@ -117,7 +119,7 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
     const options = [primary, ...analysis.secondary].slice(0, 3)
     return (
       <div className="ot-rise px-6 pt-10">
-        <Detected label={t.detected} value={primary.subject} />
+        <Detected label={t.detected} value={primary.subject} title={analysis.title} />
         <p className="ot-display mt-10 text-[28px] font-bold leading-tight">{t.ask}</p>
         <div className="mt-6 space-y-3">
           {options.map((option) => (
@@ -139,7 +141,7 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
   if (primary.kind === 'REPLY' && primary.replies?.length) {
     return (
       <div className="ot-rise px-6 pt-10">
-        <Detected label={t.detected} value={primary.subject} />
+        <Detected label={t.detected} value={primary.subject} title={analysis.title} />
         {analysis.confidence === 'medium' && <Hint text={t.think} />}
         <h2 className="ot-display mt-8 flex items-center gap-3 text-[34px] font-extrabold leading-none">
           <ActionIcon kind="REPLY" className="h-7 w-7 text-[var(--ot-muted)]" />
@@ -176,7 +178,7 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
   /* ---------- azione singola ---------- */
   return (
     <div className="ot-rise px-6 pt-10">
-      <Detected label={t.detected} value={primary.subject} />
+      <Detected label={t.detected} value={primary.subject} title={analysis.title} />
       {analysis.confidence === 'medium' && <Hint text={t.think} />}
 
       <h2 className="ot-display mt-8 flex items-center gap-3 text-[34px] font-extrabold leading-none">
@@ -201,6 +203,8 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
           </button>
         )}
       </div>
+
+      <DraftPreview draft={primary.draft} label={t.draft} />
 
       {primary.kind === 'CALENDAR' && primary.event && (
         <div className="mt-4 text-center">
@@ -228,11 +232,25 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
 
 /* ------------------------------------------------------------------ */
 
-function Detected({ label, value }: { label: string; value: string }) {
+function Detected({ label, value, title }: { label: string; value: string; title?: string }) {
   return (
     <div>
-      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ot-muted)]">{label}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ot-muted)]">
+        {title ?? label}
+      </p>
       <p className="ot-display mt-2 line-clamp-3 text-[22px] font-semibold leading-snug text-white/95">{value}</p>
+    </div>
+  )
+}
+
+/** Anteprima del testo che partirà: l'utente vede cosa sta per mandare, non lo scopre dopo. */
+function DraftPreview({ draft, label }: { draft?: { subject?: string; body: string }; label: string }) {
+  if (!draft) return null
+  return (
+    <div className="ot-card mt-4 px-5 py-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ot-muted)]">{label}</p>
+      {draft.subject && <p className="mt-2 text-[15px] font-semibold text-white/90">{draft.subject}</p>}
+      <p className="mt-1.5 whitespace-pre-wrap text-[15px] leading-relaxed text-white/75">{draft.body}</p>
     </div>
   )
 }

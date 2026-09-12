@@ -10,6 +10,7 @@ import type {
   Analysis,
   CalendarEvent,
   Confidence,
+  Enrichment,
   Entity,
   Lang,
   SuggestedAction,
@@ -24,6 +25,13 @@ export interface DetectOptions {
   replies?: string[]
   /** Etichetta di contenuto data dal modello (message, product, receipt...). */
   hintKind?: string
+  /**
+   * Etichette e testi pronti dal modello. Decorano l'azione scelta qui: un
+   * titolo per l'evento, nome e azienda per il contatto, una bozza per
+   * l'email. Non possono aggiungere entità — se un numero non è nel testo,
+   * nessuna bozza lo farà comparire.
+   */
+  enrich?: Enrichment
   /**
    * Testo di provenienza poco affidabile (OCR faticoso): un numero di telefono
    * deve avere una forma da numero di telefono — prefisso, parola-chiave o
@@ -515,6 +523,23 @@ export const ACTION_LABEL: Record<SuggestedAction['kind'], string> = {
 }
 
 /* ------------------------------------------------------------------ *
+ * Arricchimento: cosa si accetta dal modello
+ * ------------------------------------------------------------------ */
+
+function short(value: string | undefined, max: number): string | undefined {
+  const v = value?.trim()
+  return v && v.length <= max ? v : undefined
+}
+
+/** Un luogo suggerito dal modello vale solo se compare davvero nel testo letto. */
+function grounded(value: string | undefined, text: string): string | undefined {
+  const v = short(value, 120)
+  if (!v) return undefined
+  const needle = v.toLowerCase().replace(/\s+/g, ' ')
+  return text.toLowerCase().replace(/\s+/g, ' ').includes(needle) ? v : undefined
+}
+
+/* ------------------------------------------------------------------ *
  * Il motore
  * ------------------------------------------------------------------ */
 
@@ -591,9 +616,12 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
     const start = dateHit ? dateHit.start : timeHit!.start
     const endIdx = timeHit ? timeHit.end : dateHit!.end
     calendarEvent = {
-      title: eventTitle(text, strip, lang),
+      // Il modello dà un titolo umano ("Cena con Anna da Nobu") dove l'euristica
+      // darebbe la prima riga; il luogo però deve stare nel testo.
+      title: short(options.enrich?.event?.title, 80) ?? eventTitle(text, strip, lang),
       start: toLocalIso(base),
       end: toLocalIso(end),
+      location: grounded(options.enrich?.event?.location, text),
       allDay: !timeHit,
     }
     entities.push({
@@ -689,18 +717,43 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
   if (addr) {
     add({ kind: 'NAVIGATE', label: ACTION_LABEL.NAVIGATE, subject: addr.value, value: addr.value, score: 0.88, entity: addr })
   }
+  const enrich = options.enrich
+  const messageDraft = short(enrich?.messageDraft, 400)
+  const contactName = short(enrich?.contact?.name, 80)
+  const contact = (phone || email)
+    ? {
+        name: contactName,
+        company: short(enrich?.contact?.company, 80),
+        role: short(enrich?.contact?.role, 80),
+        phone: phone?.value,
+        email: email?.value,
+      }
+    : undefined
+  // Un biglietto da visita con un nome: la cosa più utile in un tap è salvare
+  // tutto — nome, ruolo, azienda, numero, email — non chiamare al buio.
+  const isCard = options.hintKind === 'contact' && !!contactName
+
   if (phone) {
-    add({ kind: 'CALL', label: ACTION_LABEL.CALL, subject: phone.raw.trim(), value: phone.value, score: 0.86, entity: phone })
+    const who = contactName ?? phone.raw.trim()
+    add({ kind: 'CALL', label: ACTION_LABEL.CALL, subject: who, value: phone.value, score: 0.86, entity: phone })
     if (phone.value.startsWith('+')) {
       // wa.me accetta solo numeri in formato internazionale.
-      add({ kind: 'WHATSAPP', label: ACTION_LABEL.WHATSAPP, subject: phone.raw.trim(), value: phone.value, score: 0.42, entity: phone })
+      add({ kind: 'WHATSAPP', label: ACTION_LABEL.WHATSAPP, subject: who, value: phone.value, score: 0.42, entity: phone,
+        draft: messageDraft ? { body: messageDraft } : undefined })
     }
-    add({ kind: 'TEXT', label: ACTION_LABEL.TEXT, subject: phone.raw.trim(), value: phone.value, score: 0.38, entity: phone })
-    add({ kind: 'CONTACT', label: ACTION_LABEL.CONTACT, subject: phone.raw.trim(), value: phone.value, score: 0.34, entity: phone,
-      contact: { phone: phone.value, email: email?.value } })
+    add({ kind: 'TEXT', label: ACTION_LABEL.TEXT, subject: who, value: phone.value, score: messageDraft ? 0.5 : 0.38, entity: phone,
+      draft: messageDraft ? { body: messageDraft } : undefined })
+  }
+  if (contact && (phone || email)) {
+    const anchor = phone ?? email!
+    add({ kind: 'CONTACT', label: ACTION_LABEL.CONTACT, subject: contactName ?? anchor.raw.trim(), value: anchor.value,
+      score: isCard ? 0.9 : 0.34, entity: anchor, contact })
   }
   if (email) {
-    add({ kind: 'EMAIL', label: ACTION_LABEL.EMAIL, subject: email.value, value: email.value, score: 0.8, entity: email })
+    const subject = short(enrich?.emailDraft?.subject, 120)
+    const body = short(enrich?.emailDraft?.body, 1200)
+    add({ kind: 'EMAIL', label: ACTION_LABEL.EMAIL, subject: contactName ?? email.value, value: email.value,
+      score: body ? 0.84 : 0.8, entity: email, draft: body ? { subject, body } : undefined })
   }
   if (dt && calendarEvent) {
     const penalty = msg.isQuestion ? 0.18 : 0 // una data solo "proposta" non è un evento confermato
@@ -729,12 +782,13 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
   const cleanText = text.length > 300 ? `${text.slice(0, 300)}…` : text
   add({ kind: 'COPY', label: ACTION_LABEL.COPY, subject: cleanText, value: text, score: 0.4,
     entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
-  add({ kind: 'SEARCH', label: ACTION_LABEL.SEARCH, subject: firstSentence(text), value: firstSentence(text), score:
+  const query = short(enrich?.searchQuery, 120) ?? firstSentence(text)
+  add({ kind: 'SEARCH', label: ACTION_LABEL.SEARCH, subject: query, value: query, score:
     options.hintKind === 'product' ? 0.7 : 0.36,
     entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
   // Salvare quello che si è appena letto è utile su qualunque cattura: vale
   // più su un testo lungo, dove non c'è un'entità sola da cui ripartire.
-  add({ kind: 'NOTE', label: ACTION_LABEL.NOTE, subject: firstSentence(text), value: text,
+  add({ kind: 'NOTE', label: ACTION_LABEL.NOTE, subject: short(enrich?.title, 80) ?? firstSentence(text), value: text,
     score: text.length > 120 ? 0.44 : 0.32,
     entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
   if (text.length > 12) {
@@ -773,6 +827,7 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
 
   return {
     text,
+    title: short(options.enrich?.title, 80),
     lang,
     entities,
     primary,

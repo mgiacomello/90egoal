@@ -317,5 +317,69 @@ check('senza strictNumbers la fila di cifre è ancora un numero (screenshot puli
   assert.equal(a.primary?.kind, 'CALL')
 })
 
+/* --- arricchimento dal modello: decora, non decide --- */
+
+const CARD = 'Giulia Neri\nHead of Design — Studio Bianchi\ngiulia@studiobianchi.it\n+39 02 8901234'
+const CARD_ENRICH = {
+  title: 'Biglietto da visita di Giulia Neri',
+  contact: { name: 'Giulia Neri', company: 'Studio Bianchi', role: 'Head of Design' },
+  emailDraft: { subject: 'Piacere di averla conosciuta', body: 'Buongiorno Giulia, è stato un piacere. Resto a disposizione.' },
+  messageDraft: 'Buongiorno Giulia, sono Marco: piacere di averla conosciuta oggi.',
+}
+
+check('biglietto da visita: SAVE CONTACT in primo piano con nome, ruolo e azienda', () => {
+  const a = run(CARD, { hintKind: 'contact', enrich: CARD_ENRICH })
+  assert.equal(a.primary?.kind, 'CONTACT')
+  assert.equal(a.primary?.contact?.name, 'Giulia Neri')
+  assert.equal(a.primary?.contact?.company, 'Studio Bianchi')
+  assert.equal(a.primary?.contact?.role, 'Head of Design')
+  assert.equal(a.primary?.contact?.phone, '+39028901234')
+  assert.equal(a.primary?.contact?.email, 'giulia@studiobianchi.it')
+  assert.equal(a.title, 'Biglietto da visita di Giulia Neri')
+})
+
+check('la vCard porta azienda e ruolo', () => {
+  const vcf = buildVcf({ name: 'Giulia Neri', company: 'Studio Bianchi', role: 'Head of Design', phone: '+39028901234' })
+  assert.match(vcf, /ORG:Studio Bianchi/)
+  assert.match(vcf, /TITLE:Head of Design/)
+})
+
+check('EMAIL con bozza: mailto porta oggetto e corpo', () => {
+  const a = run(CARD, { enrich: CARD_ENRICH })
+  const email = [a.primary!, ...a.secondary].find((x) => x.kind === 'EMAIL')!
+  assert.equal(email.draft?.subject, 'Piacere di averla conosciuta')
+  const href = actionHref(email, 'ios', 'it')!
+  assert.match(href, /^mailto:giulia@studiobianchi\.it\?subject=Piacere%20di%20averla%20conosciuta&body=/)
+  assert.ok(!href.includes('+'), 'gli spazi devono essere %20, non +')
+})
+
+check('TEXT con bozza: sms con body, grammatica iOS e Android', () => {
+  const a = run(CARD, { enrich: CARD_ENRICH })
+  const text = [a.primary!, ...a.secondary].find((x) => x.kind === 'TEXT')!
+  assert.match(actionHref(text, 'ios', 'it')!, /^sms:\+39028901234&body=/)
+  assert.match(actionHref(text, 'android', 'it')!, /^sms:\+39028901234\?body=/)
+})
+
+check('evento: titolo umano dal modello, luogo solo se nel testo', () => {
+  const a = run('Anna: ci vediamo da Nobu martedì alle 19:30', {
+    enrich: { event: { title: 'Cena con Anna da Nobu', location: 'Via Inventata 99, Roma' } },
+  })
+  const cal = [a.primary!, ...a.secondary].find((x) => x.kind === 'CALENDAR')!
+  assert.equal(cal.event?.title, 'Cena con Anna da Nobu')
+  assert.equal(cal.event?.location, undefined, 'un luogo non presente nel testo non deve passare')
+})
+
+check('l\'arricchimento non può inventare entità', () => {
+  const a = run('Grazie mille, a presto!', { enrich: { messageDraft: 'Chiamami al 333 1234567', contact: { name: 'Nessuno' } } })
+  assert.ok(!a.entities.some((e) => e.kind === 'phone'), 'un numero nella bozza non è un numero nel testo')
+  assert.ok(![a.primary!, ...a.secondary].some((x) => x.kind === 'CALL' || x.kind === 'CONTACT'))
+})
+
+check('ricerca: la query del modello batte la prima riga', () => {
+  const a = run('Sony WH-1000XM5 cuffie wireless nero — offerta', { hintKind: 'product', enrich: { searchQuery: 'Sony WH-1000XM5 prezzo' } })
+  assert.equal(a.primary?.kind, 'SEARCH')
+  assert.equal(a.primary?.value, 'Sony WH-1000XM5 prezzo')
+})
+
 console.log(`\n${passed} passati, ${failed} falliti`)
 if (failed > 0) process.exit(1)

@@ -10,7 +10,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { analyze } from '@/lib/onetap/detect'
-import type { Analysis, Lang } from '@/lib/onetap/types'
+import type { Analysis, Enrichment, Lang } from '@/lib/onetap/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -51,21 +51,34 @@ function json(body: unknown, status = 200): Response {
   return Response.json(body, { status, headers: NO_STORE })
 }
 
-const SYSTEM = `You are the perception layer of ONE TAP. You never decide what the user should do.
+const SYSTEM = `You are the perception layer of ONE TAP. You read what the user captured and prepare what they will most likely want to do next. You never decide the action: a separate deterministic engine does that from the transcribed text.
 
 Return ONLY a JSON object with these keys:
 {
   "text": "every piece of text visible, transcribed verbatim, line by line",
   "kind": "message | event | contact | address | receipt | product | document | code | screen | other",
   "language": "ISO 639-1 code of the text",
-  "replies": ["...", "...", "..."]
+  "title": "what this is, in 3-7 words, in the text's language (e.g. 'Fattura Studio Rossi 2026/114', 'Biglietto da visita di Giulia Neri', 'Cena da Nobu venerdì')",
+  "replies": ["...", "...", "..."],
+  "event": {"title": "...", "location": "..."},
+  "contact": {"name": "...", "company": "...", "role": "..."},
+  "email_draft": {"subject": "...", "body": "..."},
+  "message_draft": "...",
+  "search_query": "..."
 }
 
-Rules:
+Rules for "text":
 - Transcribe exactly. Never invent, correct, complete or translate phone numbers, IBANs, addresses, codes, dates or amounts. If a character is unreadable, leave it out rather than guessing.
 - Keep the reading order and the line breaks. Drop pure interface chrome (battery, signal, carrier).
-- "replies" is a non-empty array of exactly 3 short, natural, ready-to-send answers ONLY when "kind" is "message" and the message is addressed to the reader. Write them in the same language as the message, first person, max 12 words each, no greetings unless natural, no emoji. Otherwise return an empty array.
-- If the image contains no text at all, return "text" as a short factual description of the object, and kind "product" or "other".
+- If the image contains no text at all, put a short factual description of the object in "text" and use kind "product" or "other".
+
+Rules for everything else (all optional — omit a key or use "" when it does not apply):
+- "replies": exactly 3 short, natural, ready-to-send answers ONLY when kind is "message" and it is addressed to the reader. Same language and register as the message (formal stays formal), first person, max 14 words each, no emoji, no placeholders. Make them genuinely different: one that agrees, one that asks the one missing detail, one that declines or proposes an alternative. Otherwise [].
+- "event": when there is an appointment, booking or deadline: a human title ("Cena con Anna da Nobu", not the raw line) and the location ONLY if it appears in the text.
+- "contact": when there is a person or business with a phone or email: name, company, role — exactly as written, nothing invented.
+- "email_draft": ONLY if an email address is visible: a subject and a 2-4 sentence body the reader would plausibly send to that address, in the text's language, ready to send, no placeholders like [name].
+- "message_draft": ONLY if a phone number is visible: one short message (max 30 words) the reader would plausibly send, same language, no placeholders.
+- "search_query": for a product, place, book, film or thing to look up: the best 3-8 word query.
 - Output the JSON object and nothing else.`
 
 interface ModelOutput {
@@ -73,6 +86,7 @@ interface ModelOutput {
   kind: string
   language: string
   replies: string[]
+  enrich: Enrichment
 }
 
 function parseModelJson(raw: string): ModelOutput | null {
@@ -81,14 +95,29 @@ function parseModelJson(raw: string): ModelOutput | null {
   const end = trimmed.lastIndexOf('}')
   if (start === -1 || end === -1) return null
   try {
-    const parsed = JSON.parse(trimmed.slice(start, end + 1)) as Partial<ModelOutput>
+    const parsed = JSON.parse(trimmed.slice(start, end + 1)) as Record<string, unknown>
+    const str = (v: unknown, max = 1200): string | undefined =>
+      typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : undefined
+    const obj = (v: unknown): Record<string, unknown> =>
+      v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : {}
+    const event = obj(parsed.event)
+    const contact = obj(parsed.contact)
+    const emailDraft = obj(parsed.email_draft)
     return {
-      text: typeof parsed.text === 'string' ? parsed.text : '',
-      kind: typeof parsed.kind === 'string' ? parsed.kind : 'other',
-      language: typeof parsed.language === 'string' ? parsed.language : '',
+      text: str(parsed.text, 20_000) ?? '',
+      kind: str(parsed.kind, 40) ?? 'other',
+      language: str(parsed.language, 10) ?? '',
       replies: Array.isArray(parsed.replies)
         ? parsed.replies.filter((r): r is string => typeof r === 'string' && r.trim().length > 0).slice(0, 3)
         : [],
+      enrich: {
+        title: str(parsed.title, 80),
+        event: { title: str(event.title, 80), location: str(event.location, 120) },
+        contact: { name: str(contact.name, 80), company: str(contact.company, 80), role: str(contact.role, 80) },
+        emailDraft: { subject: str(emailDraft.subject, 120), body: str(emailDraft.body, 1200) },
+        messageDraft: str(parsed.message_draft, 400),
+        searchQuery: str(parsed.search_query, 120),
+      },
     }
   } catch {
     return null
@@ -227,10 +256,16 @@ export async function POST(request: Request) {
     if (PROVIDER === 'anthropic') {
       const raw = await transcribeWithClaude(image || null, text, controller.signal)
       output = parseModelJson(raw)
-      if (!output || !output.text.trim()) {
-        return json({ error: 'Nothing readable in that capture.', code: 'NO_CONTENT' }, 422)
+      if (image) {
+        if (!output || !output.text.trim()) {
+          return json({ error: 'Nothing readable in that capture.', code: 'NO_CONTENT' }, 422)
+        }
+      } else {
+        // Solo testo: il modello serve per risposte e bozze, non per riscrivere
+        // il testo dell'utente, che resta la verità.
+        output = output ?? { text, kind: 'other', language: '', replies: [], enrich: {} }
+        output.text = text
       }
-      if (!image) output.text = text
     } else if (image) {
       const raw = await callModel(
         VISION_MODEL,
@@ -260,7 +295,7 @@ export async function POST(request: Request) {
         ],
         controller.signal,
       )
-      output = parseModelJson(raw) ?? { text, kind: 'other', language: '', replies: [] }
+      output = parseModelJson(raw) ?? { text, kind: 'other', language: '', replies: [], enrich: {} }
       // Il testo dell'utente è la verità: il modello non lo riscrive.
       output.text = text
     }
@@ -271,6 +306,7 @@ export async function POST(request: Request) {
       usedAI: true,
       replies: output.replies,
       hintKind: output.kind,
+      enrich: output.enrich,
     })
 
     return json(result)
