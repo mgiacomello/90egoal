@@ -6,8 +6,40 @@ Il repository git è già pronto con un commit iniziale e `.env.local` **escluso
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://jzxeasfovkigtyptspan.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_A98sGzVNr9A_uzbYpts4gQ_eO_uiw8l
+GROQ_API_KEY=gsk_...
 ```
 (La `SUPABASE_SERVICE_ROLE_KEY` non è necessaria per il funzionamento attuale.)
+
+### `GROQ_API_KEY` — a cosa serve
+
+Una sola chiave, due funzioni:
+
+- l'assistente della home (`/api/ask`), che senza chiave risponde *"AI non
+  configurata"*;
+- la lettura delle foto di ONE TAP (`/api/onetap/analyze`).
+
+Si prende gratis su <https://console.groq.com> → **API Keys** → *Create API Key*.
+
+**Importante: su Vercel va spuntata anche l'anteprima.** Le variabili sono per
+ambiente: se la chiave è solo su *Production*, i deployment di anteprima non la
+vedono e sembrano rotti. Settings → Environment Variables → seleziona
+**Production, Preview e Development**. Dopo averla aggiunta serve un nuovo deploy
+(Deployments → ⋯ → *Redeploy*): le variabili vengono lette al build.
+
+**Senza chiave ONE TAP resta usabile**: testo, incolla, QR e demo funzionano
+sempre, e le foto vengono lette sul dispositivo con l'OCR locale — più lento e
+meno preciso sul testo fitto, ma funzionante.
+
+### Come verificare in un secondo
+
+Apri nel browser:
+
+```
+https://90egoal.vercel.app/api/onetap/analyze
+```
+
+Risponde `{"configured":true}` se la chiave c'è, `{"configured":false}` se manca.
+Nessuna chiave viene mai esposta da questo endpoint.
 
 ---
 
