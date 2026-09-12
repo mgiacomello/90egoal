@@ -106,18 +106,40 @@ attiva su quel deploy.
 
 ---
 
-## Share to ONE TAP
+## Portarla fuori dall'app (`/onetap/install`)
 
-Installando l'app sulla home screen, ONE TAP compare nello share sheet di
-sistema: screenshot → Condividi → ONE TAP → azione.
+Guida interna che rileva il dispositivo e dà i passi giusti. Il punto: l'app
+non va aperta, si arriva all'azione da dove si è già.
 
-Il service worker (`public/onetap/sw.js`) intercetta la POST dello share target,
-mette il file nella Cache Storage del dispositivo e rimanda all'app, che lo legge
-e lo cancella. L'immagine **non passa dal server**. Al primo utilizzo, prima che
-il service worker sia attivo, `app/onetap/share/route.ts` risponde chiedendo di
-riprovare invece di salvare il file lato server.
+**Android** — "Installa app" da Chrome e basta: il `share_target` del manifest
+è onorato dal sistema, quindi ONE TAP compare nel menu di condivisione per
+immagini, testo e link. Il service worker (`public/onetap/sw.js`) intercetta la
+POST, mette il file nella Cache Storage del dispositivo e rimanda all'app, che
+lo legge e lo cancella: **l'immagine non passa dal server**. Al primo utilizzo,
+prima che il worker sia attivo, `app/onetap/share/route.ts` chiede di riprovare
+invece di salvare il file lato server.
 
----
+**iPhone** — Safari **non implementa** i Web Share Target: una PWA non può
+comparire nel menu di condivisione di iOS, punto. La strada che funziona è un
+comando dell'app Comandi (Ricevi Immagini dal menu di condivisione → *Estrai
+testo dall'immagine* → *Codifica URL* → *Apri URL* su `/onetap?text=…`), che si
+costruisce in due minuti. Effetto collaterale ottimo: l'OCR è quello di Apple,
+gira sul telefono, quindi su questa strada **l'immagine non lascia mai il
+dispositivo** e non serve nemmeno la chiave AI. Si aggancia poi a Tocco
+posteriore o al tasto Azione.
+
+**Desktop** — installazione dalla barra degli indirizzi, poi ⌘V/Ctrl+V ovunque
+nell'app, o trascinare il file.
+
+### Il soffitto, dichiarato
+
+Nessuna web app può stare sopra alle altre app, intercettare i messaggi in
+arrivo o leggere il rullino: **non esiste un permesso browser per la galleria**,
+su nessuna piattaforma. Un'immagine arriva a ONE TAP solo se la scatti, la
+condividi, la incolli o la scegli — ed è esattamente il confine su cui regge la
+promessa di privacy. Le parti mancanti (azione sulla foto stessa, azioni dentro
+alle notifiche, tile in lock screen) richiedono un'app nativa: è il passo dopo
+questo MVP, e il motore che decide l'azione non cambierebbe.
 
 ## Modello di business (misurato, non applicato)
 

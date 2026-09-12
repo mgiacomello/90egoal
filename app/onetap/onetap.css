@@ -131,6 +131,15 @@
   .ot-chip:hover { background: var(--ot-surface-hi); }
 }
 
+.ot-chip-on {
+  background: #fff;
+  border-color: #fff;
+  color: #08080a;
+}
+@media (hover: hover) {
+  .ot-chip-on:hover { background: #fff; }
+}
+
 .ot-ghost {
   color: var(--ot-muted);
   transition: color 160ms ease;
