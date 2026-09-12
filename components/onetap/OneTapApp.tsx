@@ -19,7 +19,7 @@ import {
   textFromClipboard,
 } from '@/lib/onetap/image'
 import { demoText, type DemoScenario } from '@/lib/onetap/demo'
-import { readOnDevice } from '@/lib/onetap/ocr'
+import { MIN_CONFIDENCE, readOnDevice } from '@/lib/onetap/ocr'
 import {
   clearHistory,
   FREE_ACTIONS_PER_MONTH,
@@ -111,16 +111,20 @@ export default function OneTapApp() {
    * ed è anche la strada più privata: l'immagine non parte per nessun posto.
    */
   const readHere = useCallback(
-    async (file: Blob, notConfigured: boolean) => {
+    async (file: Blob) => {
       setOnDevice(true)
       setReadingStep(0)
       try {
-        const { text } = await readOnDevice(file)
-        if (!text || text.replace(/\s/g, '').length < 3) {
+        const { text, confidence } = await readOnDevice(file)
+        const dense = text.replace(/\s/g, '')
+
+        // Regola del prodotto: da un testo che non si è letto bene non si
+        // ricava un'azione. Meglio ammetterlo che proporre qualcosa a caso.
+        if (!dense || dense.length < 3 || confidence < MIN_CONFIDENCE) {
           setError(
-            notConfigured
-              ? 'Read on your device, but no text came out of that image. Try again closer, or with more light.'
-              : 'No text came out of that image. Try again closer, or with more light.',
+            dense.length >= 3
+              ? 'That photo came out too blurred to read reliably, so I am not going to guess. Try again steadier, closer, or with more light.'
+              : 'No readable text came out of that image. Try again closer, or with more light.',
           )
           setView('home')
           return
@@ -170,12 +174,12 @@ export default function OneTapApp() {
         if (!res.ok) {
           // Nessuna chiave, o il modello non risponde: si legge qui, sul
           // dispositivo, invece di lasciare l'utente a mani vuote.
-          await readHere(file, body?.code === 'AI_NOT_CONFIGURED')
+          await readHere(file)
           return
         }
         record(body as Analysis)
       } catch {
-        await readHere(file, false)
+        await readHere(file)
       }
     },
     [record, readHere],

@@ -12,7 +12,9 @@
 // scaricati una volta (qualche MB) e poi restano nella cache del browser.
 
 type Worker = {
-  recognize: (image: Blob) => Promise<{ data: { text: string } }>
+  recognize: (image: Blob | HTMLCanvasElement) => Promise<{
+    data: { text: string; confidence?: number }
+  }>
   terminate: () => Promise<unknown>
 }
 
@@ -41,16 +43,97 @@ async function getWorker(): Promise<Worker> {
 
 export interface OcrResult {
   text: string
+  /** 0-100. Sotto la soglia il testo non è affidabile e non va usato. */
+  confidence: number
   /** Quanto è durata: serve a raccontare all'utente perché ha aspettato. */
   ms: number
+}
+
+/**
+ * Sotto questa confidenza il testo è rumore: meglio dire "non ho letto" che
+ * proporre un'azione costruita su caratteri inventati.
+ */
+export const MIN_CONFIDENCE = 55
+
+/** Lato minimo a cui conviene portare l'immagine: sotto, Tesseract sbaglia molto. */
+const TARGET_MIN_SIDE = 1200
+const MAX_SIDE = 2400
+
+/**
+ * Una foto non è uno screenshot: storta, in penombra, con il testo piccolo.
+ * Ingrandire, togliere il colore e allargare il contrasto vale più di
+ * qualunque impostazione del motore.
+ */
+async function preprocess(image: Blob): Promise<HTMLCanvasElement> {
+  const bitmap = await createImageBitmap(image)
+  const minSide = Math.min(bitmap.width, bitmap.height)
+  const maxSide = Math.max(bitmap.width, bitmap.height)
+  let scale = minSide < TARGET_MIN_SIDE ? TARGET_MIN_SIDE / minSide : 1
+  if (maxSide * scale > MAX_SIDE) scale = MAX_SIDE / maxSide
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(bitmap.width * scale)
+  canvas.height = Math.round(bitmap.height * scale)
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })
+  if (!ctx) throw new Error('canvas non disponibile')
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+  bitmap.close?.()
+
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const px = img.data
+
+  // Grigio percettivo, e intanto si misura l'istogramma.
+  const hist = new Uint32Array(256)
+  for (let i = 0; i < px.length; i += 4) {
+    const g = (px[i] * 0.299 + px[i + 1] * 0.587 + px[i + 2] * 0.114) | 0
+    px[i] = px[i + 1] = px[i + 2] = g
+    hist[g]++
+  }
+
+  // Contrasto allargato scartando l'1% delle code: una foto in penombra
+  // occupa una fetta stretta dell'istogramma, e va riportata su tutta la scala.
+  const total = canvas.width * canvas.height
+  const cut = Math.max(1, Math.floor(total * 0.01))
+  let lo = 0
+  let hi = 255
+  for (let acc = 0, v = 0; v < 256; v++) {
+    acc += hist[v]
+    if (acc > cut) { lo = v; break }
+  }
+  for (let acc = 0, v = 255; v >= 0; v--) {
+    acc += hist[v]
+    if (acc > cut) { hi = v; break }
+  }
+  if (hi - lo > 10) {
+    const span = hi - lo
+    for (let i = 0; i < px.length; i += 4) {
+      const v = Math.max(0, Math.min(255, ((px[i] - lo) * 255) / span)) | 0
+      px[i] = px[i + 1] = px[i + 2] = v
+    }
+  }
+
+  ctx.putImageData(img, 0, 0)
+  return canvas
 }
 
 /** Legge il testo di un'immagine senza mandarla da nessuna parte. */
 export async function readOnDevice(image: Blob): Promise<OcrResult> {
   const started = Date.now()
   const worker = await getWorker()
-  const { data } = await worker.recognize(image)
-  return { text: (data?.text ?? '').trim(), ms: Date.now() - started }
+  let source: Blob | HTMLCanvasElement = image
+  try {
+    source = await preprocess(image)
+  } catch {
+    // Preparazione fallita: si tenta comunque sull'originale.
+  }
+  const { data } = await worker.recognize(source)
+  return {
+    text: (data?.text ?? '').trim(),
+    confidence: typeof data?.confidence === 'number' ? data.confidence : 0,
+    ms: Date.now() - started,
+  }
 }
 
 /** Libera il motore quando non serve più (cambio pagina, pulizia). */
