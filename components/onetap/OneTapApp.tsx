@@ -7,6 +7,7 @@
 // mai interrompere quel percorso.
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { analyze, ACTION_LABEL } from '@/lib/onetap/detect'
 import { actionHref, detectPlatform, opensInNewTab, runAction } from '@/lib/onetap/actions'
@@ -32,11 +33,11 @@ import {
 import type { Analysis, HistoryItem, SuggestedAction } from '@/lib/onetap/types'
 import ActionCard from './ActionCard'
 import Onboarding from './Onboarding'
-import { DemoSheet, PrivacySheet, ProSheet, ShareSheet } from './Sheets'
+import { DemoSheet, PrivacySheet, ProSheet } from './Sheets'
 import { ActionIcon, CameraIcon, CloseIcon, TrashIcon } from './icons'
 
 type View = 'home' | 'analyzing' | 'result'
-type SheetName = 'privacy' | 'pro' | 'share' | 'demo'
+type SheetName = 'privacy' | 'pro' | 'demo'
 
 const READING_STEPS = ['Reading…', 'Understanding…', 'Choosing the action…']
 
@@ -378,7 +379,6 @@ export default function OneTapApp() {
             onLibrary={() => libraryRef.current?.click()}
             onPaste={pasteFromButton}
             onText={runText}
-            onShare={() => setSheet('share')}
             onDemo={() => setSheet('demo')}
             onPro={() => setSheet('pro')}
             onReplay={replayHistory}
@@ -398,7 +398,6 @@ export default function OneTapApp() {
         <PrivacySheet onClose={() => setSheet(null)} actionsUsed={store.used} onWipe={wipeEverything} />
       )}
       {sheet === 'pro' && <ProSheet onClose={() => setSheet(null)} actionsUsed={store.used} />}
-      {sheet === 'share' && <ShareSheet onClose={() => setSheet(null)} />}
       {sheet === 'demo' && (
         <DemoSheet
           onClose={() => setSheet(null)}
@@ -425,7 +424,6 @@ function Home({
   onLibrary,
   onPaste,
   onText,
-  onShare,
   onDemo,
   onPro,
   onReplay,
@@ -440,7 +438,6 @@ function Home({
   onLibrary: () => void
   onPaste: () => void
   onText: (text: string) => void
-  onShare: () => void
   onDemo: () => void
   onPro: () => void
   onReplay: (item: HistoryItem) => void
@@ -524,12 +521,12 @@ function Home({
         </div>
       )}
 
-      <button
-        onClick={onShare}
+      <Link
+        href="/onetap/install"
         className="ot-ghost mt-6 block w-full text-center text-[13px] underline underline-offset-4"
       >
         Share to ONE TAP
-      </button>
+      </Link>
 
       {notice && (
         <p className="ot-card ot-rise mt-6 px-5 py-4 text-[14px] leading-relaxed text-amber-200/90">

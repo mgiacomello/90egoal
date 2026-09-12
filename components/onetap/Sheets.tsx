@@ -124,40 +124,6 @@ export function ProSheet({ onClose, actionsUsed }: { onClose: () => void; action
 
 /* ------------------------------------------------------------------ */
 
-export function ShareSheet({ onClose }: { onClose: () => void }) {
-  return (
-    <Sheet title="Share to ONE TAP" onClose={onClose}>
-      <p className="text-[15px] leading-relaxed text-white/75">
-        Install ONE TAP to your home screen and it shows up in the system share sheet. Then any
-        screenshot becomes an action without opening the app.
-      </p>
-
-      <ol className="mt-7 space-y-5 text-[15px] leading-relaxed text-white/75">
-        <li>
-          <strong className="text-white">Android / Chrome.</strong> Menu → <em>Install app</em>.
-          After that: screenshot → Share → ONE TAP.
-        </li>
-        <li>
-          <strong className="text-white">iOS / Safari.</strong> Share → <em>Add to Home Screen</em>.
-          Open a screenshot → Share → ONE TAP.
-        </li>
-        <li>
-          <strong className="text-white">Desktop.</strong> Copy a screenshot and press
-          <kbd className="mx-1 rounded border border-white/15 px-1.5 py-0.5 text-[12px]">⌘V</kbd>
-          anywhere on the home screen.
-        </li>
-      </ol>
-
-      <p className="mt-7 text-[13px] leading-relaxed text-[var(--ot-muted)]">
-        Shared images are handed straight to the app on your device. They are not uploaded anywhere
-        before you ask for an analysis.
-      </p>
-    </Sheet>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-
 export function DemoSheet({
   onClose,
   onRun,
