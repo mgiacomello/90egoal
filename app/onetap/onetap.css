@@ -1,0 +1,213 @@
+/* ============================================================
+   ONE TAP — sistema visivo
+   Nero profondo, tipografia grande, un solo bottone che conta.
+   Tutto è confinato in `.ot` per non toccare il resto del sito.
+   ============================================================ */
+
+.ot {
+  --ot-bg: #08080a;
+  --ot-bg-soft: #0e0e12;
+  --ot-ink: #fafafa;
+  --ot-muted: #8b8b95;
+  --ot-line: rgba(255, 255, 255, 0.09);
+  --ot-surface: rgba(255, 255, 255, 0.045);
+  --ot-surface-hi: rgba(255, 255, 255, 0.08);
+  --ot-violet: #7c5cff;
+  --ot-cyan: #22d3ee;
+
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  background: var(--ot-bg);
+  color: var(--ot-ink);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Alone ambientale, appena percettibile. */
+.ot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(620px 420px at 50% -12%, rgba(124, 92, 255, 0.18), transparent 65%),
+    radial-gradient(520px 380px at 90% 108%, rgba(34, 211, 238, 0.1), transparent 62%);
+}
+
+.ot-display {
+  font-family: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  letter-spacing: -0.02em;
+  /* Sora stretta le parole: senza questo "What do you" si legge attaccato. */
+  word-spacing: 0.06em;
+}
+
+.ot-wordmark {
+  font-family: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+}
+
+/* --- Il bottone ONE TAP --------------------------------------------- */
+
+.ot-tap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 76px;
+  border-radius: 999px;
+  background: #fff;
+  color: #08080a;
+  font-family: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.0625rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 18px 50px -18px rgba(124, 92, 255, 0.85),
+    0 8px 24px -12px rgba(0, 0, 0, 0.9);
+  transition: transform 140ms cubic-bezier(0.34, 1.4, 0.64, 1), box-shadow 200ms ease;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.ot-tap::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 25%, rgba(124, 92, 255, 0.22) 50%, transparent 75%);
+  transform: translateX(-120%);
+  animation: ot-shimmer 3.6s ease-in-out infinite;
+  z-index: -1;
+}
+
+.ot-tap:active {
+  transform: scale(0.972);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 8px 24px -14px rgba(124, 92, 255, 0.8);
+}
+
+@keyframes ot-shimmer {
+  0%, 55% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+
+/* --- Superfici ------------------------------------------------------ */
+
+.ot-card {
+  background: var(--ot-surface);
+  border: 1px solid var(--ot-line);
+  border-radius: 26px;
+  backdrop-filter: blur(18px);
+}
+
+.ot-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--ot-line);
+  background: var(--ot-surface);
+  color: var(--ot-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  transition: background 160ms ease, transform 140ms ease;
+}
+.ot-chip:active { transform: scale(0.96); }
+@media (hover: hover) {
+  .ot-chip:hover { background: var(--ot-surface-hi); }
+}
+
+.ot-ghost {
+  color: var(--ot-muted);
+  transition: color 160ms ease;
+}
+@media (hover: hover) {
+  .ot-ghost:hover { color: var(--ot-ink); }
+}
+
+/* --- Animazioni ----------------------------------------------------- */
+
+@keyframes ot-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+.ot-rise { animation: ot-rise 420ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes ot-pop {
+  0% { opacity: 0; transform: scale(0.9); }
+  60% { transform: scale(1.03); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.ot-pop { animation: ot-pop 340ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@keyframes ot-scan {
+  0% { transform: translateY(-110%); }
+  100% { transform: translateY(510%); }
+}
+.ot-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 18%;
+  background: linear-gradient(180deg, transparent, rgba(124, 92, 255, 0.55), transparent);
+  animation: ot-scan 1.5s ease-in-out infinite;
+}
+
+@keyframes ot-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+.ot-pulse { animation: ot-pulse 1.3s ease-in-out infinite; }
+
+@keyframes ot-sheet-in {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: none; }
+}
+.ot-sheet { animation: ot-sheet-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ot-rise, .ot-pop, .ot-sheet, .ot-scan, .ot-pulse, .ot-tap::after {
+    animation: none !important;
+  }
+  .ot-rise, .ot-pop, .ot-sheet { opacity: 1; transform: none; }
+}
+
+/* --- Finte schermate (demo e onboarding) ---------------------------- */
+
+.ot-shot {
+  border-radius: 20px;
+  border: 1px solid var(--ot-line);
+  background: linear-gradient(180deg, #15151b, #101015);
+  overflow: hidden;
+}
+.ot-bubble {
+  background: #1f1f28;
+  border-radius: 18px 18px 18px 6px;
+  padding: 0.7rem 0.9rem;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  max-width: 88%;
+}
+
+.ot input,
+.ot textarea {
+  font-size: 16px; /* iOS non zooma se il campo è almeno 16px */
+}
+
+.ot ::selection {
+  background: rgba(124, 92, 255, 0.4);
+}

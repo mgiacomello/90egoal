@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:onetap": "node --experimental-strip-types --no-warnings scripts/onetap-detect.test.ts",
+    "onetap:icons": "node scripts/onetap-icons.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
