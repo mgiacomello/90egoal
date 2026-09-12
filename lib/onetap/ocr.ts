@@ -65,7 +65,9 @@ const MAX_SIDE = 2400
  * qualunque impostazione del motore.
  */
 async function preprocess(image: Blob): Promise<HTMLCanvasElement> {
-  const bitmap = await createImageBitmap(image)
+  // `imageOrientation: 'from-image'` non è un dettaglio: senza, una foto da
+  // telefono arriva qui ruotata di 90° e l'OCR restituisce caratteri a caso.
+  const bitmap = await createImageBitmap(image, { imageOrientation: 'from-image' })
   const minSide = Math.min(bitmap.width, bitmap.height)
   const maxSide = Math.max(bitmap.width, bitmap.height)
   let scale = minSide < TARGET_MIN_SIDE ? TARGET_MIN_SIDE / minSide : 1

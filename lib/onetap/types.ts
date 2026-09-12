@@ -15,6 +15,7 @@ export type ActionKind =
   | 'REPLY'
   | 'TRANSLATE'
   | 'SHARE'
+  | 'NOTE'
 
 export type EntityKind =
   | 'phone'

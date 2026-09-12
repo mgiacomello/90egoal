@@ -73,6 +73,7 @@ export function actionHref(action: SuggestedAction, platform: Platform, lang: st
     case 'COPY':
     case 'REPLY':
     case 'SHARE':
+    case 'NOTE':
       return null
   }
 }
@@ -182,6 +183,7 @@ const DONE = {
     calendar: 'Evento pronto: apri il file per salvarlo.',
     contact: 'Contatto pronto: apri il file per salvarlo.',
     shared: 'Condiviso.',
+    noted: 'Nota salvata.',
     failed: 'Non è riuscito. Riprova.',
   },
   en: {
@@ -189,6 +191,7 @@ const DONE = {
     calendar: 'Event ready — open the file to save it.',
     contact: 'Contact ready — open the file to save it.',
     shared: 'Shared.',
+    noted: 'Note saved.',
     failed: "That didn't work. Try again.",
   },
 } as const
@@ -214,6 +217,21 @@ export async function runAction(action: SuggestedAction, lang: 'it' | 'en'): Pro
       if (!action.contact) return { ok: false, message: t.failed }
       downloadFile(buildVcf(action.contact), `${slug(action.contact.name ?? 'contact')}.vcf`, 'text/vcard')
       return { ok: true, message: t.contact }
+    }
+    case 'NOTE': {
+      // Su un telefono la strada vera per "salvare una nota" è il menu di
+      // sistema: da lì il testo entra in Note, Keep, Promemoria, dove vuole
+      // l'utente. Dove non c'è, resta negli appunti e nella cronologia.
+      if (navigator.share) {
+        try {
+          await navigator.share({ text: action.value })
+          return { ok: true, message: t.noted }
+        } catch {
+          // annullato: la copia sotto è comunque un salvataggio utile
+        }
+      }
+      const ok = await copyText(action.value)
+      return { ok, message: ok ? t.noted : t.failed }
     }
     case 'SHARE': {
       if (navigator.share) {
