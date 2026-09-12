@@ -51,15 +51,25 @@ export function googleCalendarHref(event: CalendarEvent): string {
  * in quel caso la UI usa un <button> e `runAction`.
  */
 export function actionHref(action: SuggestedAction, platform: Platform, lang: string): string | null {
+  const body = action.draft?.body
   switch (action.kind) {
     case 'CALL':
       return `tel:${action.value}`
     case 'TEXT':
-      return `sms:${action.value}`
+      // iOS vuole "&body", Android "?body": stesso testo, due grammatiche.
+      if (!body) return `sms:${action.value}`
+      return `sms:${action.value}${platform === 'ios' ? '&' : '?'}body=${encodeURIComponent(body)}`
     case 'WHATSAPP':
-      return `https://wa.me/${action.value.replace(/\D/g, '')}`
-    case 'EMAIL':
-      return `mailto:${action.value}`
+      return `https://wa.me/${action.value.replace(/\D/g, '')}${body ? `?text=${encodeURIComponent(body)}` : ''}`
+    case 'EMAIL': {
+      const params = new URLSearchParams()
+      if (action.draft?.subject) params.set('subject', action.draft.subject)
+      if (body) params.set('body', body)
+      // URLSearchParams codifica gli spazi come "+", che i client di posta
+      // mostrano letteralmente: qui servono i %20.
+      const query = params.toString().replace(/\+/g, '%20')
+      return `mailto:${action.value}${query ? `?${query}` : ''}`
+    }
     case 'OPEN':
       return action.value
     case 'NAVIGATE':
@@ -121,6 +131,8 @@ export function buildVcf(contact: ContactCard): string {
     'BEGIN:VCARD',
     'VERSION:3.0',
     `FN:${icsEscape(name)}`,
+    contact.company ? `ORG:${icsEscape(contact.company)}` : '',
+    contact.role ? `TITLE:${icsEscape(contact.role)}` : '',
     contact.phone ? `TEL;TYPE=CELL:${contact.phone}` : '',
     contact.email ? `EMAIL:${contact.email}` : '',
     'END:VCARD',

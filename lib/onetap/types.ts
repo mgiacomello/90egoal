@@ -62,6 +62,8 @@ export interface SuggestedAction {
   /** Payload per CALENDAR / CONTACT. */
   event?: CalendarEvent
   contact?: ContactCard
+  /** Testo precompilato per EMAIL / TEXT / WHATSAPP. */
+  draft?: Draft
 }
 
 export interface CalendarEvent {
@@ -75,8 +77,32 @@ export interface CalendarEvent {
 
 export interface ContactCard {
   name?: string
+  company?: string
+  role?: string
   phone?: string
   email?: string
+}
+
+/** Testo già pronto per un'azione che scrive (email, SMS, WhatsApp). */
+export interface Draft {
+  subject?: string
+  body: string
+}
+
+/**
+ * Quello che il modello aggiunge oltre alla trascrizione: etichette e testi
+ * pronti. Arricchisce l'azione scelta dal motore, non la sceglie: nessun
+ * campo qui può introdurre un numero, un indirizzo o un'email che non siano
+ * già nel testo letto.
+ */
+export interface Enrichment {
+  /** Di cosa si tratta, in poche parole ("Fattura Studio Rossi 2026/114"). */
+  title?: string
+  event?: { title?: string; location?: string; notes?: string }
+  contact?: { name?: string; company?: string; role?: string }
+  emailDraft?: { subject?: string; body?: string }
+  messageDraft?: string
+  searchQuery?: string
 }
 
 export type Confidence = 'high' | 'medium' | 'low'
@@ -85,6 +111,8 @@ export type Confidence = 'high' | 'medium' | 'low'
 export interface Analysis {
   /** Testo sorgente (trascritto dall'immagine o inserito dall'utente). */
   text: string
+  /** Di cosa si tratta, quando il modello l'ha capito ("Biglietto da visita di Giulia Neri"). */
+  title?: string
   lang: Lang
   entities: Entity[]
   /** L'azione: quella del bottone ONE TAP. */
