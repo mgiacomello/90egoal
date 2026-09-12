@@ -276,5 +276,23 @@ check('QR con un url resta un url', () => {
   assert.equal(expandQrPayload('https://example.com/x'), 'https://example.com/x')
 })
 
+/* --- salvare una nota --- */
+
+check('SAVE NOTE è sempre fra le alternative', () => {
+  const a = run('Appunti della riunione di ieri: rivedere la clausola 7 e il massimale.')
+  const kinds = [a.primary!.kind, ...a.secondary.map((s) => s.kind)]
+  assert.ok(kinds.includes('NOTE'), `manca NOTE: ${kinds}`)
+})
+
+check('"prendi nota" la porta in primo piano', () => {
+  const a = run('Prendi nota: il massimale va portato a 2 milioni entro venerdì')
+  assert.equal(a.primary?.kind, 'NOTE')
+})
+
+check('una nota non ruba il posto a un\'azione vera', () => {
+  const a = run('Chiamami al +39 333 1234567')
+  assert.equal(a.primary?.kind, 'CALL')
+})
+
 console.log(`\n${passed} passati, ${failed} falliti`)
 if (failed > 0) process.exit(1)

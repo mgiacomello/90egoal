@@ -140,6 +140,15 @@ export function CheckIcon(p: IconProps) {
   )
 }
 
+export function NoteIcon(p: IconProps) {
+  return (
+    <svg {...base} className={p.className} aria-hidden="true">
+      <path d="M6 3.5h8.5L19 8v12a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 20V5a1.5 1.5 0 0 1 1-1.5Z" />
+      <path d="M14 3.6V8h4.4M8.5 12.5h7M8.5 16h4.5" />
+    </svg>
+  )
+}
+
 export function ActionIcon({ kind, className }: { kind: ActionKind; className?: string }) {
   switch (kind) {
     case 'CALL': return <PhoneIcon className={className} />
@@ -155,5 +164,6 @@ export function ActionIcon({ kind, className }: { kind: ActionKind; className?: 
     case 'REPLY': return <ReplyIcon className={className} />
     case 'TRANSLATE': return <TranslateIcon className={className} />
     case 'SHARE': return <ShareIcon className={className} />
+    case 'NOTE': return <NoteIcon className={className} />
   }
 }

@@ -421,6 +421,7 @@ const INTENTS: Array<[RegExp, SuggestedAction['kind']]> = [
   [/\b(in calendario|nel calendario|calendar|promemoria|remind me|segna(?:lo)?)\b/i, 'CALENDAR'],
   [/\b(traduci|translate)\b/i, 'TRANSLATE'],
   [/\b(scrivi|manda un messaggio|text (?:him|her|them|this))\b/i, 'TEXT'],
+  [/\b(salva(?: questo| la nota)?|appunta|prendi nota|save (?:this|it)|note this|keep this)\b/i, 'NOTE'],
   [/\b(salva il contatto|save contact|salva in rubrica)\b/i, 'CONTACT'],
   [/\b(apri|open|visita|visit)\b/i, 'OPEN'],
   [/\b(manda|invia|share|condividi)\b/i, 'SHARE'],
@@ -504,6 +505,7 @@ export const ACTION_LABEL: Record<SuggestedAction['kind'], string> = {
   REPLY: 'REPLY',
   TRANSLATE: 'TRANSLATE',
   SHARE: 'SHARE',
+  NOTE: 'SAVE NOTE',
 }
 
 /* ------------------------------------------------------------------ *
@@ -718,13 +720,24 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
   add({ kind: 'SEARCH', label: ACTION_LABEL.SEARCH, subject: firstSentence(text), value: firstSentence(text), score:
     options.hintKind === 'product' ? 0.7 : 0.36,
     entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
+  // Salvare quello che si è appena letto è utile su qualunque cattura: vale
+  // più su un testo lungo, dove non c'è un'entità sola da cui ripartire.
+  add({ kind: 'NOTE', label: ACTION_LABEL.NOTE, subject: firstSentence(text), value: text,
+    score: text.length > 120 ? 0.44 : 0.32,
+    entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
   if (text.length > 12) {
     add({ kind: 'TRANSLATE', label: ACTION_LABEL.TRANSLATE, subject: firstSentence(text), value: text, score: 0.2,
       entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
   }
 
-  // Le intenzioni esplicite vincono: se l'utente ha scritto "chiamalo", si chiama.
-  for (const c of candidates) if (intents.has(c.kind)) c.score += 0.3
+  // Un'intenzione scritta a chiare lettere non è un indizio da sommare agli
+  // altri: è una richiesta. Chi scrive "prendi nota" non vuole che un'euristica
+  // sulle date gli passi davanti per un centesimo di punteggio. Il piccolo
+  // termine finale conserva l'ordine quando le intenzioni esplicite sono più
+  // d'una ("chiamalo e salvalo").
+  for (const c of candidates) {
+    if (intents.has(c.kind)) c.score = Math.max(c.score, 0.9) + c.score * 0.01
+  }
 
   candidates.sort((a, b) => b.score - a.score)
 

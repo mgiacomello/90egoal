@@ -6,9 +6,17 @@
 const MAX_SIDE = 1400
 const JPEG_QUALITY = 0.82
 
+/**
+ * Una foto scattata col telefono è quasi sempre salvata di lato, con un flag
+ * EXIF che dice come raddrizzarla. `createImageBitmap` quel flag lo ignora se
+ * non glielo si chiede: senza questo, ogni foto da mobile viene analizzata
+ * ruotata di 90°.
+ */
+const DECODE: ImageBitmapOptions = { imageOrientation: 'from-image' }
+
 /** Ridimensiona e comprime prima dell'upload. Restituisce un data URL JPEG. */
 export async function prepareImage(file: Blob): Promise<string> {
-  const bitmap = await createImageBitmap(file)
+  const bitmap = await createImageBitmap(file, DECODE)
   const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height))
   const width = Math.round(bitmap.width * scale)
   const height = Math.round(bitmap.height * scale)
@@ -41,7 +49,7 @@ export async function readBarcode(file: Blob): Promise<string | null> {
   if (!ctor) return null
   try {
     const detector = new ctor({ formats: ['qr_code', 'data_matrix', 'ean_13', 'code_128', 'aztec', 'pdf417'] })
-    const bitmap = await createImageBitmap(file)
+    const bitmap = await createImageBitmap(file, DECODE)
     const codes = await detector.detect(bitmap)
     bitmap.close?.()
     const value = codes?.[0]?.rawValue?.trim()
