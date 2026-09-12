@@ -35,6 +35,22 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## ⚡ ONE TAP (`/onetap`)
+
+App consumer autonoma inclusa in questo deploy: **vedi una cosa → ONE TAP capisce
+→ tocchi una volta → fatto.** Fotografi (o incolli, o condividi) un numero, un
+indirizzo, un IBAN, una fattura, un evento o un messaggio, e ONE TAP mostra *una*
+azione grande — CALL, NAVIGATE, COPY, ADD TO CALENDAR, REPLY — che parte con un
+solo tap.
+
+Il modello si limita a **trascrivere**: a decidere l'azione è un motore
+deterministico (`lib/onetap/detect.ts`, 36 test), quindi l'azione proposta non può
+essere inventata. Testo, QR e demo funzionano **senza rete e senza chiave API**;
+la chiave serve solo per leggere le foto.
+
+Cronologia e contatore restano nel browser: nessuna copia sul server, nessuna
+immagine salvata. Dettagli, configurazione e roadmap in **[ONETAP.md](ONETAP.md)**.
+
 ## 🎀 Salone di Bellezza (`/salone`)
 
 Mini-gioco per bambini incluso nell'app, pensato per tablet e telefono.
