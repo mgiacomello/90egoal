@@ -19,6 +19,7 @@ import {
   textFromClipboard,
 } from '@/lib/onetap/image'
 import { demoText, type DemoScenario } from '@/lib/onetap/demo'
+import { readOnDevice } from '@/lib/onetap/ocr'
 import {
   clearHistory,
   FREE_ACTIONS_PER_MONTH,
@@ -41,6 +42,7 @@ type View = 'home' | 'camera' | 'analyzing' | 'result'
 type SheetName = 'privacy' | 'pro' | 'demo'
 
 const READING_STEPS = ['Reading…', 'Understanding…', 'Choosing the action…']
+const ON_DEVICE_STEPS = ['Reading on your device…', 'This stays offline…', 'Choosing the action…']
 
 const SHARE_RETRY_NOTICE =
   'Almost there — add ONE TAP to your home screen once and shared screenshots will land here automatically.'
@@ -57,12 +59,12 @@ export default function OneTapApp() {
   const [readingStep, setReadingStep] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [imagesConfigured, setImagesConfigured] = useState<boolean | null>(null)
+  const [intro, setIntro] = useState(false)
+  const [onDevice, setOnDevice] = useState(false)
 
   const cameraRef = useRef<HTMLInputElement>(null)
   const libraryRef = useRef<HTMLInputElement>(null)
   const platform = useMemo(() => detectPlatform(), [])
-
-  const needsOnboarding = store.hydrated && !store.onboarded
 
   /* ------------------------------------------------------------ *
    * Analisi
@@ -102,6 +104,36 @@ export default function OneTapApp() {
     [record],
   )
 
+  /**
+   * Lettura sul dispositivo. È il ripiego quando il modello remoto non c'è,
+   * ed è anche la strada più privata: l'immagine non parte per nessun posto.
+   */
+  const readHere = useCallback(
+    async (file: Blob, notConfigured: boolean) => {
+      setOnDevice(true)
+      setReadingStep(0)
+      try {
+        const { text } = await readOnDevice(file)
+        if (!text || text.replace(/\s/g, '').length < 3) {
+          setError(
+            notConfigured
+              ? 'Read on your device, but no text came out of that image. Try again closer, or with more light.'
+              : 'No text came out of that image. Try again closer, or with more light.',
+          )
+          setView('home')
+          return
+        }
+        record(analyze(text, { source: 'image', usedAI: false }))
+      } catch {
+        setError('That image could not be read. Typing and pasting work in the meantime.')
+        setView('home')
+      } finally {
+        setOnDevice(false)
+      }
+    },
+    [record],
+  )
+
   /** Immagine: prima il codice letto sul dispositivo, poi — solo se serve — l'AI. */
   const runImage = useCallback(
     async (file: Blob) => {
@@ -134,21 +166,17 @@ export default function OneTapApp() {
         })
         const body = await res.json()
         if (!res.ok) {
-          setError(
-            body?.code === 'AI_NOT_CONFIGURED'
-              ? 'Image reading is not switched on for this deployment. Typing, pasting and the demo all work.'
-              : (body?.error ?? 'Could not analyse that capture.'),
-          )
-          setView('home')
+          // Nessuna chiave, o il modello non risponde: si legge qui, sul
+          // dispositivo, invece di lasciare l'utente a mani vuote.
+          await readHere(file, body?.code === 'AI_NOT_CONFIGURED')
           return
         }
         record(body as Analysis)
       } catch {
-        setError('No connection. Try again.')
-        setView('home')
+        await readHere(file, false)
       }
     },
-    [record],
+    [record, readHere],
   )
 
   /* ------------------------------------------------------------ *
@@ -164,7 +192,7 @@ export default function OneTapApp() {
     sharedFlag === 'retry' || sharedFlag === 'failed' ? SHARE_RETRY_NOTICE : null
 
   useEffect(() => {
-    if (!store.hydrated || needsOnboarding) return
+    if (!store.hydrated) return
 
     if (!sharedText && !sharedUrl && sharedFlag !== '1') return
 
@@ -192,10 +220,9 @@ export default function OneTapApp() {
         setError('The shared image could not be read.')
       }
     })()
-  }, [store.hydrated, needsOnboarding, sharedFlag, sharedText, sharedUrl, runText, runImage])
+  }, [store.hydrated, sharedFlag, sharedText, sharedUrl, runText, runImage])
 
   useEffect(() => {
-    if (needsOnboarding) return
     const onPaste = (event: ClipboardEvent) => {
       const items = event.clipboardData?.items
       if (items) {
@@ -220,7 +247,7 @@ export default function OneTapApp() {
     }
     window.addEventListener('paste', onPaste)
     return () => window.removeEventListener('paste', onPaste)
-  }, [needsOnboarding, runImage, runText])
+  }, [runImage, runText])
 
   useEffect(() => {
     // Unico scopo: ricevere gli screenshot dallo share sheet del sistema.
@@ -321,10 +348,17 @@ export default function OneTapApp() {
 
   if (!store.hydrated) return <div className="ot" aria-busy="true" />
 
-  if (needsOnboarding) {
+  // L'introduzione non fa più da cancello: si apre sulla home, pronta all'uso.
+  // Il momento magico resta raggiungibile da "How it works", per chi lo vuole.
+  if (intro) {
     return (
       <div className="ot">
-        <Onboarding onFinish={markOnboarded} />
+        <Onboarding
+          onFinish={() => {
+            markOnboarded()
+            setIntro(false)
+          }}
+        />
       </div>
     )
   }
@@ -414,6 +448,7 @@ export default function OneTapApp() {
             onPaste={pasteFromButton}
             onText={runText}
             onDemo={() => setSheet('demo')}
+            onIntro={() => setIntro(true)}
             onPro={() => setSheet('pro')}
             onReplay={replayHistory}
             onDelete={removeFromHistory}
@@ -421,7 +456,12 @@ export default function OneTapApp() {
           />
         )}
 
-        {view === 'analyzing' && <Analyzing preview={preview} step={READING_STEPS[readingStep]} />}
+        {view === 'analyzing' && (
+          <Analyzing
+            preview={preview}
+            step={(onDevice ? ON_DEVICE_STEPS : READING_STEPS)[readingStep]}
+          />
+        )}
 
         {view === 'result' && analysis && (
           <ActionCard analysis={analysis} onPerformed={onPerformed} onRestart={reset} />
@@ -460,6 +500,7 @@ function Home({
   onPaste,
   onText,
   onDemo,
+  onIntro,
   onPro,
   onReplay,
   onDelete,
@@ -475,6 +516,7 @@ function Home({
   onPaste: () => void
   onText: (text: string) => void
   onDemo: () => void
+  onIntro: () => void
   onPro: () => void
   onReplay: (item: HistoryItem) => void
   onDelete: (id: string) => void
@@ -566,9 +608,9 @@ function Home({
 
       {imagesConfigured === false && (
         <p className="ot-card ot-rise mt-6 border-amber-300/25 bg-amber-300/5 px-5 py-4 text-[14px] leading-relaxed text-amber-200/90">
-          <strong className="text-amber-100">Photo reading is not switched on for this deployment.</strong>{' '}
-          Set an AI key in the hosting environment and photos start working — typing, pasting, QR codes
-          and the demo work right now without it.
+          <strong className="text-amber-100">No AI key on this deployment — photos are read on your device.</strong>{' '}
+          It still works: the first photo downloads the reader once, then nothing ever leaves your phone.
+          Set an AI key in the hosting environment for faster and sharper reading.
         </p>
       )}
 
@@ -612,7 +654,10 @@ function Home({
       )}
 
       <footer className="mt-auto flex items-center justify-between pt-16 text-[12px] text-white/30">
-        <button onClick={onDemo} className="ot-ghost underline underline-offset-4">Demo</button>
+        <span className="flex gap-4">
+          <button onClick={onDemo} className="ot-ghost underline underline-offset-4">Demo</button>
+          <button onClick={onIntro} className="ot-ghost underline underline-offset-4">How it works</button>
+        </span>
         <button onClick={onPro} className="ot-ghost">
           {left} of {FREE_ACTIONS_PER_MONTH} free actions left
         </button>
