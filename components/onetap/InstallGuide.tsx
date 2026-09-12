@@ -65,9 +65,31 @@ export default function InstallGuide() {
   const info = useSyncExternalStore(noSubscribe, readClientInfo, readServerInfo)
   const [picked, setPicked] = useState<Tab | null>(null)
   const [copied, setCopied] = useState(false)
+  const [shared, setShared] = useState<'idle' | 'copied' | 'sent'>('idle')
 
   const tab = picked ?? tabFor(info.platform)
   const shortcutUrl = `${info.origin || 'https://…'}/onetap?text=`
+  const appUrl = `${info.origin}/onetap`
+
+  /** Condivisione nativa dove c'è, appunti altrove. Nessun vicolo cieco. */
+  async function shareApp() {
+    if (!info.origin) return
+    const payload = {
+      title: 'ONE TAP',
+      text: 'ONE TAP — vedi una cosa, tocchi una volta, è fatta.',
+      url: appUrl,
+    }
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share(payload)
+        setShared('sent')
+        return
+      } catch {
+        // annullato: si ripiega sulla copia, che è comunque utile
+      }
+    }
+    if (await copyText(appUrl)) setShared('copied')
+  }
 
   async function copyShortcutUrl() {
     const ok = await copyText(shortcutUrl)
@@ -94,6 +116,29 @@ export default function InstallGuide() {
             The goal is never to open the app. You see something — in Photos, in WhatsApp, on a
             poster — and you act on it from where you already are.
           </p>
+
+          <div className="ot-card mt-8 px-5 py-5">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--ot-muted)]">
+              Share it
+            </p>
+            <p className="mt-2 text-[15px] leading-relaxed text-white/70">
+              Anyone with this link can open ONE TAP — no account, no install.
+            </p>
+            <p className="mt-3 font-mono text-[12px] break-all text-white/85">{appUrl || '…'}</p>
+            <button onClick={shareApp} disabled={!info.origin} className="ot-chip mt-4 disabled:opacity-40">
+              {shared === 'sent' ? (
+                <>
+                  <CheckIcon className="h-4 w-4" /> Shared
+                </>
+              ) : shared === 'copied' ? (
+                <>
+                  <CheckIcon className="h-4 w-4" /> Link copied
+                </>
+              ) : (
+                'Share the link'
+              )}
+            </button>
+          </div>
 
           <div className="mt-8 flex gap-2" role="tablist" aria-label="Platform">
             {TABS.map((t) => (
