@@ -8,16 +8,26 @@
 // Privacy: l'immagine attraversa questo handler in memoria e non viene mai
 // scritta su disco, in database o nei log. Nessun endpoint la può rileggere.
 
+import Anthropic from '@anthropic-ai/sdk'
 import { analyze } from '@/lib/onetap/detect'
 import type { Analysis, Lang } from '@/lib/onetap/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Claude per primo quando c'è: sulle foto vere legge molto meglio, ed è la
+// differenza fra un'azione giusta e una costruita su caratteri inventati.
+const ANTHROPIC_KEY = process.env.ONETAP_ANTHROPIC_KEY ?? process.env.ANTHROPIC_API_KEY
+const ANTHROPIC_MODEL = process.env.ONETAP_ANTHROPIC_MODEL ?? 'claude-opus-5'
+
+// In alternativa, un endpoint OpenAI-compatibile (Groq e simili).
 const BASE_URL = process.env.ONETAP_AI_BASE_URL ?? 'https://api.groq.com/openai/v1'
-const API_KEY = process.env.ONETAP_AI_KEY ?? process.env.GROQ_API_KEY
+const OPENAI_KEY = process.env.ONETAP_AI_KEY ?? process.env.GROQ_API_KEY
 const VISION_MODEL = process.env.ONETAP_VISION_MODEL ?? 'meta-llama/llama-4-scout-17b-16e-instruct'
 const TEXT_MODEL = process.env.ONETAP_TEXT_MODEL ?? 'llama-3.3-70b-versatile'
+
+const API_KEY = ANTHROPIC_KEY ?? OPENAI_KEY
+const PROVIDER = ANTHROPIC_KEY ? 'anthropic' : OPENAI_KEY ? 'openai-compatible' : 'none'
 
 /** ~8 MB di data URL: oltre, il client deve ricomprimere. */
 const MAX_IMAGE_CHARS = 8_000_000
@@ -115,8 +125,66 @@ async function callModel(model: string, messages: ChatMessage[], signal: AbortSi
  * Controllo di stato: dice solo SE la lettura immagini è configurata.
  * Nessuna chiave, nessun modello, nessun dato: solo un booleano.
  */
+type ImageMediaType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif'
+
+/** Spacchetta un data URL in quello che l'SDK si aspetta. */
+function splitDataUrl(dataUrl: string): { mediaType: ImageMediaType; data: string } | null {
+  const match = /^data:(image\/(?:png|jpeg|jpg|webp|gif));base64,(.+)$/i.exec(dataUrl)
+  if (!match) return null
+  const raw = match[1].toLowerCase()
+  const mediaType = (raw === 'image/jpg' ? 'image/jpeg' : raw) as ImageMediaType
+  return { mediaType, data: match[2] }
+}
+
+/**
+ * Trascrizione con Claude. Anche qui il modello legge e basta: l'azione la
+ * sceglie il motore deterministico su quello che è stato trascritto.
+ */
+async function transcribeWithClaude(
+  image: string | null,
+  text: string,
+  signal: AbortSignal,
+): Promise<string> {
+  const client = new Anthropic({ apiKey: ANTHROPIC_KEY })
+
+  const content: Anthropic.ContentBlockParam[] = []
+  if (image) {
+    const parts = splitDataUrl(image)
+    if (!parts) throw Object.assign(new Error('bad image'), { status: 415 })
+    content.push({
+      type: 'image',
+      source: { type: 'base64', media_type: parts.mediaType, data: parts.data },
+    })
+    content.push({ type: 'text', text: 'Transcribe this capture.' })
+  } else {
+    content.push({ type: 'text', text: `Here is the text:\n\n${text.slice(0, 4000)}` })
+  }
+
+  const response = await client.messages.create(
+    {
+      model: ANTHROPIC_MODEL,
+      max_tokens: 8000,
+      system: SYSTEM,
+      // Trascrivere non richiede ragionamento profondo: effort basso significa
+      // meno attesa fra lo scatto e l'azione, che qui è la metrica che conta.
+      output_config: { effort: 'low' },
+      messages: [{ role: 'user', content }],
+    },
+    { signal },
+  )
+
+  if (response.stop_reason === 'refusal') {
+    throw Object.assign(new Error('refused'), { status: 422 })
+  }
+
+  return response.content
+    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+    .map((block) => block.text)
+    .join('\n')
+}
+
 export async function GET() {
-  return json({ configured: !!API_KEY })
+  return json({ configured: !!API_KEY, provider: PROVIDER })
 }
 
 export async function POST(request: Request) {
@@ -156,7 +224,14 @@ export async function POST(request: Request) {
   try {
     let output: ModelOutput | null = null
 
-    if (image) {
+    if (PROVIDER === 'anthropic') {
+      const raw = await transcribeWithClaude(image || null, text, controller.signal)
+      output = parseModelJson(raw)
+      if (!output || !output.text.trim()) {
+        return json({ error: 'Nothing readable in that capture.', code: 'NO_CONTENT' }, 422)
+      }
+      if (!image) output.text = text
+    } else if (image) {
       const raw = await callModel(
         VISION_MODEL,
         [
@@ -200,7 +275,13 @@ export async function POST(request: Request) {
 
     return json(result)
   } catch (err) {
-    const status = (err as { status?: number }).status
+    if (err instanceof Anthropic.AuthenticationError) {
+      return json({ error: 'The AI key was rejected.', code: 'BAD_KEY' }, 502)
+    }
+    if (err instanceof Anthropic.RateLimitError) {
+      return json({ error: 'The model is busy. Try again in a moment.', code: 'UPSTREAM_BUSY' }, 429)
+    }
+    const status = err instanceof Anthropic.APIError ? err.status : (err as { status?: number }).status
     if ((err as Error).name === 'AbortError') {
       return json({ error: 'The analysis took too long. Try again.', code: 'TIMEOUT' }, 504)
     }

@@ -6,9 +6,26 @@ Il repository git è già pronto con un commit iniziale e `.env.local` **escluso
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://jzxeasfovkigtyptspan.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_A98sGzVNr9A_uzbYpts4gQ_eO_uiw8l
+ANTHROPIC_API_KEY=sk-ant-...
 GROQ_API_KEY=gsk_...
 ```
 (La `SUPABASE_SERVICE_ROLE_KEY` non è necessaria per il funzionamento attuale.)
+
+### Quale chiave mettere
+
+**`ANTHROPIC_API_KEY` è la scelta migliore per ONE TAP.** Claude legge le foto
+molto meglio: su una fattura storta o un cartello in penombra la differenza fra
+leggere e indovinare è tutta lì. Si prende su
+<https://console.anthropic.com> → **API Keys**. Se c'è, l'app la usa e ignora le
+altre; il modello è `claude-opus-5`, sovrascrivibile con
+`ONETAP_ANTHROPIC_MODEL`.
+
+**`GROQ_API_KEY` è l'alternativa** (endpoint OpenAI-compatibile), e serve
+comunque all'assistente della home.
+
+Ordine con cui l'app sceglie: Anthropic → OpenAI-compatibile → lettura sul
+dispositivo. **L'ultima non richiede niente e funziona sempre**: le foto si
+analizzano anche a chiavi zero, solo con meno precisione sul testo fitto.
 
 ### `GROQ_API_KEY` — a cosa serve
 
@@ -38,8 +55,10 @@ Apri nel browser:
 https://90egoal.vercel.app/api/onetap/analyze
 ```
 
-Risponde `{"configured":true}` se la chiave c'è, `{"configured":false}` se manca.
-Nessuna chiave viene mai esposta da questo endpoint.
+Risponde `{"configured":true,"provider":"anthropic"}` se c'è Claude,
+`"openai-compatible"` con Groq, `{"configured":false,"provider":"none"}` se non
+c'è nessuna chiave (e allora le foto si leggono sul dispositivo). Nessuna chiave
+viene mai esposta da questo endpoint.
 
 ---
 

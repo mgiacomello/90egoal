@@ -69,16 +69,21 @@ per le immagini e per rifinire le risposte suggerite.
 
 ## Configurazione
 
-Serve una sola variabile per far funzionare la lettura delle immagini:
+Nessuna variabile è obbligatoria: senza chiavi le foto vengono lette sul
+dispositivo. Con una chiave la lettura diventa più precisa, e su Claude molto:
 
 ```
-GROQ_API_KEY=...
+ANTHROPIC_API_KEY=sk-ant-...      # consigliata: legge le foto vere molto meglio
+GROQ_API_KEY=gsk_...              # alternativa OpenAI-compatibile
 ```
+
+L'ordine di scelta è: Anthropic → endpoint OpenAI-compatibile → lettura locale.
 
 Opzionali, per cambiare provider o modello (l'endpoint deve essere
 OpenAI-compatibile):
 
 ```
+ONETAP_ANTHROPIC_MODEL=claude-opus-5
 ONETAP_AI_BASE_URL=https://api.groq.com/openai/v1
 ONETAP_AI_KEY=...                # se diversa da GROQ_API_KEY
 ONETAP_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
