@@ -6,7 +6,9 @@ App consumer autonoma che vive dentro a questo deploy. Non è un assistente, non
 una chat, non è una dashboard: è **un solo bottone** che trasforma quello che hai
 davanti nell'azione più utile.
 
-Provala su `/onetap`. Non serve un account.
+Provala su `/onetap`. Non serve un account, e si apre direttamente sulla home:
+il "momento magico" resta raggiungibile da *How it works*, ma non fa da cancello
+— chi vuole caricare subito una foto non deve prima attraversare una demo.
 
 ---
 
@@ -83,9 +85,20 @@ ONETAP_VISION_MODEL=meta-llama/llama-4-scout-17b-16e-instruct
 ONETAP_TEXT_MODEL=llama-3.3-70b-versatile
 ```
 
-**Senza chiave l'app resta usabile:** demo, testo, incolla, dettatura e QR
-funzionano lo stesso; solo la fotocamera avvisa che la lettura immagini non è
-attiva su quel deploy.
+**Senza chiave l'app resta usabile, foto comprese.** Se il modello remoto non è
+configurato o non risponde, l'immagine viene letta **sul dispositivo** con un
+motore OCR servito da questo stesso dominio (`public/onetap/ocr`, copiato da
+`node_modules` a ogni build da `scripts/onetap-ocr-assets.mjs`; i dati di lingua
+sono versionati). Niente CDN: andare a prendere il motore da un terzo
+contraddirebbe la promessa per cui la lettura locale esiste.
+
+Il primo utilizzo scarica il motore una volta (~7 MB, poi resta in cache). La
+lettura locale è più lenta e meno precisa di quella del modello: ed è un bene
+che si veda, perché è lì che il controllo del checksum guadagna il suo posto —
+su uno screenshot di fattura l'OCR ha letto `IT60X054281110100000**9**123456`
+invece di `...0123456`, il mod-97 non è tornato, e ONE TAP **non** ha proposto di
+copiare un IBAN sbagliato: è ricaduto sull'indirizzo. Un errore di lettura che
+sarebbe finito dentro a un bonifico è stato fermato da tre righe di aritmetica.
 
 ---
 
