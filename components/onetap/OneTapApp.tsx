@@ -459,7 +459,6 @@ export default function OneTapApp() {
         {view === 'home' && (
           <Home
             notice={error ?? shareNotice}
-            imagesConfigured={imagesConfigured}
             dragging={dragging}
             history={store.history}
             used={store.used}
@@ -489,7 +488,12 @@ export default function OneTapApp() {
       </div>
 
       {sheet === 'privacy' && (
-        <PrivacySheet onClose={() => setSheet(null)} actionsUsed={store.used} onWipe={wipeEverything} />
+        <PrivacySheet
+          onClose={() => setSheet(null)}
+          actionsUsed={store.used}
+          onWipe={wipeEverything}
+          photosReadOnDevice={imagesConfigured === false}
+        />
       )}
       {sheet === 'pro' && <ProSheet onClose={() => setSheet(null)} actionsUsed={store.used} />}
       {sheet === 'demo' && (
@@ -511,7 +515,6 @@ export default function OneTapApp() {
 
 function Home({
   notice,
-  imagesConfigured,
   dragging,
   history,
   used,
@@ -527,7 +530,6 @@ function Home({
   onClearAll,
 }: {
   notice: string | null
-  imagesConfigured: boolean | null
   dragging: boolean
   history: HistoryItem[]
   used: number
@@ -625,14 +627,6 @@ function Home({
       >
         Share to ONE TAP
       </Link>
-
-      {imagesConfigured === false && (
-        <p className="ot-card ot-rise mt-6 border-amber-300/25 bg-amber-300/5 px-5 py-4 text-[14px] leading-relaxed text-amber-200/90">
-          <strong className="text-amber-100">No AI key on this deployment — photos are read on your device.</strong>{' '}
-          It still works: the first photo downloads the reader once, then nothing ever leaves your phone.
-          Set an AI key in the hosting environment for faster and sharper reading.
-        </p>
-      )}
 
       {notice && (
         <p className="ot-card ot-rise mt-6 px-5 py-4 text-[14px] leading-relaxed text-amber-200/90">
