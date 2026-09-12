@@ -30,6 +30,7 @@ const COPY = {
     also: 'Oppure',
     read: 'Mostra cosa ha letto ONE TAP',
     hide: 'Nascondi il testo',
+    onDevice: 'Letto sul dispositivo',
     replies: 'Tocca una risposta',
     again: 'Nuova cattura',
     gcal: 'Apri in Google Calendar',
@@ -43,6 +44,7 @@ const COPY = {
     also: 'Or',
     read: 'Show what ONE TAP read',
     hide: 'Hide the text',
+    onDevice: 'Read on your device',
     replies: 'Tap a reply',
     again: 'New capture',
     gcal: 'Open in Google Calendar',
@@ -127,6 +129,7 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
           open={showText}
           onToggle={() => setShowText((v) => !v)}
           labels={t}
+          onDevice={analysis.source === 'image' && !analysis.usedAI ? t.onDevice : null}
         />
       </div>
     )
@@ -159,7 +162,13 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
         </div>
 
         <Secondary actions={analysis.secondary} label={t.also} onPick={setChosen} />
-        <SourceText text={analysis.text} open={showText} onToggle={() => setShowText((v) => !v)} labels={t} />
+        <SourceText
+          text={analysis.text}
+          open={showText}
+          onToggle={() => setShowText((v) => !v)}
+          labels={t}
+          onDevice={analysis.source === 'image' && !analysis.usedAI ? t.onDevice : null}
+        />
       </div>
     )
   }
@@ -279,17 +288,23 @@ function SourceText({
   open,
   onToggle,
   labels,
+  onDevice,
 }: {
   text: string
   open: boolean
   onToggle: () => void
   labels: { read: string; hide: string }
+  /** Etichetta discreta quando la lettura è avvenuta in locale. */
+  onDevice?: string | null
 }) {
   return (
     <div className="mt-10 pb-16">
       <button onClick={onToggle} className="ot-ghost text-[13px] underline underline-offset-4">
         {open ? labels.hide : labels.read}
       </button>
+      {onDevice && (
+        <p className="mt-2 text-[12px] text-[var(--ot-muted)]">{onDevice}</p>
+      )}
       {open && (
         <pre className="ot-card mt-3 max-h-56 overflow-auto whitespace-pre-wrap px-4 py-3 font-mono text-[12px] leading-relaxed text-white/70">
           {text}

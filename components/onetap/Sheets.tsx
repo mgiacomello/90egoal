@@ -47,10 +47,13 @@ export function PrivacySheet({
   onClose,
   onWipe,
   actionsUsed,
+  photosReadOnDevice,
 }: {
   onClose: () => void
   onWipe: () => void
   actionsUsed: number
+  /** Su questo deploy le foto vengono lette in locale invece che da un modello. */
+  photosReadOnDevice?: boolean
 }) {
   return (
     <Sheet title="Your data" onClose={onClose}>
@@ -60,6 +63,14 @@ export function PrivacySheet({
           the monthly counter live in this browser’s local storage. There is no server copy and no
           endpoint that can read them back.
         </li>
+        {photosReadOnDevice && (
+          <li>
+            <strong className="text-white">Photos are read on this device.</strong> This deployment
+            has no AI key, so the text is extracted by a reader that runs in your browser — the
+            picture never leaves the phone at all. A key makes reading faster and sharper on dense
+            text; it changes nothing else.
+          </li>
+        )}
         <li>
           <strong className="text-white">Images are not stored.</strong> A photo is resized in your
           browser, sent once for transcription, and dropped. It is never written to disk, to a
