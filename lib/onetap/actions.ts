@@ -43,6 +43,7 @@ export function googleCalendarHref(event: CalendarEvent): string {
     dates: `${fmt(event.start)}/${fmt(event.end)}`,
   })
   if (event.location) params.set('location', event.location)
+  if (event.notes) params.set('details', event.notes)
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
@@ -79,6 +80,10 @@ export function actionHref(action: SuggestedAction, platform: Platform, lang: st
     case 'TRANSLATE':
       return translateHref(action.value, lang === 'it' ? 'it' : 'en')
     case 'CALENDAR':
+      // Su iPhone il file .ics apre il foglio nativo "Aggiungi al calendario";
+      // ovunque altro un .ics finisce nei download, mentre il link di Google
+      // Calendar apre l'app con l'evento già compilato. Un tap in entrambi i casi.
+      return platform === 'ios' || !action.event ? null : googleCalendarHref(action.event)
     case 'CONTACT':
     case 'COPY':
     case 'REPLY':
@@ -90,7 +95,7 @@ export function actionHref(action: SuggestedAction, platform: Platform, lang: st
 
 /** Gli href verso app native non devono aprire una scheda vuota. */
 export function opensInNewTab(kind: ActionKind): boolean {
-  return kind === 'OPEN' || kind === 'NAVIGATE' || kind === 'SEARCH' || kind === 'TRANSLATE' || kind === 'WHATSAPP'
+  return kind === 'OPEN' || kind === 'NAVIGATE' || kind === 'SEARCH' || kind === 'TRANSLATE' || kind === 'WHATSAPP' || kind === 'CALENDAR'
 }
 
 /* ------------------------------------------------------------------ *
@@ -118,6 +123,7 @@ export function buildIcs(event: CalendarEvent): string {
     `DTEND:${local(event.end)}`,
     `SUMMARY:${icsEscape(event.title)}`,
     event.location ? `LOCATION:${icsEscape(event.location)}` : '',
+    event.notes ? `DESCRIPTION:${icsEscape(event.notes)}` : '',
     'END:VEVENT',
     'END:VCALENDAR',
   ]

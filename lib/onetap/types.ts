@@ -72,6 +72,8 @@ export interface CalendarEvent {
   start: string
   end: string
   location?: string
+  /** Contesto da portare nell'evento: il testo da cui è nato. */
+  notes?: string
   allDay?: boolean
 }
 
@@ -98,7 +100,8 @@ export interface Draft {
 export interface Enrichment {
   /** Di cosa si tratta, in poche parole ("Fattura Studio Rossi 2026/114"). */
   title?: string
-  event?: { title?: string; location?: string; notes?: string }
+  /** date = YYYY-MM-DD, time = HH:MM. Valgono solo se giorno e ora compaiono nel testo. */
+  event?: { title?: string; location?: string; notes?: string; date?: string; time?: string; durationMinutes?: number }
   contact?: { name?: string; company?: string; role?: string }
   emailDraft?: { subject?: string; body?: string }
   messageDraft?: string

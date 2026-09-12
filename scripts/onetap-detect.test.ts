@@ -233,7 +233,7 @@ check('ICS valido e con i campi giusti', () => {
   const ics = buildIcs(event)
   assert.match(ics, /^BEGIN:VCALENDAR\r\n/)
   assert.match(ics, /DTSTART:20260922T193000/)
-  assert.match(ics, /DTEND:20260922T203000/)
+  assert.match(ics, /DTEND:20260922T213000/)
   assert.match(ics, /SUMMARY:Dinner at Nobu/)
   assert.match(ics, /END:VCALENDAR$/)
 })
@@ -369,6 +369,20 @@ check('evento: titolo umano dal modello, luogo solo se nel testo', () => {
   assert.equal(cal.event?.location, undefined, 'un luogo non presente nel testo non deve passare')
 })
 
+check('evento: luogo e note del modello passano se ancorati al testo', () => {
+  const text = 'CONCERTO DI SETTEMBRE\nOrchestra del Teatro Regio\nSabato 26 settembre, ore 21\nPiazza Castello, Torino\nIngresso libero'
+  const a = run(text, {
+    enrich: { event: { title: 'Concerto di settembre', location: 'Piazza Castello, Torino', date: '2026-09-26', time: '21:00', durationMinutes: 120, notes: 'Ingresso libero' } },
+  })
+  const cal = [a.primary!, ...a.secondary].find((x) => x.kind === 'CALENDAR')!
+  assert.equal(cal.event?.location, 'Piazza Castello, Torino', 'il luogo del modello presente nel testo deve passare')
+  assert.equal(cal.event?.start, '2026-09-26T21:00:00')
+  assert.equal(cal.event?.end, '2026-09-26T23:00:00')
+  assert.ok(cal.event?.notes?.includes('Ingresso libero'), 'le note contengono il testo di partenza')
+  const ics = buildIcs(cal.event!)
+  assert.match(ics, /LOCATION:Piazza Castello\\, Torino/)
+})
+
 check('l\'arricchimento non può inventare entità', () => {
   const a = run('Grazie mille, a presto!', { enrich: { messageDraft: 'Chiamami al 333 1234567', contact: { name: 'Nessuno' } } })
   assert.ok(!a.entities.some((e) => e.kind === 'phone'), 'un numero nella bozza non è un numero nel testo')
@@ -379,6 +393,44 @@ check('ricerca: la query del modello batte la prima riga', () => {
   const a = run('Sony WH-1000XM5 cuffie wireless nero — offerta', { hintKind: 'product', enrich: { searchQuery: 'Sony WH-1000XM5 prezzo' } })
   assert.equal(a.primary?.kind, 'SEARCH')
   assert.equal(a.primary?.value, 'Sony WH-1000XM5 prezzo')
+})
+
+/* --- calendario: date dal modello, ancorate al testo --- */
+
+check('volantino: "Sabato 20 Settembre h. 21" arriva in calendario grazie al modello', () => {
+  const a = run('CONCERTO AL PARCO\nSabato 20 Settembre h. 21\nIngresso libero', {
+    enrich: { event: { title: 'Concerto al Parco', date: '2026-09-20', time: '21:00', durationMinutes: 120 } },
+  })
+  const cal = [a.primary!, ...a.secondary].find((x) => x.kind === 'CALENDAR')!
+  assert.ok(cal, 'manca CALENDAR')
+  assert.equal(cal.event?.start, '2026-09-20T21:00:00')
+  assert.equal(cal.event?.end, '2026-09-20T23:00:00')
+  assert.equal(cal.event?.title, 'Concerto al Parco')
+})
+
+check('una data del modello che non compare nel testo viene ignorata', () => {
+  const a = run('Ci sentiamo presto per la riunione', { enrich: { event: { title: 'Riunione', date: '2026-10-03', time: '10:00' } } })
+  assert.ok(![a.primary!, ...a.secondary].some((x) => x.kind === 'CALENDAR'), 'ha inventato un evento')
+})
+
+check('la cena dura due ore, la riunione una', () => {
+  const cena = run('Cena da Nobu venerdì alle 20:30').primary!.event!
+  assert.equal(cena.end, '2026-09-18T22:30:00')
+  const riunione = run('Riunione lunedì alle 10:00').primary!.event!
+  assert.equal(riunione.end, '2026-09-21T11:00:00')
+})
+
+check('l\'evento porta con sé il testo di partenza', () => {
+  const ev = run('Dinner at Nobu, Tuesday at 19:30').primary!.event!
+  assert.match(buildIcs(ev), /DESCRIPTION:Dinner at Nobu\\, Tuesday at 19:30/)
+  assert.match(googleCalendarHref(ev), /details=Dinner\+at\+Nobu/)
+})
+
+check('CALENDAR: su iPhone è un file, altrove apre Google Calendar', () => {
+  const cal = run('Dinner at Nobu, Tuesday at 19:30').primary!
+  assert.equal(actionHref(cal, 'ios', 'en'), null)
+  assert.match(actionHref(cal, 'android', 'en')!, /^https:\/\/calendar\.google\.com\/calendar\/render\?action=TEMPLATE/)
+  assert.match(actionHref(cal, 'other', 'en')!, /dates=20260922T193000%2F20260922T213000/)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)
