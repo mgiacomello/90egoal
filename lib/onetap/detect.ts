@@ -45,7 +45,7 @@ function pushEntity(list: Entity[], taken: Range[], e: Entity): void {
   taken.push({ start: e.start, end: e.end })
 }
 
-const IT_WORDS = /\b(che|non|per|con|una|del|della|sono|ciao|alle|ore|via|piazza|domani|oggi|grazie|prego|puoi|possiamo|questo|questa|come|quando|dove|perch[eé]|anche|molto|bene|ti|mi|ci|gli|il|lo|la|le|un|dei|ma|se|pi[uù])\b/gi
+const IT_WORDS = /\b(che|non|per|con|una|del|della|sono|ciao|alle|ore|via|piazza|domani|oggi|grazie|prego|puoi|possiamo|questo|questa|come|quando|dove|perch[e\u00e9]|anche|molto|bene|ti|mi|ci|gli|il|lo|la|le|un|dei|ma|se|pi[u\u00f9])\b/gi
 const EN_WORDS = /\b(the|and|you|your|for|with|this|that|from|have|can|will|would|are|is|at|to|of|on|in|we|it|be|hey|hi|hello|thanks|please|when|where|why|how)\b/gi
 
 export function detectLang(text: string): Lang {
@@ -235,7 +235,7 @@ function findDate(text: string, now: Date, lang: Lang, taken: Range[]): DateHit 
   }
 
   // 3. Mese scritto — "15 marzo 2026", "March 15", "15 mar"
-  const dm = new RegExp(`${WB_START}(\\d{1,2})(?:°|st|nd|rd|th)?\\s+(?:di\\s+)?(${MONTH_NAMES})${WB_END}\\.?(?:\\s+(\\d{4}))?`, 'iu')
+  const dm = new RegExp(`${WB_START}(\\d{1,2})(?:\u00b0|st|nd|rd|th)?\\s+(?:di\\s+)?(${MONTH_NAMES})${WB_END}\\.?(?:\\s+(\\d{4}))?`, 'iu')
   m = dm.exec(text)
   if (m && !overlaps({ start: m.index, end: m.index + m[0].length }, taken)) {
     const month = MONTHS[m[2].toLowerCase()]
@@ -244,7 +244,7 @@ function findDate(text: string, now: Date, lang: Lang, taken: Range[]): DateHit 
     if (!m[3] && date.getTime() < now.getTime() - 86400000) date.setFullYear(year + 1)
     return { start: m.index, end: m.index + m[0].length, date, raw: m[0] }
   }
-  const md = new RegExp(`${WB_START}(${MONTH_NAMES})\\s+(\\d{1,2})(?:°|st|nd|rd|th)?${WB_END}(?:,?\\s+(\\d{4}))?`, 'iu')
+  const md = new RegExp(`${WB_START}(${MONTH_NAMES})\\s+(\\d{1,2})(?:\u00b0|st|nd|rd|th)?${WB_END}(?:,?\\s+(\\d{4}))?`, 'iu')
   m = md.exec(text)
   if (m && !overlaps({ start: m.index, end: m.index + m[0].length }, taken)) {
     const month = MONTHS[m[1].toLowerCase()]
@@ -291,7 +291,7 @@ function findDate(text: string, now: Date, lang: Lang, taken: Range[]): DateHit 
  * ------------------------------------------------------------------ */
 
 const PHONE_RE = /(?:\+|00)?\s?(?:\(\d{1,4}\)[\s.-]?)?\d[\d\s.\-()]{6,20}\d/g
-const PHONE_HINT = /\b(tel|telefono|phone|cell|cellulare|mobile|call|chiama|chiamami|whatsapp|numero|contatta|contact)\b|📞|☎|📱/i
+const PHONE_HINT = /\b(tel|telefono|phone|cell|cellulare|mobile|call|chiama|chiamami|whatsapp|numero|contatta|contact)\b|\ud83d\udcde|\u260e|\ud83d\udcf1/i
 
 /**
  * Non si indovina mai il prefisso internazionale: comporre il paese sbagliato è
@@ -310,8 +310,8 @@ function normalizePhone(raw: string): string {
 const STREET_IT =
   /\b(via|viale|v\.le|piazza|p\.zza|piazzale|corso|c\.so|largo|vicolo|strada|contrada|lungomare|lungotevere|borgo)\b/i
 const STREET_EN =
-  /\b(\d{1,5})\s+([A-Z][\w'’.-]*(?:\s+[A-Z][\w'’.-]*){0,3})\s+(street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|square|sq|place|pl|way|court|ct)\b\.?/i
-const STREET_INTL = /\b(rue|calle|carrer|stra(?:ss|ß)e|platz|weg|damm|plaza|praça)\b/i
+  /\b(\d{1,5})\s+([A-Z][\w'\u2019.-]*(?:\s+[A-Z][\w'\u2019.-]*){0,3})\s+(street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|square|sq|place|pl|way|court|ct)\b\.?/i
+const STREET_INTL = /\b(rue|calle|carrer|stra(?:ss|\u00df)e|platz|weg|damm|plaza|pra\u00e7a)\b/i
 
 function findAddress(text: string, taken: Range[]): { raw: string; start: number; end: number } | null {
   for (const line of splitLines(text)) {
@@ -360,7 +360,7 @@ function trimAddress(rest: string, absStart: number, taken: Range[]): string | n
     const piece = g.trim()
     const words = piece.split(/\s+/).filter(Boolean)
     const looksLikePlace =
-      /\b\d{5}\b/.test(piece) || (words.length > 0 && words.length <= 3 && /^[A-Za-zÀ-ÿ'’\s.\d-]+$/.test(piece))
+      /\b\d{5}\b/.test(piece) || (words.length > 0 && words.length <= 3 && /^[A-Za-z\u00c0-\u00ff'\u2019\s.\d-]+$/.test(piece))
     if (!looksLikePlace) break
     kept.push(g)
   }
@@ -368,7 +368,7 @@ function trimAddress(rest: string, absStart: number, taken: Range[]): string | n
 
   candidate = candidate
     .replace(/\s+(?:alle?|at|ore|h|il|the|per|for|verso|around)\s*$/i, '')
-    .replace(/[\s.,;:—–-]+$/, '')
+    .replace(/[\s.,;:\u2014\u2013-]+$/, '')
     .trim()
 
   return candidate.length >= 5 ? candidate : null
@@ -382,7 +382,7 @@ const GREETING = /^[\s>"'*]*\b(hey|hi|hello|ciao|buongiorno|buonasera|salve|yo|e
 const ASK = /\b(can we|could you|can you|would you|do you|are you|shall we|let me know|puoi|potresti|possiamo|ti va|riesci|mi fai sapere|fammi sapere|che ne dici|ci sei|ce la fai)\b/i
 const SECOND_PERSON = /\b(you|your|we|us|tu|ti|voi|ci|vi|tuo|tua|insieme)\b/i
 const CHAT_APP = /\b(whatsapp|telegram|imessage|messenger|sms|dm|chat)\b/i
-const CHAT_TIMESTAMP = /\b\d{1,2}:\d{2}\b\s*(?:am|pm)?\s*[✓✔]{1,2}/i
+const CHAT_TIMESTAMP = /\b\d{1,2}:\d{2}\b\s*(?:am|pm)?\s*[\u2713\u2714]{1,2}/i
 
 interface MessageSignal {
   isMessage: boolean
@@ -448,7 +448,7 @@ function eventTitle(text: string, strip: Range[], lang: Lang): string {
   let title = firstLine
     .replace(/\b(alle|ore|at|on|il|the|da|from|a partire da|dalle)\b\s*$/i, '')
     .replace(/\s{2,}/g, ' ')
-    .replace(/^[\s,;:—–-]+|[\s,;:—–-]+$/g, '')
+    .replace(/^[\s,;:\u2014\u2013-]+|[\s,;:\u2014\u2013-]+$/g, '')
     .trim()
   if (title.length > 70) title = `${title.slice(0, 67).trim()}…`
   if (title.length < 3) {
@@ -623,7 +623,7 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
   }
 
   // --- importo ---
-  const amount = /(?:[€$£]\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\s?(?:€|eur|euro|usd|\$))/i.exec(text)
+  const amount = /(?:[\u20ac$\u00a3]\s?\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?|\b\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{1,2})?\s?(?:\u20ac|eur|euro|usd|\$))/i.exec(text)
   if (amount && !overlaps({ start: amount.index, end: amount.index + amount[0].length }, taken)) {
     pushEntity(entities, taken, {
       kind: 'amount', value: amount[0].trim(), raw: amount[0],
