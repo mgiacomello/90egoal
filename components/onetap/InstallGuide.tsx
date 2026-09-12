@@ -34,6 +34,26 @@ interface ClientInfo {
 const SERVER_INFO: ClientInfo = { platform: 'other', origin: '' }
 let clientInfo: ClientInfo | null = null
 
+/**
+ * Un URL di anteprima (`…-git-branch-team.vercel.app`) o locale cambia a ogni
+ * deploy: un comando iOS costruito su quello smette di funzionare da solo.
+ * Meglio dirlo prima che dopo.
+ */
+function isUnstableOrigin(origin: string): boolean {
+  if (!origin) return false
+  try {
+    const host = new URL(origin).hostname
+    return (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.endsWith('.local') ||
+      host.includes('-git-')
+    )
+  } catch {
+    return false
+  }
+}
+
 const noSubscribe = () => () => {}
 function readClientInfo(): ClientInfo {
   if (!clientInfo) clientInfo = { platform: detectPlatform(), origin: window.location.origin }
@@ -89,7 +109,14 @@ export default function InstallGuide() {
             ))}
           </div>
 
-          {tab === 'ios' && <Ios url={shortcutUrl} onCopy={copyShortcutUrl} copied={copied} />}
+          {tab === 'ios' && (
+            <Ios
+              url={shortcutUrl}
+              onCopy={copyShortcutUrl}
+              copied={copied}
+              unstable={isUnstableOrigin(info.origin)}
+            />
+          )}
           {tab === 'android' && <Android />}
           {tab === 'desktop' && <Desktop />}
 
@@ -139,7 +166,17 @@ function Act({ en, it }: { en: string; it: string }) {
 
 /* ------------------------------------------------------------------ */
 
-function Ios({ url, onCopy, copied }: { url: string; onCopy: () => void; copied: boolean }) {
+function Ios({
+  url,
+  onCopy,
+  copied,
+  unstable,
+}: {
+  url: string
+  onCopy: () => void
+  copied: boolean
+  unstable: boolean
+}) {
   return (
     <>
       <Section title="1 · On the home screen">
@@ -187,6 +224,11 @@ function Ios({ url, onCopy, copied }: { url: string; onCopy: () => void; copied:
               </span>
             )}
           </button>
+          <p className={`mt-2 text-[13px] leading-relaxed ${unstable ? 'text-amber-200/90' : 'text-[var(--ot-muted)]'}`}>
+            {unstable
+              ? 'Careful: this is a local or preview address and it changes with every deploy. Open this page from your production domain before you build the shortcut, or it will break on its own.'
+              : 'Use the address of your production domain — a preview URL changes with every deploy.'}
+          </p>
         </Step>
         <Step n={5} title="Open it">
           Add <Act en="Open URLs" it="Apri URL" />. Rename the shortcut{' '}
