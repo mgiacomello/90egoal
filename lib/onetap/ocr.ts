@@ -11,10 +11,23 @@
 // Il costo è il primo utilizzo: il motore e i dati di lingua vengono
 // scaricati una volta (qualche MB) e poi restano nella cache del browser.
 
+interface OcrWord {
+  text: string
+  confidence: number
+}
+interface OcrLine {
+  words?: OcrWord[]
+}
+interface OcrBlock {
+  paragraphs?: Array<{ lines?: OcrLine[] }>
+}
+
 type Worker = {
-  recognize: (image: Blob | HTMLCanvasElement) => Promise<{
-    data: { text: string; confidence?: number }
-  }>
+  recognize: (
+    image: Blob | HTMLCanvasElement,
+    options: Record<string, never>,
+    output: { blocks: boolean; text: boolean },
+  ) => Promise<{ data: { text: string; confidence?: number; blocks?: OcrBlock[] | null } }>
   terminate: () => Promise<unknown>
 }
 
@@ -43,8 +56,13 @@ async function getWorker(): Promise<Worker> {
 
 export interface OcrResult {
   text: string
-  /** 0-100. Sotto la soglia il testo non è affidabile e non va usato. */
+  /** 0-100, sulle sole parole tenute. Sotto MIN_CONFIDENCE non va usato. */
   confidence: number
+  /**
+   * Vero quando la lettura è stata faticosa (molte parole scartate, media
+   * bassa): il motore deve pretendere di più prima di proporre un numero.
+   */
+  lowTrust: boolean
   /** Quanto è durata: serve a raccontare all'utente perché ha aspettato. */
   ms: number
 }
@@ -54,6 +72,56 @@ export interface OcrResult {
  * proporre un'azione costruita su caratteri inventati.
  */
 export const MIN_CONFIDENCE = 55
+
+/**
+ * Le soglie per parola. Le cifre sono il caso pericoloso: su una foto
+ * rumorosa il lettore inventa un "4" o un "5" con confidenza 65-70 — abbastanza
+ * per passare qualunque media — e il motore li cuce in un numero di telefono
+ * che non esiste. Una parola con cifre entra nel testo solo se il lettore ne
+ * è davvero sicuro.
+ */
+const MIN_WORD = 50
+const MIN_DIGIT_WORD = 78
+
+/** Ricompone il testo tenendo solo le parole affidabili, riga per riga. */
+function siftWords(blocks: OcrBlock[] | null | undefined, fallback: string): {
+  text: string
+  kept: number
+  dropped: number
+  confidence: number
+} {
+  if (!blocks?.length) return { text: fallback, kept: 0, dropped: 0, confidence: 0 }
+  const lines: string[] = []
+  let kept = 0
+  let dropped = 0
+  let sum = 0
+  for (const block of blocks) {
+    for (const paragraph of block.paragraphs ?? []) {
+      for (const line of paragraph.lines ?? []) {
+        const good: string[] = []
+        for (const word of line.words ?? []) {
+          const text = (word.text ?? '').trim()
+          if (!text) continue
+          const floor = /\d/.test(text) ? MIN_DIGIT_WORD : MIN_WORD
+          if (word.confidence >= floor) {
+            good.push(text)
+            kept++
+            sum += word.confidence
+          } else {
+            dropped++
+          }
+        }
+        if (good.length) lines.push(good.join(' '))
+      }
+    }
+  }
+  return {
+    text: lines.join('\n'),
+    kept,
+    dropped,
+    confidence: kept ? sum / kept : 0,
+  }
+}
 
 /** Lato minimo a cui conviene portare l'immagine: sotto, Tesseract sbaglia molto. */
 const TARGET_MIN_SIDE = 1200
@@ -130,10 +198,15 @@ export async function readOnDevice(image: Blob): Promise<OcrResult> {
   } catch {
     // Preparazione fallita: si tenta comunque sull'originale.
   }
-  const { data } = await worker.recognize(source)
+  const { data } = await worker.recognize(source, {}, { blocks: true, text: true })
+  const sifted = siftWords(data?.blocks, (data?.text ?? '').trim())
+  const total = sifted.kept + sifted.dropped
   return {
-    text: (data?.text ?? '').trim(),
-    confidence: typeof data?.confidence === 'number' ? data.confidence : 0,
+    text: sifted.text.trim(),
+    confidence: sifted.confidence,
+    // Una lettura dove più di un terzo delle parole è stato buttato, o con una
+    // media modesta, è una lettura da trattare con sospetto.
+    lowTrust: total === 0 || sifted.dropped / total > 0.34 || sifted.confidence < 72,
     ms: Date.now() - started,
   }
 }

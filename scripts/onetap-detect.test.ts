@@ -294,5 +294,28 @@ check('una nota non ruba il posto a un\'azione vera', () => {
   assert.equal(a.primary?.kind, 'CALL')
 })
 
+/* --- testo poco affidabile: niente telefoni inventati --- */
+
+check('strictNumbers: una fila nuda di cifre da OCR non diventa CALL', () => {
+  const a = run('Cini as a to 5 bce 3312345678 de SEB', { strictNumbers: true })
+  assert.notEqual(a.primary?.kind, 'CALL')
+  assert.ok(!a.entities.some((e) => e.kind === 'phone'), 'ha inventato un telefono')
+})
+
+check('strictNumbers: un numero con prefisso resta un numero', () => {
+  const a = run('sede +39 02 8901234 orari 9-18', { strictNumbers: true })
+  assert.equal(a.primary?.kind, 'CALL')
+})
+
+check('strictNumbers: un numero raggruppato resta un numero', () => {
+  const a = run('Luca 333 123 4567', { strictNumbers: true })
+  assert.equal(a.primary?.kind, 'CALL')
+})
+
+check('senza strictNumbers la fila di cifre è ancora un numero (screenshot puliti)', () => {
+  const a = run('Luca 3331234567')
+  assert.equal(a.primary?.kind, 'CALL')
+})
+
 console.log(`\n${passed} passati, ${failed} falliti`)
 if (failed > 0) process.exit(1)
