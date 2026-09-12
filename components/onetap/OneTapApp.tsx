@@ -34,7 +34,9 @@ import {
 import type { Analysis, HistoryItem, SuggestedAction } from '@/lib/onetap/types'
 import ActionCard from './ActionCard'
 import Camera from './Camera'
+import Intro from './Intro'
 import Onboarding from './Onboarding'
+import { LogoMark } from './Logo'
 import { DemoSheet, PrivacySheet, ProSheet } from './Sheets'
 import { ActionIcon, CameraIcon, CloseIcon, TrashIcon } from './icons'
 
@@ -348,8 +350,23 @@ export default function OneTapApp() {
 
   if (!store.hydrated) return <div className="ot" aria-busy="true" />
 
-  // L'introduzione non fa più da cancello: si apre sulla home, pronta all'uso.
-  // Il momento magico resta raggiungibile da "How it works", per chi lo vuole.
+  // Prima visita: una schermata di presentazione, un bottone, dentro. Non un
+  // percorso: chi vuole caricare subito una foto è a un tocco dalla home.
+  if (store.hydrated && !store.onboarded && !intro) {
+    return (
+      <div className="ot">
+        <Intro
+          onEnter={markOnboarded}
+          onDemo={() => {
+            markOnboarded()
+            setIntro(true)
+          }}
+        />
+      </div>
+    )
+  }
+
+  // Il momento magico resta raggiungibile da "How it works", ma non fa da cancello.
   if (intro) {
     return (
       <div className="ot">
@@ -417,7 +434,10 @@ export default function OneTapApp() {
         <header className="flex items-center justify-between px-6 pt-6">
           {view === 'home' ? (
             <>
-              <span className="ot-wordmark text-[13px] text-white/70">One Tap</span>
+              <span className="flex items-center gap-2.5">
+                <LogoMark size={22} />
+                <span className="ot-wordmark text-[13px] text-white/70">One Tap</span>
+              </span>
               <button
                 onClick={() => setSheet('privacy')}
                 className="ot-ghost text-[12px] uppercase tracking-[0.18em]"
