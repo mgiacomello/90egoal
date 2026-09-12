@@ -24,6 +24,12 @@ export interface DetectOptions {
   replies?: string[]
   /** Etichetta di contenuto data dal modello (message, product, receipt...). */
   hintKind?: string
+  /**
+   * Testo di provenienza poco affidabile (OCR faticoso): un numero di telefono
+   * deve avere una forma da numero di telefono — prefisso, parola-chiave o
+   * cifre raggruppate — per essere proposto. Una fila nuda di cifre non basta.
+   */
+  strictNumbers?: boolean
 }
 
 /* ------------------------------------------------------------------ *
@@ -609,6 +615,12 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
     if (digits.length < 7 || digits.length > 15) continue
     if (!hasPlus && !hinted && digits.length < 9) continue
     if (/^\d{4}[-.]\d{2}[-.]\d{2}$/.test(raw)) continue
+    if (options.strictNumbers && !hasPlus && !hinted) {
+      // Da una lettura incerta, una sequenza di cifre senza né prefisso né
+      // parola-chiave né raggruppamento è quasi sempre rumore, non un numero.
+      const grouped = /\d[\s.\-]\d/.test(raw) && digits.length >= 9 && digits.length <= 13
+      if (!grouped) continue
+    }
     pushEntity(entities, taken, {
       kind: 'phone', value: normalizePhone(raw), raw,
       start: range.start, end: range.end,

@@ -115,7 +115,7 @@ export default function OneTapApp() {
       setOnDevice(true)
       setReadingStep(0)
       try {
-        const { text, confidence } = await readOnDevice(file)
+        const { text, confidence, lowTrust } = await readOnDevice(file)
         const dense = text.replace(/\s/g, '')
 
         // Regola del prodotto: da un testo che non si è letto bene non si
@@ -129,7 +129,7 @@ export default function OneTapApp() {
           setView('home')
           return
         }
-        record(analyze(text, { source: 'image', usedAI: false }))
+        record(analyze(text, { source: 'image', usedAI: false, strictNumbers: lowTrust }))
       } catch {
         setError('That image could not be read. Typing and pasting work in the meantime.')
         setView('home')
