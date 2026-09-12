@@ -34,6 +34,7 @@ const COPY = {
     replies: 'Tocca una risposta',
     again: 'Nuova cattura',
     gcal: 'Apri in Google Calendar',
+    ics: 'Scarica il file .ics',
     draft: 'Testo pronto',
     nothing: 'Non ho trovato niente su cui agire.',
     done: 'Fatto',
@@ -49,6 +50,7 @@ const COPY = {
     replies: 'Tap a reply',
     again: 'New capture',
     gcal: 'Open in Google Calendar',
+    ics: 'Download the .ics file',
     draft: 'Ready to send',
     nothing: 'Nothing here to act on.',
     done: 'Done',
@@ -212,15 +214,27 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
             {humanDate(primary.event, analysis.lang)}
             {primary.event.location ? ` · ${primary.event.location}` : ''}
           </p>
-          <a
-            href={googleCalendarHref(primary.event)}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => onPerformed(primary)}
-            className="ot-ghost mt-2 inline-block text-[13px] underline underline-offset-4"
-          >
-            {t.gcal}
-          </a>
+          {platform === 'ios' ? (
+            <a
+              href={googleCalendarHref(primary.event)}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => onPerformed(primary)}
+              className="ot-ghost mt-2 inline-block text-[13px] underline underline-offset-4"
+            >
+              {t.gcal}
+            </a>
+          ) : (
+            // Qui il bottone grande apre Google Calendar: il file resta per chi
+            // usa Outlook, Apple Calendar su Mac o altro.
+            <button
+              onClick={() => perform(primary)}
+              disabled={busy}
+              className="ot-ghost mt-2 inline-block text-[13px] underline underline-offset-4 disabled:opacity-50"
+            >
+              {t.ics}
+            </button>
+          )}
         </div>
       )}
 

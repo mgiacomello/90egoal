@@ -60,7 +60,7 @@ Return ONLY a JSON object with these keys:
   "language": "ISO 639-1 code of the text",
   "title": "what this is, in 3-7 words, in the text's language (e.g. 'Fattura Studio Rossi 2026/114', 'Biglietto da visita di Giulia Neri', 'Cena da Nobu venerdì')",
   "replies": ["...", "...", "..."],
-  "event": {"title": "...", "location": "..."},
+  "event": {"title": "...", "location": "...", "date": "YYYY-MM-DD", "time": "HH:MM", "duration_minutes": 60, "notes": "..."},
   "contact": {"name": "...", "company": "...", "role": "..."},
   "email_draft": {"subject": "...", "body": "..."},
   "message_draft": "...",
@@ -74,7 +74,7 @@ Rules for "text":
 
 Rules for everything else (all optional — omit a key or use "" when it does not apply):
 - "replies": exactly 3 short, natural, ready-to-send answers ONLY when kind is "message" and it is addressed to the reader. Same language and register as the message (formal stays formal), first person, max 14 words each, no emoji, no placeholders. Make them genuinely different: one that agrees, one that asks the one missing detail, one that declines or proposes an alternative. Otherwise [].
-- "event": when there is an appointment, booking or deadline: a human title ("Cena con Anna da Nobu", not the raw line) and the location ONLY if it appears in the text.
+- "event": when there is an appointment, booking, show or deadline: a human title ("Cena con Anna da Nobu", not the raw line); the location ONLY if it appears in the text; "date" as YYYY-MM-DD and "time" as HH:MM (24h) resolved from what is written — today is {{TODAY}}, weekday names mean the next occurrence; omit "date" or "time" when the text does not state them; "duration_minutes" only when stated or obvious (a dinner is 120, a call 30); "notes" is one short line worth remembering that is in the text (a booking code, "ingresso libero", a room number), else "".
 - "contact": when there is a person or business with a phone or email: name, company, role — exactly as written, nothing invented.
 - "email_draft": ONLY if an email address is visible: a subject and a 2-4 sentence body the reader would plausibly send to that address, in the text's language, ready to send, no placeholders like [name].
 - "message_draft": ONLY if a phone number is visible: one short message (max 30 words) the reader would plausibly send, same language, no placeholders.
@@ -112,7 +112,14 @@ function parseModelJson(raw: string): ModelOutput | null {
         : [],
       enrich: {
         title: str(parsed.title, 80),
-        event: { title: str(event.title, 80), location: str(event.location, 120) },
+        event: {
+          title: str(event.title, 80),
+          location: str(event.location, 120),
+          date: str(event.date, 10),
+          time: str(event.time, 5),
+          durationMinutes: typeof event.duration_minutes === 'number' ? event.duration_minutes : undefined,
+          notes: str(event.notes, 200),
+        },
         contact: { name: str(contact.name, 80), company: str(contact.company, 80), role: str(contact.role, 80) },
         emailDraft: { subject: str(emailDraft.subject, 120), body: str(emailDraft.body, 1200) },
         messageDraft: str(parsed.message_draft, 400),
@@ -169,6 +176,11 @@ function splitDataUrl(dataUrl: string): { mediaType: ImageMediaType; data: strin
  * Trascrizione con Claude. Anche qui il modello legge e basta: l'azione la
  * sceglie il motore deterministico su quello che è stato trascritto.
  */
+function systemPrompt(): string {
+  const today = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Rome' })
+  return SYSTEM.replace('{{TODAY}}', today)
+}
+
 async function transcribeWithClaude(
   image: string | null,
   text: string,
@@ -193,7 +205,7 @@ async function transcribeWithClaude(
     {
       model: ANTHROPIC_MODEL,
       max_tokens: 8000,
-      system: SYSTEM,
+      system: systemPrompt(),
       // Trascrivere non richiede ragionamento profondo: effort basso significa
       // meno attesa fra lo scatto e l'azione, che qui è la metrica che conta.
       output_config: { effort: 'low' },
@@ -270,7 +282,7 @@ export async function POST(request: Request) {
       const raw = await callModel(
         VISION_MODEL,
         [
-          { role: 'system', content: SYSTEM },
+          { role: 'system', content: systemPrompt() },
           {
             role: 'user',
             content: [
@@ -290,7 +302,7 @@ export async function POST(request: Request) {
       const raw = await callModel(
         TEXT_MODEL,
         [
-          { role: 'system', content: SYSTEM },
+          { role: 'system', content: systemPrompt() },
           { role: 'user', content: `Here is the text:\n\n${text.slice(0, 4000)}` },
         ],
         controller.signal,

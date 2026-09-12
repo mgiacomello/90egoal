@@ -451,6 +451,13 @@ function explicitIntents(text: string): Set<SuggestedAction['kind']> {
  * Titolo evento
  * ------------------------------------------------------------------ */
 
+/** Quanto dura, quando il testo lo lascia intuire: una cena non è una call. */
+function defaultDurationMinutes(text: string): number {
+  if (/\b(cena|pranzo|dinner|lunch|brunch|aperitivo|drinks|concerto|concert|partita|match|spettacolo|show|teatro)\b/i.test(text)) return 120
+  if (/\b(volo|flight|treno|train)\b/i.test(text)) return 120
+  return 60
+}
+
 const EVENT_WORDS =
   /\b(cena|pranzo|colazione|aperitivo|riunione|meeting|call|appuntamento|visita|volo|treno|partita|concerto|lezione|corso|checkup|dinner|lunch|breakfast|drinks|interview|appointment|flight|train|match|show|class|standup|demo|review)\b/i
 
@@ -532,6 +539,13 @@ function short(value: string | undefined, max: number): string | undefined {
 }
 
 /** Un luogo suggerito dal modello vale solo se compare davvero nel testo letto. */
+/** Note dell'evento: l'annotazione del modello (se c'è) e poi il testo di partenza. */
+function eventNotes(modelNotes: string | undefined, text: string): string {
+  const source = text.length > 600 ? `${text.slice(0, 597)}\u2026` : text
+  if (!modelNotes || source.toLowerCase().includes(modelNotes.toLowerCase())) return source
+  return `${modelNotes}\n\n${source}`
+}
+
 function grounded(value: string | undefined, text: string): string | undefined {
   const v = short(value, 120)
   if (!v) return undefined
@@ -596,10 +610,34 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
   }
 
   // --- data/ora (prima dei telefoni: "12.09.2026" non è un numero) ---
-  const dateHit = findDate(text, now, lang, taken)
+  let dateHit = findDate(text, now, lang, taken)
   if (dateHit) taken.push({ start: dateHit.start, end: dateHit.end })
-  const timeHit = findTime(text, taken)
+  let timeHit = findTime(text, taken)
   if (timeHit) taken.push({ start: timeHit.start, end: timeHit.end })
+
+  // Il modello normalizza le date che il parser non capisce ("Sabato 20
+  // Settembre h. 21"), ma non può inventarle: giorno e ora devono comparire
+  // nel testo come numeri.
+  const modelEvent = options.enrich?.event
+  if (!dateHit && modelEvent?.date) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(modelEvent.date)
+    if (m) {
+      const day = Number(m[3])
+      const monthName = new Date(Number(m[1]), Number(m[2]) - 1, day).toLocaleDateString('it-IT', { month: 'long' })
+      const dayInText = new RegExp(`(?<!\\d)${day}(?!\\d)`).test(text)
+      const monthInText = new RegExp(`\\b${Number(m[2])}\\b`).test(text) || new RegExp(monthName, 'i').test(text) ||
+        new RegExp(new Date(Number(m[1]), Number(m[2]) - 1, day).toLocaleDateString('en-GB', { month: 'long' }), 'i').test(text)
+      if (dayInText && monthInText) {
+        dateHit = { start: 0, end: 0, date: new Date(Number(m[1]), Number(m[2]) - 1, day), raw: modelEvent.date }
+      }
+    }
+  }
+  if (!timeHit && modelEvent?.time) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(modelEvent.time)
+    if (m && new RegExp(`(?<!\\d)${Number(m[1])}(?!\\d)`).test(text)) {
+      timeHit = { start: 0, end: 0, hour: Number(m[1]), minute: Number(m[2]), raw: modelEvent.time, approx: false }
+    }
+  }
 
   let calendarEvent: CalendarEvent | null = null
   if (dateHit || timeHit) {
@@ -608,10 +646,13 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
     else base.setHours(9, 0, 0, 0)
     // Ora senza data e già passata: si intende domani.
     if (!dateHit && timeHit && base.getTime() < now.getTime()) base.setDate(base.getDate() + 1)
-    const end = new Date(base.getTime() + 60 * 60 * 1000)
+    const minutes = modelEvent?.durationMinutes && modelEvent.durationMinutes >= 15 && modelEvent.durationMinutes <= 720
+      ? modelEvent.durationMinutes
+      : defaultDurationMinutes(text)
+    const end = new Date(base.getTime() + minutes * 60 * 1000)
     const strip: Range[] = []
-    if (dateHit) strip.push(dateHit)
-    if (timeHit) strip.push(timeHit)
+    if (dateHit && dateHit.end > dateHit.start) strip.push(dateHit)
+    if (timeHit && timeHit.end > timeHit.start) strip.push(timeHit)
     const raw = [dateHit?.raw, timeHit?.raw].filter(Boolean).join(' ')
     const start = dateHit ? dateHit.start : timeHit!.start
     const endIdx = timeHit ? timeHit.end : dateHit!.end
@@ -622,6 +663,9 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
       start: toLocalIso(base),
       end: toLocalIso(end),
       location: grounded(options.enrich?.event?.location, text),
+      // Il testo di partenza dentro all'evento: fra un mese si capisce ancora
+      // perché sta in agenda.
+      notes: eventNotes(short(options.enrich?.event?.notes, 200), text),
       allDay: !timeHit,
     }
     entities.push({
@@ -762,7 +806,9 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
       kind: 'CALENDAR', label: ACTION_LABEL.CALENDAR,
       subject: `${calendarEvent.title} — ${humanDate(calendarEvent, lang)}`,
       value: calendarEvent.title, score: 0.78 - penalty + bonus, entity: dt,
-      event: { ...calendarEvent, location: addr?.value },
+      // L'indirizzo trovato dal motore vince (è verificato); altrimenti il luogo
+      // proposto dal modello, purché compaia nel testo.
+      event: { ...calendarEvent, location: addr?.value ?? calendarEvent.location },
     })
   }
   if (url) {
