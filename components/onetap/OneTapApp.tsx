@@ -56,6 +56,7 @@ export default function OneTapApp() {
   const [preview, setPreview] = useState<string | null>(null)
   const [readingStep, setReadingStep] = useState(0)
   const [dragging, setDragging] = useState(false)
+  const [imagesConfigured, setImagesConfigured] = useState<boolean | null>(null)
 
   const cameraRef = useRef<HTMLInputElement>(null)
   const libraryRef = useRef<HTMLInputElement>(null)
@@ -229,6 +230,20 @@ export default function OneTapApp() {
   }, [])
 
   useEffect(() => {
+    // Se la lettura immagini non è configurata su questo deploy, meglio dirlo
+    // sulla home che farlo scoprire dopo uno scatto andato a vuoto.
+    void (async () => {
+      try {
+        const res = await fetch('/api/onetap/analyze')
+        const body = await res.json()
+        setImagesConfigured(!!body?.configured)
+      } catch {
+        setImagesConfigured(null)
+      }
+    })()
+  }, [])
+
+  useEffect(() => {
     if (view !== 'analyzing') return
     const id = setInterval(
       () => setReadingStep((step) => Math.min(step + 1, READING_STEPS.length - 1)),
@@ -390,6 +405,7 @@ export default function OneTapApp() {
         {view === 'home' && (
           <Home
             notice={error ?? shareNotice}
+            imagesConfigured={imagesConfigured}
             dragging={dragging}
             history={store.history}
             used={store.used}
@@ -435,6 +451,7 @@ export default function OneTapApp() {
 
 function Home({
   notice,
+  imagesConfigured,
   dragging,
   history,
   used,
@@ -449,6 +466,7 @@ function Home({
   onClearAll,
 }: {
   notice: string | null
+  imagesConfigured: boolean | null
   dragging: boolean
   history: HistoryItem[]
   used: number
@@ -545,6 +563,14 @@ function Home({
       >
         Share to ONE TAP
       </Link>
+
+      {imagesConfigured === false && (
+        <p className="ot-card ot-rise mt-6 border-amber-300/25 bg-amber-300/5 px-5 py-4 text-[14px] leading-relaxed text-amber-200/90">
+          <strong className="text-amber-100">Photo reading is not switched on for this deployment.</strong>{' '}
+          Set an AI key in the hosting environment and photos start working — typing, pasting, QR codes
+          and the demo work right now without it.
+        </p>
+      )}
 
       {notice && (
         <p className="ot-card ot-rise mt-6 px-5 py-4 text-[14px] leading-relaxed text-amber-200/90">

@@ -111,6 +111,14 @@ async function callModel(model: string, messages: ChatMessage[], signal: AbortSi
   return String(data?.choices?.[0]?.message?.content ?? '')
 }
 
+/**
+ * Controllo di stato: dice solo SE la lettura immagini è configurata.
+ * Nessuna chiave, nessun modello, nessun dato: solo un booleano.
+ */
+export async function GET() {
+  return json({ configured: !!API_KEY })
+}
+
 export async function POST(request: Request) {
   if (!API_KEY) {
     return json(

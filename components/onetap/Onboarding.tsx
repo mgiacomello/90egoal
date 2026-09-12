@@ -17,6 +17,17 @@ import { ActionIcon, CheckIcon } from './icons'
 
 type Step = 'intro' | 'reading' | 'navigate' | 'calendar' | 'outro'
 
+function SkipOut({ onFinish }: { onFinish: () => void }) {
+  return (
+    <button
+      onClick={onFinish}
+      className="ot-ghost mt-7 block w-full text-center text-[13px] underline underline-offset-4"
+    >
+      Skip — take me to the app →
+    </button>
+  )
+}
+
 export default function Onboarding({ onFinish }: { onFinish: () => void }) {
   const [step, setStep] = useState<Step>('intro')
   const [done, setDone] = useState<string[]>([])
@@ -64,6 +75,7 @@ export default function Onboarding({ onFinish }: { onFinish: () => void }) {
           <button onClick={() => setStep('reading')} className="ot-tap mt-8">
             One Tap
           </button>
+          <SkipOut onFinish={onFinish} />
         </div>
       )}
 
@@ -87,6 +99,7 @@ export default function Onboarding({ onFinish }: { onFinish: () => void }) {
               </p>
             ))}
           </div>
+          <SkipOut onFinish={onFinish} />
         </div>
       )}
 
@@ -118,6 +131,7 @@ export default function Onboarding({ onFinish }: { onFinish: () => void }) {
           <p className="mt-5 text-center text-[13px] text-[var(--ot-muted)]">
             Maps opens with the destination already set.
           </p>
+          <SkipOut onFinish={onFinish} />
         </div>
       )}
 
@@ -148,8 +162,9 @@ export default function Onboarding({ onFinish }: { onFinish: () => void }) {
             onClick={() => setStep('outro')}
             className="ot-ghost mt-5 w-full text-center text-[13px] underline underline-offset-4"
           >
-            Skip
+            Skip this step
           </button>
+          <SkipOut onFinish={onFinish} />
         </div>
       )}
 
