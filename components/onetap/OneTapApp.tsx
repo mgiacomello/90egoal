@@ -32,11 +32,12 @@ import {
 } from '@/lib/onetap/storage'
 import type { Analysis, HistoryItem, SuggestedAction } from '@/lib/onetap/types'
 import ActionCard from './ActionCard'
+import Camera from './Camera'
 import Onboarding from './Onboarding'
 import { DemoSheet, PrivacySheet, ProSheet } from './Sheets'
 import { ActionIcon, CameraIcon, CloseIcon, TrashIcon } from './icons'
 
-type View = 'home' | 'analyzing' | 'result'
+type View = 'home' | 'camera' | 'analyzing' | 'result'
 type SheetName = 'privacy' | 'pro' | 'demo'
 
 const READING_STEPS = ['Reading…', 'Understanding…', 'Choosing the action…']
@@ -246,6 +247,12 @@ export default function OneTapApp() {
     if (count === FREE_ACTIONS_PER_MONTH + 1) setSheet('pro')
   }, [])
 
+  /** Mirino dentro all'app dove il browser lo consente, fotocamera di sistema altrove. */
+  const openCamera = useCallback(() => {
+    if (typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function') setView('camera')
+    else cameraRef.current?.click()
+  }, [])
+
   const reset = useCallback(() => {
     setAnalysis(null)
     setPreview(null)
@@ -322,6 +329,17 @@ export default function OneTapApp() {
         if (file?.type.startsWith('image/')) void runImage(file)
       }}
     >
+      {view === 'camera' && (
+        <Camera
+          onShot={(photo) => void runImage(photo)}
+          onClose={() => setView('home')}
+          onPickFile={() => {
+            setView('home')
+            libraryRef.current?.click()
+          }}
+        />
+      )}
+
       <input
         ref={cameraRef}
         type="file"
@@ -375,7 +393,7 @@ export default function OneTapApp() {
             dragging={dragging}
             history={store.history}
             used={store.used}
-            onCapture={() => cameraRef.current?.click()}
+            onCapture={openCamera}
             onLibrary={() => libraryRef.current?.click()}
             onPaste={pasteFromButton}
             onText={runText}
