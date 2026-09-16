@@ -14,11 +14,15 @@ type Answer = {
   empty: boolean
 }
 
+/** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
+type AutoSync = { at: string; stored: number; detail: string }
+
 type Props = {
   ownerEmail: string
   initialConnectors: ConnectorStatus[]
   initialStats: MemoryStats
   initialDocuments: StoredDocument[]
+  autoSync: AutoSync | null
   googleOutcome: { ok: boolean; detail: string } | null
 }
 
@@ -68,6 +72,7 @@ export default function BrainConsole({
   initialConnectors,
   initialStats,
   initialDocuments,
+  autoSync,
   googleOutcome,
 }: Props) {
   const [tab, setTab] = useState<'ask' | 'sources' | 'memory'>('ask')
@@ -317,6 +322,23 @@ export default function BrainConsole({
         {/* --- FONTI --- */}
         {tab === 'sources' ? (
           <section>
+            <div className="brain-auto">
+              {autoSync ? (
+                <>
+                  <b>Sincronizzazione automatica</b> · ogni giorno alle 05:00 UTC.
+                  {' '}Ultima: {formatDate(autoSync.at)} — {autoSync.detail}
+                  {autoSync.stored ? `, ${autoSync.stored} nuovi documenti` : ', niente di nuovo'}.
+                </>
+              ) : (
+                <>
+                  <b>Sincronizzazione automatica</b> · pianificata ogni giorno alle 05:00 UTC,
+                  ma non è ancora mai girata. Se hai appena fatto il deploy è normale; se sono
+                  passati più di due giorni, controlla che <code>CRON_SECRET</code> sia impostata
+                  su Vercel.
+                </>
+              )}
+            </div>
+
             <div className="brain-actions" style={{ marginBottom: '1rem' }}>
               <button type="button" className="brain-btn brain-btn-primary" onClick={() => void sync()} disabled={syncing}>
                 {syncing ? 'Sincronizzo…' : 'Sincronizza tutto'}

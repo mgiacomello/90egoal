@@ -4,6 +4,7 @@ import { chunkDocument, chunkText, normalizeText } from '../lib/brain/chunk.ts'
 import { fold, queryTerms, rankHits, recencyWeight, selectSources, toFtsQuery } from '../lib/brain/rank.ts'
 import { extractFacts, parseHandles, verifyClaims } from '../lib/brain/cite.ts'
 import { pickModel } from '../lib/brain/orchestrator.ts'
+import { isAuthorizedCron } from '../lib/brain/cron.ts'
 import type { SearchHit, SourceRef } from '../lib/brain/types.ts'
 
 // Riferimento fisso: martedì 15 settembre 2026, 10:00 UTC.
@@ -288,6 +289,35 @@ check('per estrarre si sceglie il modello veloce', () => {
 check('se il provider preferito manca si scende al successivo disponibile', () => {
   const chosen = pickModel('answer', { openai: true })
   assert.equal(chosen?.provider, 'openai')
+})
+
+/* --- esecuzione automatica: la porta è chiusa per difetto --- */
+
+check('senza CRON_SECRET configurato non entra nessuno', () => {
+  assert.equal(isAuthorizedCron('Bearer qualunque', undefined), false)
+  assert.equal(isAuthorizedCron('Bearer qualunque', ''), false)
+})
+
+check('senza header non entra nessuno', () => {
+  assert.equal(isAuthorizedCron(null, 'segreto'), false)
+  assert.equal(isAuthorizedCron('', 'segreto'), false)
+})
+
+check('il segreto giusto entra, anche con Bearer minuscolo', () => {
+  assert.equal(isAuthorizedCron('Bearer segreto', 'segreto'), true)
+  assert.equal(isAuthorizedCron('bearer segreto', 'segreto'), true)
+  assert.equal(isAuthorizedCron('  Bearer segreto  ', 'segreto'), true)
+})
+
+check('un segreto sbagliato o di lunghezza diversa non entra', () => {
+  assert.equal(isAuthorizedCron('Bearer sbagliato', 'segreto'), false)
+  assert.equal(isAuthorizedCron('Bearer segret', 'segreto'), false)
+  assert.equal(isAuthorizedCron('Bearer segretoo', 'segreto'), false)
+})
+
+check('il segreto nudo senza schema Bearer non basta', () => {
+  assert.equal(isAuthorizedCron('segreto', 'segreto'), false)
+  assert.equal(isAuthorizedCron('Basic segreto', 'segreto'), false)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

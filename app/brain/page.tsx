@@ -3,7 +3,8 @@ import BrainConsole from '@/components/brain/BrainConsole'
 import { currentOwner } from '@/lib/brain/auth'
 import { connectorStatuses } from '@/lib/brain/connectors'
 import { memoryConfigured } from '@/lib/brain/db'
-import { memoryStats, recentDocuments, type MemoryStats } from '@/lib/brain/memory'
+import { CRON_AGENT } from '@/lib/brain/cron'
+import { lastRun, memoryStats, recentDocuments, type MemoryStats, type RunRecord } from '@/lib/brain/memory'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { StoredDocument } from '@/lib/brain/types'
 import { createClient } from '@/lib/supabase/server'
@@ -12,6 +13,19 @@ export const runtime = 'nodejs'
 
 function first(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '')
+}
+
+/**
+ * L'esito dell'ultima esecuzione automatica, ridotto a una riga.
+ * Un cron che ha smesso di girare in silenzio è peggio di un cron che
+ * non c'è, perché la memoria *sembra* aggiornata: qui si vede.
+ */
+function summarizeAutoSync(answer: unknown): string {
+  const data = (answer ?? {}) as { error?: string; failed?: number; reports?: { label: string; error: string | null }[] }
+  if (data.error) return `non riuscita: ${data.error}`
+  const broken = (data.reports ?? []).filter((r) => r.error)
+  if (broken.length) return `parziale — ${broken.map((r) => r.label).join(', ')} in errore`
+  return 'riuscita'
 }
 
 /** Lo schema non è ancora stato eseguito, oppure mancano le chiavi Supabase. */
@@ -51,11 +65,13 @@ export default async function BrainPage({ searchParams }: PageProps<'/brain'>) {
   let connectors: ConnectorStatus[]
   let stats: MemoryStats
   let documents: StoredDocument[]
+  let autoSync: RunRecord | null
   try {
-    ;[connectors, stats, documents] = await Promise.all([
+    ;[connectors, stats, documents, autoSync] = await Promise.all([
       connectorStatuses(),
       memoryStats(),
       recentDocuments(40),
+      lastRun(CRON_AGENT),
     ])
   } catch (err) {
     return <Setup message={`La memoria non risponde: ${(err as Error).message}`} />
@@ -73,6 +89,11 @@ export default async function BrainPage({ searchParams }: PageProps<'/brain'>) {
       initialConnectors={connectors}
       initialStats={stats}
       initialDocuments={documents}
+      autoSync={
+        autoSync
+          ? { at: autoSync.createdAt, stored: autoSync.hits, detail: summarizeAutoSync(autoSync.answer) }
+          : null
+      }
       googleOutcome={googleOutcome}
     />
   )

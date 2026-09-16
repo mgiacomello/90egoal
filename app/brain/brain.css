@@ -414,3 +414,29 @@ a.brain-source:hover {
     max-width: 9rem;
   }
 }
+
+/* Stato dell'esecuzione automatica: deve essere leggibile a colpo d'occhio,
+   perché è l'unico modo per accorgersi che il cron ha smesso di girare. */
+.brain-auto {
+  border: 1px solid var(--brain-line);
+  border-left: 3px solid var(--brain-accent);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--brain-muted);
+}
+
+.brain-auto b {
+  color: var(--brain-ink);
+  font-weight: 600;
+}
+
+.brain-auto code {
+  background: var(--brain-elev);
+  border: 1px solid var(--brain-line);
+  border-radius: 0.25rem;
+  padding: 0.0625rem 0.3125rem;
+  font-size: 0.8125rem;
+}

@@ -263,6 +263,40 @@ export async function lastSyncedAt(connector: string): Promise<string | null> {
   return (data?.synced_at as string | null) ?? null
 }
 
+export type RunRecord = {
+  agent: string
+  question: string
+  answer: unknown
+  model: string | null
+  hits: number
+  latencyMs: number | null
+  createdAt: string
+}
+
+/** L'ultima esecuzione di un agente. Serve alla console per dire "quando". */
+export async function lastRun(agent: string): Promise<RunRecord | null> {
+  const db = brainDb()
+  const { data, error } = await db
+    .from('brain_runs')
+    .select('*')
+    .eq('agent', agent)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) throw new BrainError(`Lettura registro fallita: ${error.message}`)
+  if (!data) return null
+
+  return {
+    agent: String(data.agent),
+    question: String(data.question ?? ''),
+    answer: data.answer,
+    model: (data.model as string | null) ?? null,
+    hits: Number(data.hits ?? 0),
+    latencyMs: (data.latency_ms as number | null) ?? null,
+    createdAt: String(data.created_at),
+  }
+}
+
 export async function logRun(entry: {
   agent: string
   question: string

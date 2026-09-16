@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Tre funzioni pure, senza rete e senza DOM. `npm run test:brain` — 36 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 41 test, zero
 dipendenze.
 
 | File | Ruolo | Perché non sta in un prompt |
@@ -61,6 +61,7 @@ dipendenze.
 | `lib/brain/rank.ts` | ordina i pezzi: full-text, parole in comune, freschezza, persone nominate, frase esatta | un ordinamento si può testare |
 | `lib/brain/cite.ts` | applica le due regole qui sopra | è la promessa del prodotto |
 | `lib/brain/orchestrator.ts` | per ogni tipo di task, il modello che rende meglio | la scelta è una tabella, non un'opinione |
+| `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
 
@@ -140,12 +141,42 @@ Un documento al giorno, non uno per misura: la domanda che si fa a un coach è
   layout, tabelle) e va fatto bene o non fatto: meglio un limite dichiarato — la
   riga finisce dentro al documento — che un corpo mezzo sbagliato citato come
   fonte.
-- **La sincronizzazione è manuale.** Il post di Dattoli descrive agenti che
-  partono da soli, da una mail che entra. Qui il pulsante lo premi tu. I webhook
-  (Gmail push, Qonto, cron) sono il passo dopo, e non cambiano niente di quanto
-  c'è sotto.
+- **La sincronizzazione parte da sola una volta al giorno**, non a ogni mail che
+  entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
+  latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
+  Cloud e vale la pena solo quando la latenza diventa il problema.
 - **Un solo agente.** Il capo di gabinetto risponde; non scrive ancora bozze,
   non prepara ancora i 1:1, non abbina ancora fatture e movimenti.
+
+---
+
+## Il trigger
+
+`GET /api/brain/cron` sincronizza tutti i connettori configurati. Vercel lo chiama
+ogni giorno alle **05:00 UTC** (`vercel.json`), cioè prima che la giornata
+cominci: il momento in cui una memoria aggiornata serve davvero.
+
+Non si autentica come il resto di BRAIN, perché qui non c'è nessuno loggato: c'è
+uno scheduler. Il controllo è un segreto condiviso — Vercel manda
+`Authorization: Bearer $CRON_SECRET` — confrontato a tempo costante.
+
+> **Senza `CRON_SECRET` configurata l'endpoint risponde 401 a chiunque, Vercel
+> compreso.** Chiuso per difetto: un segreto mancante non è un caso da trattare
+> con indulgenza, è una porta spalancata su una memoria personale.
+
+Ogni esecuzione finisce in `brain_runs` con l'agente `cron:sync`, **anche quando
+fallisce**, e la scheda *Fonti* mostra l'esito dell'ultima. Il motivo è preciso:
+un cron che ha smesso di girare in silenzio è peggio di un cron che non c'è,
+perché la memoria *sembra* aggiornata.
+
+Un connettore che fallisce non ferma gli altri. La finestra parte sempre
+dall'ultima sincronizzazione riuscita **meno sei ore**, così un documento
+arrivato in ritardo non cade nella fessura fra due esecuzioni; e siccome
+`(fonte, id esterno)` è la chiave d'identità, la sovrapposizione non duplica
+niente.
+
+Per andare più fitto di una volta al giorno serve un piano Vercel che lo
+consenta: si cambia solo la riga `schedule` in `vercel.json`.
 
 ---
 
@@ -166,7 +197,10 @@ BRAIN_OWNER_EMAIL=tu@esempio.it
 # 3. Il modello che risponde (obbligatorio per "Chiedi")
 ANTHROPIC_API_KEY=sk-ant-...
 
-# 4. Le fonti (una alla volta, quando servono)
+# 4. La sincronizzazione automatica (senza, l'endpoint cron resta chiuso)
+CRON_SECRET=una-stringa-lunga-e-casuale
+
+# 5. Le fonti (una alla volta, quando servono)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 BRAIN_APP_URL=https://tuodominio.it   # solo dietro a un proxy
@@ -187,6 +221,8 @@ Opzionale: `BRAIN_GMAIL_QUERY` sovrascrive il filtro di Gmail.
    Console, aggiungi come redirect URI `https://iltuodominio/api/brain/connect/google/callback`,
    abilita le API Gmail, Calendar e Drive. Poi scheda **Fonti** → *Collega Google*.
 5. Qonto e Oura: basta la chiave nell'ambiente, poi *Sincronizza tutto*.
+6. Imposta `CRON_SECRET` su Vercel e rifai il deploy: da lì in poi la memoria si
+   aggiorna da sola, e la scheda *Fonti* dice quando è successo l'ultima volta.
 
 ---
 
@@ -233,6 +269,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 3. Dettagli marcati dalla regola 2 (dice quanto ci si può fidare del modello del momento)
 4. Documenti in memoria per fonte, e quanti ne salta una sincronizzazione
 5. Domande a cui il sistema risponde "non risulta" pur avendo il dato
+6. Esecuzioni automatiche riuscite di fila (se scende, la memoria sta invecchiando)
 
 La quinta è la più scomoda e la più utile: misura i buchi del *recupero*, non del
 modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
@@ -243,8 +280,8 @@ modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
 
 L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
-- **Trigger al posto del pulsante.** Gmail push, webhook Qonto, un cron
-  giornaliero per Oura. Il connettore non cambia: cambia chi lo chiama.
+- **Push al posto del cron.** Gmail via Pub/Sub, webhook Qonto. Il connettore non
+  cambia e nemmeno la memoria: cambia solo chi chiama `syncConnectors`.
 - **Altri agenti.** Ognuno è un file in `lib/brain/agents/` che recupera dalla
   memoria e passa da `verifyClaims()`. I candidati dal post — amministrazione,
   post-call, preparazione dei 1:1 — leggono tutti dalla stessa memoria.
@@ -258,7 +295,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 36 test del nucleo, nessuna dipendenza
+npm run test:brain     # 41 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

@@ -49,9 +49,10 @@ viene mostrata**, e un importo o un IBAN che non compare nelle fonti citate da
 quella frase viene marcato. È il parente stretto del controllo mod-97 di ONE TAP.
 
 Il nucleo — spezzettamento, ranking, verifica delle citazioni, scelta del modello —
-è fatto di funzioni pure: `npm run test:brain`, 36 test, zero dipendenze. I
+è fatto di funzioni pure: `npm run test:brain`, 41 test, zero dipendenze. I
 connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
-agente può scrivere una mail o disporre un pagamento.
+agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
+da sola una volta al giorno via cron.
 
 Le tabelle `brain_*` hanno RLS attiva e nessuna policy: dal browser non sono
 raggiungibili. Setup, limiti dichiarati e roadmap in **[BRAIN.md](BRAIN.md)**.

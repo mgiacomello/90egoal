@@ -78,7 +78,13 @@ BRAIN_APP_URL=https://90egoal.vercel.app   # solo se l'origine vista dal server 
 QONTO_LOGIN=...                        # transazioni, sola lettura
 QONTO_SECRET_KEY=...
 OURA_TOKEN=...                         # sonno, prontezza, attività
+CRON_SECRET=...                        # senza, la sincronizzazione automatica resta chiusa
 ```
+
+`vercel.json` pianifica `/api/brain/cron` ogni giorno alle 05:00 UTC. Vercel
+manda `Authorization: Bearer $CRON_SECRET`: **senza quella variabile l'endpoint
+risponde 401 a tutti, Vercel compreso** — è voluto, chiuso per difetto. Genera
+il segreto con `openssl rand -hex 32`.
 
 Prima del primo accesso va eseguito `supabase/migration_brain.sql` nell'SQL
 Editor del progetto Supabase. In Google Cloud Console il redirect URI da
