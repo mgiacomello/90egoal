@@ -187,6 +187,21 @@ export async function documentById(id: string): Promise<StoredDocument | null> {
   return data ? toStored(data as Record<string, unknown>) : null
 }
 
+/**
+ * Quanti documenti ci sono, senza tirarli giù tutti.
+ *
+ * Serve a una frase sola ma importante: "ho cercato X su N documenti".
+ * Con `head` e `count: exact` Postgres risponde col solo numero.
+ */
+export async function countDocuments(): Promise<number> {
+  const db = brainDb()
+  const { count, error } = await db
+    .from('brain_documents')
+    .select('*', { count: 'exact', head: true })
+  if (error) throw new BrainError(`Conteggio documenti fallito: ${error.message}`)
+  return count ?? 0
+}
+
 export type MemoryStats = {
   total: number
   bySource: { source: SourceKey; count: number; latest: string | null }[]

@@ -16,6 +16,10 @@ type Answer = {
   model: string
   hits: number
   empty: boolean
+  /** Cosa è stato cercato davvero, espansione compresa. */
+  searched?: string[]
+  scanned?: number
+  searchNote?: string
 }
 
 type Tab = 'brief' | 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
@@ -317,11 +321,16 @@ export default function BrainConsole({
                 ))}
 
                 {!answer.claims.length ? (
-                  <p className="brain-empty">
-                    {answer.empty
-                      ? 'In memoria non c\'è niente che corrisponda a questa domanda.'
-                      : 'Le fonti trovate non rispondono alla domanda. Meglio dirlo che inventare.'}
-                  </p>
+                  <div className="brain-empty" style={{ textAlign: 'left' }}>
+                    <p style={{ margin: '0 0 0.5rem' }}>
+                      {answer.empty
+                        ? 'In memoria non c\'è niente che corrisponda a questa domanda.'
+                        : 'Le fonti trovate non rispondono alla domanda. Meglio dirlo che inventare.'}
+                    </p>
+                    {/* "Non risulta" da solo non è verificabile: dire cosa è stato
+                        cercato, e su quanto, lo rende una frase che si può smentire. */}
+                    {answer.searchNote ? <p style={{ margin: 0 }}>{answer.searchNote}</p> : null}
+                  </div>
                 ) : null}
 
                 {answer.openQuestions.length ? (
@@ -337,6 +346,9 @@ export default function BrainConsole({
 
                 <p className="brain-meta">
                   {answer.hits} pezzi letti · modello {answer.model}
+                  {answer.searched && answer.searched.length > (answer.searchNote ? 0 : 99)
+                    ? ` · cercato: ${answer.searched.join(', ')}`
+                    : ''}
                 </p>
               </div>
             ) : null}

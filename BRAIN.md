@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 100 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 109 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -67,6 +67,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
+| `lib/brain/expand.ts` | con quali altre parole cercare, e come raccontare una ricerca a vuoto | l'espansione allarga il recupero, non deve dirottarlo |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -79,6 +80,62 @@ Due dettagli che cambiano i risultati e che è facile sbagliare:
   contengono *tutte* quelle parole, e non troverebbe niente. `toFtsQuery()`
   costruisce un OR e lascia al ranking il compito di pesare quante parole ciascun
   pezzo abbia davvero preso.
+
+---
+
+## Il recupero, e perché "non risulta" va dimostrato
+
+La regola *"solo quello che è in memoria"* ha un costo che si vede solo usando il
+prodotto: **una ricerca andata male si traveste da risposta.** Chiedi *"cosa
+avevamo deciso sul pricing"*, nei documenti c'è scritto "listino" e "tariffe", la
+ricerca full-text non lo sa, e il sistema dice "non risulta" — che sembra un
+fatto ed è un fallimento del recupero.
+
+Due contromisure, e nessuna delle due tocca la garanzia sulle fonti.
+
+### 1. Il modello propone parole, non risposte
+
+Se il primo giro trova poco (meno di 12 pezzi), si chiede al modello veloce
+*altre parole con cui la stessa cosa potrebbe essere scritta* — "pricing" →
+listino, prezzi, tariffe, sconto, preventivo — e si cerca di nuovo. I risultati
+si **uniscono**, non si sostituiscono.
+
+Perché è sicuro: **chi propone i termini non vede nessun documento**, solo la
+domanda. Non è un risparmio, è una garanzia strutturale — da lì non può uscire
+niente che somigli a una risposta, perché non ha niente da cui ricavarla. Al
+peggio si cerca una parola inutile, e il ranking la ignora.
+
+Due dettagli che è facile sbagliare:
+
+- **I termini della domanda non vengono mai scartati**, nemmeno se il modello ne
+  propone quaranta e scatta il tetto. L'espansione allarga la ricerca, non la
+  dirotta: se cadesse la parola che l'utente ha scritto, avremmo risposto a
+  un'altra domanda.
+- **Il ranking usa la domanda originale, non quella espansa.** Altrimenti un
+  sinonimo suggerito dal modello peserebbe quanto una parola scritta da te.
+
+Se il modello veloce non risponde, si va avanti con la ricerca diretta:
+l'espansione è un miglioramento, non un requisito.
+
+### 2. Una risposta vuota dice cosa ha cercato
+
+> *Ho cercato "pricing", "listino", "tariffe", "sconto" su 1.240 documenti in
+> memoria. Nessuno corrisponde alla domanda.*
+
+Così "non risulta" diventa **falsificabile**: leggi i termini, vedi che manca
+quello giusto, e riformuli. Senza quella riga non potresti distinguere un dato
+che non c'è da un sistema che ha cercato male — e distinguerli è esattamente il
+tipo di cosa che questo prodotto promette.
+
+### Il passo dopo, e perché non è ancora questo
+
+La ricerca semantica (embedding + pgvector) troverebbe "listino" senza bisogno di
+chiedere sinonimi. Non è stata fatta ora per tre ragioni dichiarate: Anthropic
+**non ha un endpoint di embedding**, quindi servirebbe un fornitore in più con la
+sua chiave e il suo costo; richiede una migration e un backfill di tutti i pezzi
+già in memoria; e su un archivio piccolo l'espansione dà gran parte del beneficio
+a costo quasi nullo. Quando l'archivio cresce, il posto dove innestarla è
+`searchMemory()`, e il ranking deterministico resta quello che è.
 
 ---
 
@@ -512,6 +569,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 1. **Risposte in cui tutte le affermazioni hanno passato la regola 1** ← la metrica chiave
 2. Affermazioni scartate per fonte inventata (deve tendere a zero)
 3. Dettagli marcati dalla regola 2 (dice quanto ci si può fidare del modello del momento)
+4. **Domande che scattano il secondo giro di ricerca** (se sono tante, i termini dei documenti e quelli che usi tu non coincidono)
 4. Documenti in memoria per fonte, e quanti ne salta una sincronizzazione
 5. Domande a cui il sistema risponde "non risulta" pur avendo il dato
 6. Esecuzioni automatiche riuscite di fila (se scende, la memoria sta invecchiando)
@@ -551,7 +609,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 100 test del nucleo, nessuna dipendenza
+npm run test:brain     # 109 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

@@ -57,6 +57,12 @@ aperti**, che **si chiudono solo a mano**: nessuno li toglie perché non se ne
 parla più, e più invecchiano più si vedono — è la differenza fra una memoria e un
 dimenticatoio con la barra di avanzamento.
 
+Quando la ricerca trova poco, il modello propone *altre parole con cui la stessa
+cosa potrebbe essere scritta* — e non vede nessun documento mentre lo fa, quindi
+non può proporre una risposta. E se non trova niente, lo dice in modo
+verificabile: *«ho cercato "pricing", "listino", "tariffe" su 1.240 documenti»*.
+Così **«non risulta» si può smentire**, invece di doverci credere.
+
 Il secondo agente, **Contratti**, applica la stessa idea con una regola più
 stretta: la clausola citata deve esistere *testualmente* nel contratto, altrimenti
 la sua analisi non viene mostrata. Per ognuna dà rischio, standard di mercato e
@@ -64,7 +70,7 @@ controproposta pronta — e tiene ben separato quello che ha verificato (la
 citazione) da quello che è un giudizio (tutto il resto).
 
 Il nucleo — spezzettamento, ranking, verifica di citazioni e clausole, routing —
-è fatto di funzioni pure: `npm run test:brain`, 100 test, zero dipendenze. I
+è fatto di funzioni pure: `npm run test:brain`, 109 test, zero dipendenze. I
 connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
 agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
 da sola una volta al giorno via cron.

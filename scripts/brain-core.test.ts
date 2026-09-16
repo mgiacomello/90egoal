@@ -8,6 +8,7 @@ import { isAuthorizedCron } from '../lib/brain/cron.ts'
 import { matchQuote, normalizeForMatch, tokenize } from '../lib/brain/quote.ts'
 import { assessExtraction } from '../lib/brain/pdf.ts'
 import { isWorthSending, renderBriefEmail, type MailBrief } from '../lib/brain/briefmail.ts'
+import { describeSearch, expandedQuery, mergeTerms, shouldExpand } from '../lib/brain/expand.ts'
 import {
   ageInDays,
   decidePoints,
@@ -368,6 +369,60 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- espansione della domanda: il modello propone parole, non risposte --- */
+
+check('i termini della domanda vengono sempre prima e non si perdono mai', () => {
+  const t = mergeTerms(['pricing'], ['listino', 'tariffe', 'sconto'])
+  assert.equal(t[0], 'pricing')
+  assert.ok(t.includes('listino'))
+})
+
+check('nemmeno un\'espansione lunghissima butta fuori la parola dell\'utente', () => {
+  const tanti = Array.from({ length: 40 }, (_, i) => `sinonimo${i}`)
+  const t = mergeTerms(['pricing', 'rossi'], tanti)
+  assert.ok(t.includes('pricing'), 'la parola della domanda deve sopravvivere al tetto')
+  assert.ok(t.includes('rossi'))
+  assert.ok(t.length <= 18)
+})
+
+check('un "sinonimo" fatto di tre parole viene spezzato e filtrato', () => {
+  const t = mergeTerms(['pricing'], ['il listino dei prezzi'])
+  assert.ok(t.includes('listino'))
+  assert.ok(t.includes('prezzi'))
+  assert.ok(!t.includes('il'), 'le parole vuote non diventano termini')
+})
+
+check('i doppioni non si moltiplicano, accenti compresi', () => {
+  const t = mergeTerms(['società'], ['Societa', 'SOCIETÀ'])
+  assert.equal(t.filter((x) => x === 'societa').length, 1)
+})
+
+check('l\'interrogazione espansa resta un OR senza apici', () => {
+  const q = expandedQuery(['pricing'], ['listino'])
+  assert.equal(q, 'pricing or listino')
+  assert.ok(!expandedQuery(['contratto'], ['"rossi"']).includes('"'))
+})
+
+check('si espande solo quando il primo giro ha trovato poco', () => {
+  assert.equal(shouldExpand(3, ['pricing']), true)
+  assert.equal(shouldExpand(40, ['pricing']), false)
+})
+
+check('una domanda senza termini utili non si espande', () => {
+  assert.equal(shouldExpand(0, []), false)
+})
+
+check('una ricerca a vuoto dice cosa ha cercato: "non risulta" diventa falsificabile', () => {
+  const d = describeSearch(['pricing', 'listino'], 1240)
+  assert.ok(d.includes('"pricing"'))
+  assert.ok(d.includes('"listino"'))
+  assert.ok(d.includes('1240'))
+})
+
+check('e lo dice anche quando la domanda non aveva niente su cui cercare', () => {
+  assert.ok(describeSearch([], 12).includes('nessun termine'))
 })
 
 /* --- il brief nella posta: si formatta, non si rigenera --- */

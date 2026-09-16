@@ -1,7 +1,8 @@
 import { verifyClaims } from '../cite'
-import { logRun, searchMemory } from '../memory'
+import { describeSearch, expandedQuery, shouldExpand } from '../expand'
+import { countDocuments, logRun, searchMemory } from '../memory'
 import { runStructured } from '../model'
-import { rankHits, selectSources, toFtsQuery } from '../rank'
+import { queryTerms, rankHits, selectSources, toFtsQuery } from '../rank'
 import { CHANNEL_LABEL, type GroundedAnswer, type RawClaim, type SourceRef } from '../types'
 
 /**
@@ -15,6 +16,18 @@ import { CHANNEL_LABEL, type GroundedAnswer, type RawClaim, type SourceRef } fro
  * è permesso sapere niente che non sia in memoria. Se le fonti non
  * rispondono, deve dire che non rispondono. E questa regola non è
  * affidata al prompt: il prompt la chiede, `verifyClaims` la impone.
+ *
+ * Il costo di quella regola è che una ricerca andata male si traveste
+ * da risposta: "non risulta" sembra un fatto e invece può essere un
+ * fallimento del recupero. Due contromisure, e nessuna delle due
+ * tocca la garanzia:
+ *
+ *  1. se il primo giro trova poco, il modello propone **altre parole
+ *     con cui la stessa cosa potrebbe essere scritta** e si cerca di
+ *     nuovo. Proporre termini non è rispondere: al massimo si cerca
+ *     una parola inutile, e il ranking la ignora;
+ *  2. una risposta vuota dichiara **cosa** ha cercato e su quanti
+ *     documenti, così "non risulta" si può smentire.
  */
 
 const AGENT_KEY = 'chief-of-staff'
@@ -103,6 +116,57 @@ export type ChiefOfStaffAnswer = GroundedAnswer & {
   offered: SourceRef[]
   /** Nessun documento in memoria corrisponde alla domanda. */
   empty: boolean
+  /** Le parole effettivamente cercate, espansione compresa. */
+  searched: string[]
+  /** Quanti documenti c'erano da guardare. */
+  scanned: number
+  /** Una riga che rende verificabile una risposta vuota. */
+  searchNote: string
+}
+
+const EXPAND_TOOL = {
+  name: 'proponi_termini',
+  description: 'Propone altre parole con cui la stessa cosa potrebbe essere scritta nei documenti.',
+  input_schema: {
+    type: 'object' as const,
+    properties: {
+      termini: {
+        type: 'array',
+        description:
+          'Sinonimi, varianti e termini vicini, una parola ciascuno dove possibile. Italiano, più l\'inglese quando è il termine che si userebbe davvero in un documento di lavoro.',
+        items: { type: 'string' },
+      },
+    },
+    required: ['termini'],
+  },
+}
+
+/**
+ * Altre parole con cui cercare.
+ *
+ * Il modello vede **solo la domanda**, mai un documento: non è un
+ * risparmio, è una garanzia strutturale — da qui non può uscire niente
+ * che somigli a una risposta, perché non ha niente da cui ricavarla.
+ */
+async function proposeTerms(question: string, signal?: AbortSignal): Promise<string[]> {
+  try {
+    const { data } = await runStructured<{ termini?: unknown[] }>({
+      task: 'extract',
+      system: `Proponi parole con cui cercare in un archivio di email, documenti e appunti di lavoro in italiano.
+
+NON rispondere alla domanda. NON inventare nomi di persone, aziende o pratiche che non compaiono nella domanda.
+Proponi solo sinonimi, varianti morfologiche, termini tecnici equivalenti e la parola inglese quando è quella che si userebbe davvero in un documento (es. "pricing" → listino, prezzi, tariffe, sconto, preventivo).
+Da otto a dodici termini, uno per riga concettuale, senza spiegazioni.`,
+      user: question,
+      tool: EXPAND_TOOL,
+      signal,
+    })
+    return (Array.isArray(data.termini) ? data.termini : []).map(String)
+  } catch {
+    // L'espansione è un miglioramento, non un requisito: se il modello
+    // veloce non risponde, si va avanti con la ricerca diretta.
+    return []
+  }
 }
 
 export async function askChiefOfStaff(
@@ -112,18 +176,42 @@ export async function askChiefOfStaff(
   const started = Date.now()
   const now = options.now ?? new Date()
 
+  const terms = queryTerms(question)
   const ftsQuery = toFtsQuery(question)
-  const hits = ftsQuery ? await searchMemory(ftsQuery, { limit: 80 }) : []
+  let hits = ftsQuery ? await searchMemory(ftsQuery, { limit: 80 }) : []
+  let searched = terms
+
+  // Secondo giro solo se il primo ha trovato poco.
+  if (shouldExpand(hits.length, terms)) {
+    const proposed = await proposeTerms(question, options.signal)
+    if (proposed.length) {
+      const wider = expandedQuery(terms, proposed)
+      const more = await searchMemory(wider, { limit: 80 })
+
+      // Unione, non sostituzione: quello che la ricerca diretta aveva
+      // trovato resta, e a pesare i nuovi arrivati ci pensa il ranking.
+      const byChunk = new Map(hits.map((h) => [h.chunkId, h]))
+      for (const hit of more) if (!byChunk.has(hit.chunkId)) byChunk.set(hit.chunkId, hit)
+      hits = [...byChunk.values()]
+      searched = wider.split(' or ')
+    }
+  }
+
+  const scanned = await countDocuments().catch(() => 0)
+  const searchNote = describeSearch(searched, scanned)
 
   if (!hits.length) {
     const answer: ChiefOfStaffAnswer = {
       claims: [],
       dropped: [],
-      openQuestions: ['In memoria non c\'è nessun documento che corrisponda alla domanda.'],
+      openQuestions: [searchNote + ' Nessuno corrisponde alla domanda.'],
       model: 'nessuno',
       hits: 0,
       offered: [],
       empty: true,
+      searched,
+      scanned,
+      searchNote,
     }
     await logRun({
       agent: AGENT_KEY,
@@ -136,6 +224,10 @@ export async function askChiefOfStaff(
     return answer
   }
 
+  // Il ranking usa la domanda **originale**, non quella espansa:
+  // l'espansione serve ad allargare cosa si trova, non a cambiare cosa
+  // conta di più. Altrimenti un sinonimo proposto dal modello peserebbe
+  // quanto una parola scritta dall'utente.
   const offered = selectSources(rankHits(hits, question, { now }), {
     maxDocuments: options.maxSources ?? 8,
   })
@@ -172,6 +264,8 @@ export async function askChiefOfStaff(
     )
   }
 
+  if (!claims.length) openQuestions.push(searchNote)
+
   const answer: ChiefOfStaffAnswer = {
     claims,
     dropped,
@@ -180,6 +274,9 @@ export async function askChiefOfStaff(
     hits: hits.length,
     offered,
     empty: false,
+    searched,
+    scanned,
+    searchNote,
   }
 
   await logRun({
