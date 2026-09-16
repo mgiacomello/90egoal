@@ -646,3 +646,39 @@ select.brain-input {
   margin-left: 0.5rem;
   vertical-align: middle;
 }
+
+/* ============================================================
+   Correzioni
+
+   Il pulsante sta sotto a ogni affermazione ma non compete con essa:
+   piccolo, spento, e visibile solo quando l'occhio lo cerca. Deve
+   essere facile da trovare quando serve e facile da ignorare sempre.
+   ============================================================ */
+
+.brain-correct-open {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--brain-off);
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.375rem 0 0;
+  cursor: pointer;
+}
+
+.brain-correct-open:hover {
+  color: var(--brain-warn);
+}
+
+.brain-correct {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--brain-line);
+}
+
+.brain-corrected {
+  margin: 0.625rem 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--brain-ok);
+}

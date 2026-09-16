@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import Correct from '@/components/brain/Correct'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import { formatEuro } from '@/lib/brain/reconcile'
 import { CHANNEL_LABEL, type SourceKey, type VerifiedClaim } from '@/lib/brain/types'
@@ -95,6 +96,7 @@ function Claim({ claim }: { claim: StoredClaim }) {
           )
         })}
       </div>
+      <Correct wrong={claim.text} about={claim.sources[0]?.title} />
     </article>
   )
 }

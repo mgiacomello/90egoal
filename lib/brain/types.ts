@@ -9,7 +9,7 @@
 export const SOURCES = ['gmail', 'gcal', 'gdrive', 'qonto', 'oura', 'manual'] as const
 export type SourceKey = (typeof SOURCES)[number]
 
-export const KINDS = ['email', 'event', 'file', 'transaction', 'health', 'note'] as const
+export const KINDS = ['email', 'event', 'file', 'transaction', 'health', 'note', 'correction'] as const
 export type DocKind = (typeof KINDS)[number]
 
 /** Il canale, in italiano, per come va mostrato accanto a una fonte. */

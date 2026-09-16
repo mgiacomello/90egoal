@@ -10,7 +10,7 @@
  * si può testare, un'intuizione no.
  */
 
-import type { RankedHit, SearchHit, SourceKey, SourceRef, StoredDocument } from './types'
+import type { DocKind, RankedHit, SearchHit, SourceKey, SourceRef, StoredDocument } from './types'
 
 const STOPWORDS = new Set([
   'a', 'ad', 'ai', 'al', 'alla', 'alle', 'allo', 'anche', 'che', 'chi', 'ci', 'co', 'coi',
@@ -83,6 +83,19 @@ const SOURCE_WEIGHT: Record<SourceKey, number> = {
   gdrive: 0.95,
 }
 
+/**
+ * Il genere di documento pesa quanto la fonte, e in un caso di più.
+ *
+ * Una **correzione** viene dal titolare della memoria: è l'unica cosa
+ * che deve battere un documento più recente, perché è l'unica che
+ * arriva sapendo già cosa dicevano gli altri. Se pesasse come una nota
+ * qualsiasi, correggere il sistema sarebbe un gesto senza effetto — e
+ * un rimedio che non si vede è peggio di nessun rimedio.
+ */
+const KIND_WEIGHT: Partial<Record<DocKind, number>> = {
+  correction: 1.4,
+}
+
 export type RankOptions = {
   halfLifeDays?: number
   /** Restringe a una finestra: usato quando la domanda è esplicitamente temporale. */
@@ -112,7 +125,8 @@ function hitScore(hit: SearchHit, terms: string[], foldedQuery: string, now: Dat
   // 5. La frase esatta vale più delle parole sparse.
   const phrase = foldedQuery.length > 8 && haystack.includes(foldedQuery) ? 0.6 : 0
 
-  return (fts * 1.0 + overlap * 1.2 + recency * 0.8 + peopleMatch + phrase) * SOURCE_WEIGHT[hit.source]
+  const base = fts * 1.0 + overlap * 1.2 + recency * 0.8 + peopleMatch + phrase
+  return base * SOURCE_WEIGHT[hit.source] * (KIND_WEIGHT[hit.kind] ?? 1)
 }
 
 /** Ordina i pezzi. Non tocca l'elenco in ingresso. */

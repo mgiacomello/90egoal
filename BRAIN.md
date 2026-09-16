@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 109 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 120 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -68,6 +68,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
 | `lib/brain/expand.ts` | con quali altre parole cercare, e come raccontare una ricerca a vuoto | l'espansione allarga il recupero, non deve dirottarlo |
+| `lib/brain/correction.ts` | come si scrive una correzione perché regga da sola | la precedenza deve viaggiare col dato, non col prompt |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -80,6 +81,69 @@ Due dettagli che cambiano i risultati e che è facile sbagliare:
   contengono *tutte* quelle parole, e non troverebbe niente. `toFtsQuery()`
   costruisce un OR e lascia al ranking il compito di pesare quante parole ciascun
   pezzo abbia davvero preso.
+
+---
+
+## Le correzioni: l'unica fonte che batte tutte le altre
+
+Per nove commit la memoria si poteva solo **svuotare**: chiudere un punto,
+cancellare un documento. Due modi di togliere, nessuno di dire *"questo è
+sbagliato, la cosa giusta è quest'altra"*.
+
+È il difetto che impedisce a un secondo cervello di diventare tuo. Se l'unico
+rimedio a un suo errore è ricordartelo da solo, stai facendo esattamente il
+lavoro che doveva fare lui.
+
+### La forma, che è dove sta il valore
+
+**Una correzione non è una tabella a parte: è un documento in memoria.** Viene
+cercata, ordinata e **citata** come qualunque altra fonte. Quando una risposta è
+corretta, la fonte che compare sotto la frase sei tu, con la data in cui l'hai
+detto.
+
+Niente regole invisibili che aggiustano le cose di nascosto: la correzione si
+vede, si può rileggere, e si può a sua volta correggere.
+
+Due proprietà discendono da questa scelta, ed erano il motivo per farla:
+
+1. **Pesa più di ogni altra fonte** (`KIND_WEIGHT` in `rank.ts`), anche di un
+   documento più recente. È l'unica cosa che deve poter battere la freschezza,
+   perché è l'unica che arriva già sapendo cosa dicevano le altre. Un rimedio che
+   non si vede nei risultati è peggio di nessun rimedio — c'è un test che mette
+   una correzione di tre giorni prima contro l'email che corregge, e la
+   correzione vince.
+2. **La precedenza è scritta dentro al corpo del documento**, non solo nel prompt
+   di sistema:
+
+   > *Questa correzione viene dal titolare della memoria e ha la precedenza su
+   > qualunque altra fonte sullo stesso punto, anche se più recente.*
+
+   Così viaggia col dato. Qualunque agente la peschi — oggi il brief e il capo di
+   gabinetto, domani uno che ancora non esiste — la legge insieme al contenuto,
+   senza che nessuno debba ricordarsi di aggiungere la regola al suo prompt.
+
+### Come si corregge
+
+Sotto ogni affermazione, nel brief e nelle risposte, c'è un `✗ correggi` che si
+apre **con il testo sbagliato già dentro**. La parte faticosa di una correzione è
+ricopiare quello che il sistema aveva detto: se quella parte la fa l'utente,
+nessuno correggerà mai niente.
+
+Volutamente **non è un pollice verso**. Un voto non dice cosa fosse giusto,
+quindi non serve né a te né al sistema. Qui si scrive il fatto vero, e da quel
+momento è una fonte.
+
+Serve solo *qual è la cosa giusta*: il resto è facoltativo. E reinviare la stessa
+correzione non la duplica — la chiave deriva dal contenuto — ma due correzioni
+che differiscono di una parola restano due, perché in una correzione una parola
+diversa può essere tutto il punto.
+
+### Riformulare un punto aperto
+
+Stessa idea, sull'altra lista: un punto si può riscrivere meglio **senza perderne
+l'età**. `opened_at` non si tocca, perché da quanto lo stai rimandando è l'unica
+informazione che conta davvero, e azzerarla per una questione di forma sarebbe un
+modo elegante di mentirsi.
 
 ---
 
@@ -147,7 +211,7 @@ successo**. Il resto del sistema non sa nulla di Gmail o di Qonto.
 ```ts
 type BrainDocument = {
   source: 'gmail' | 'gcal' | 'gdrive' | 'qonto' | 'oura' | 'manual'
-  kind: 'email' | 'event' | 'file' | 'transaction' | 'health' | 'note'
+  kind: 'email' | 'event' | 'file' | 'transaction' | 'health' | 'note' | 'correction'
   externalId: string   // id stabile nel sistema di origine
   title: string
   body: string
@@ -570,6 +634,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 2. Affermazioni scartate per fonte inventata (deve tendere a zero)
 3. Dettagli marcati dalla regola 2 (dice quanto ci si può fidare del modello del momento)
 4. **Domande che scattano il secondo giro di ricerca** (se sono tante, i termini dei documenti e quelli che usi tu non coincidono)
+5. **Correzioni registrate al mese** ← se è zero, o il sistema è perfetto o hai smesso di fidarti abbastanza da correggerlo. La seconda è più probabile.
 4. Documenti in memoria per fonte, e quanti ne salta una sincronizzazione
 5. Domande a cui il sistema risponde "non risulta" pur avendo il dato
 6. Esecuzioni automatiche riuscite di fila (se scende, la memoria sta invecchiando)
@@ -609,7 +674,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 109 test del nucleo, nessuna dipendenza
+npm run test:brain     # 120 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

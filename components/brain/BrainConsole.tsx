@@ -3,6 +3,7 @@
 import { useCallback, useState } from 'react'
 import BriefPanel from '@/components/brain/BriefPanel'
 import ContractPanel from '@/components/brain/ContractPanel'
+import Correct from '@/components/brain/Correct'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
@@ -317,6 +318,7 @@ export default function BrainConsole({
                         <SourceChip key={s.handle} {...s} />
                       ))}
                     </div>
+                    <Correct wrong={claim.text} about={claim.sources[0]?.title} />
                   </article>
                 ))}
 
@@ -481,7 +483,8 @@ export default function BrainConsole({
                       <div className="brain-row-title">{d.title || '(senza titolo)'}</div>
                       <div className="brain-row-hint">{d.body.slice(0, 180)}</div>
                       <div className="brain-meta" style={{ marginTop: '0.375rem' }}>
-                        {CHANNEL_LABEL[d.source]} · {formatDate(d.occurredAt)}
+                        {d.kind === 'correction' ? '✎ Correzione · ' : `${CHANNEL_LABEL[d.source]} · `}
+                        {formatDate(d.occurredAt)}
                       </div>
                     </div>
                     <button type="button" className="brain-del" onClick={() => void forget(d.id)} title="Dimentica">

@@ -10,6 +10,12 @@ import { assessExtraction } from '../lib/brain/pdf.ts'
 import { isWorthSending, renderBriefEmail, type MailBrief } from '../lib/brain/briefmail.ts'
 import { describeSearch, expandedQuery, mergeTerms, shouldExpand } from '../lib/brain/expand.ts'
 import {
+  correctionBody,
+  correctionKey,
+  correctionTitle,
+  validateCorrection,
+} from '../lib/brain/correction.ts'
+import {
   ageInDays,
   decidePoints,
   fingerprint,
@@ -369,6 +375,111 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- correzioni: l'unica fonte che batte tutte le altre --- */
+
+check('una correzione batte un documento più recente', () => {
+  const email = hit({
+    documentId: 'email',
+    kind: 'email',
+    content: 'La scadenza per il deposito è giovedì.',
+    occurredAt: '2026-09-14T09:00:00Z',
+  })
+  const correzione = hit({
+    documentId: 'correzione',
+    kind: 'correction',
+    source: 'manual',
+    content: 'CORREZIONE: la scadenza per il deposito è venerdì, non giovedì.',
+    occurredAt: '2026-09-12T09:00:00Z',
+  })
+  const ranked = rankHits([email, correzione], 'scadenza deposito', { now: NOW })
+  assert.equal(ranked[0].documentId, 'correzione', 'una correzione più vecchia deve comunque vincere')
+})
+
+check('il peso della correzione non stravolge documenti che non c\'entrano', () => {
+  const pertinente = hit({ documentId: 'pertinente', kind: 'email', content: 'scadenza deposito giovedì' })
+  const correzioneAltrove = hit({
+    documentId: 'altrove',
+    kind: 'correction',
+    source: 'manual',
+    content: 'CORREZIONE: il numero di telefono di Verdi è un altro.',
+  })
+  const ranked = rankHits([pertinente, correzioneAltrove], 'scadenza deposito', { now: NOW })
+  assert.equal(ranked[0].documentId, 'pertinente')
+})
+
+check('serve dire qual è la cosa giusta, il resto è facoltativo', () => {
+  assert.equal(validateCorrection({ right: '' }).ok, false)
+  assert.equal(validateCorrection({ right: 'ok' }).ok, false, 'due caratteri non sono una correzione')
+  assert.equal(validateCorrection({ right: 'È venerdì' }).ok, true)
+})
+
+check('una correzione identica a quello che correggeva non è una correzione', () => {
+  const v = validateCorrection({ wrong: 'giovedì', right: 'giovedì' })
+  assert.equal(v.ok, false)
+})
+
+check('i campi troppo lunghi vengono rifiutati con una ragione leggibile', () => {
+  const v = validateCorrection({ right: 'x'.repeat(2001) })
+  assert.equal(v.ok, false)
+  if (!v.ok) assert.match(v.reason, /2000/)
+})
+
+check('la validazione restituisce i campi già ripuliti', () => {
+  const v = validateCorrection({ right: '  È venerdì  ', wrong: '  giovedì ', about: ' deposito ' })
+  assert.ok(v.ok)
+  if (v.ok) {
+    assert.equal(v.value.right, 'È venerdì')
+    assert.equal(v.value.wrong, 'giovedì')
+    assert.equal(v.value.about, 'deposito')
+  }
+})
+
+check('il corpo della correzione è autosufficiente e porta con sé la precedenza', () => {
+  const v = validateCorrection({ wrong: 'giovedì', right: 'venerdì', about: 'deposito atto' })
+  assert.ok(v.ok)
+  if (!v.ok) return
+  const body = correctionBody(v.value, NOW)
+  assert.match(body, /15\/09\/2026/)
+  assert.match(body, /deposito atto/)
+  assert.match(body, /SBAGLIATO.*giovedì/)
+  assert.match(body, /corretto: venerdì/)
+  // La regola viaggia col dato: un prompt si può dimenticare di dirla.
+  assert.match(body, /ha la precedenza su qualunque altra fonte/)
+})
+
+check('senza il testo sbagliato il corpo resta sensato', () => {
+  const v = validateCorrection({ right: 'La scadenza è venerdì' })
+  assert.ok(v.ok)
+  if (!v.ok) return
+  const body = correctionBody(v.value, NOW)
+  assert.ok(!body.includes('SBAGLIATO'))
+  assert.match(body, /corretto: La scadenza è venerdì/)
+})
+
+check('il titolo si legge in un elenco, anche quando il testo è lungo', () => {
+  const v = validateCorrection({ right: 'x'.repeat(200) })
+  assert.ok(v.ok)
+  if (!v.ok) return
+  const t = correctionTitle(v.value)
+  assert.ok(t.startsWith('Correzione — '))
+  assert.ok(t.length < 120)
+  assert.ok(t.endsWith('…'))
+})
+
+check('la stessa correzione inviata due volte ha la stessa chiave', () => {
+  const a = validateCorrection({ right: 'È  venerdì', about: 'deposito' })
+  const b = validateCorrection({ right: 'È venerdì', about: 'deposito' })
+  assert.ok(a.ok && b.ok)
+  if (a.ok && b.ok) assert.equal(correctionKey(a.value), correctionKey(b.value))
+})
+
+check('due correzioni che differiscono di una parola restano due', () => {
+  const a = validateCorrection({ right: 'La scadenza è venerdì' })
+  const b = validateCorrection({ right: 'La scadenza è lunedì' })
+  assert.ok(a.ok && b.ok)
+  if (a.ok && b.ok) assert.notEqual(correctionKey(a.value), correctionKey(b.value))
 })
 
 /* --- espansione della domanda: il modello propone parole, non risposte --- */

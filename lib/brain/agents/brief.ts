@@ -102,7 +102,8 @@ REGOLE NON NEGOZIABILI
 4. Numeri, importi, orari e date vanno copiati esattamente come compaiono nella fonte.
 5. In "oggi" metti solo cose con una data che cade oggi o domani.
 6. In "puntiAperti" metti solo impegni concreti, con un verbo e un soggetto: cose che si possono chiudere. Non stati d'animo, non "monitorare la situazione".
-7. Se una fonte è un movimento del conto, non commentarla: la parte sui soldi la scrive un altro agente, e lo fa meglio.`
+7. Se una fonte è un movimento del conto, non commentarla: la parte sui soldi la scrive un altro agente, e lo fa meglio.
+8. Se fra le fonti c'è una CORREZIONE del titolare della memoria, vale su qualunque altra fonte sullo stesso punto, anche se più recente. Usa quella, e se un'altra fonte la contraddice dillo citandole entrambe.`
 
 export type BriefOpenPoint = OpenPoint & {
   age: Staleness

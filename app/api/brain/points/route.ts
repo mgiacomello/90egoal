@@ -1,6 +1,7 @@
 import { requireOwner } from '@/lib/brain/auth'
 import { BrainError, toBrainError } from '@/lib/brain/errors'
-import { closePoint, listOpenPoints, reopenPoint } from '@/lib/brain/memory'
+import { closePoint, listOpenPoints, reopenPoint, rephrasePoint } from '@/lib/brain/memory'
+import { fingerprint } from '@/lib/brain/openpoints'
 
 export const runtime = 'nodejs'
 
@@ -20,14 +21,24 @@ export async function POST(request: Request) {
       id?: unknown
       action?: unknown
       note?: unknown
+      text?: unknown
     }
 
     const id = String(body.id ?? '').trim()
     if (!id) throw new BrainError('Manca l\'id del punto.', 400)
 
     const action = String(body.action ?? 'close')
-    if (action === 'reopen') await reopenPoint(id)
-    else await closePoint(id, String(body.note ?? '').trim().slice(0, 500) || undefined)
+    if (action === 'reopen') {
+      await reopenPoint(id)
+    } else if (action === 'rephrase') {
+      // Riscrivere un punto non è chiuderlo e riaprirlo: l'età resta,
+      // perché da quanto lo rimandi è l'unica cosa che conta davvero.
+      const text = String(body.text ?? '').trim().slice(0, 500)
+      if (text.length < 3) throw new BrainError('Il punto riformulato è vuoto.', 400)
+      await rephrasePoint(id, text, fingerprint(text))
+    } else {
+      await closePoint(id, String(body.note ?? '').trim().slice(0, 500) || undefined)
+    }
 
     return Response.json({ puntiAperti: await listOpenPoints() })
   } catch (err) {

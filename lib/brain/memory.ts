@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { brainDb } from './db'
 import { BrainError } from './errors'
 import { chunkDocument } from './chunk'
+import { correctionBody, correctionKey, correctionTitle } from './correction'
 import type { BrainDocument, SearchHit, SourceKey, StoredDocument } from './types'
 
 /**
@@ -236,6 +237,39 @@ export async function forgetDocument(id: string): Promise<void> {
   if (error) throw new BrainError(`Cancellazione fallita: ${error.message}`)
 }
 
+/**
+ * Registra una correzione.
+ *
+ * Non c'è una tabella a parte, ed è il punto: una correzione è un
+ * documento come gli altri, quindi viene cercata, ordinata e **citata**
+ * come gli altri. Quando una risposta è corretta, la fonte che compare
+ * sotto la frase sei tu, con la data in cui l'hai detto — niente
+ * regole invisibili che aggiustano le cose di nascosto.
+ */
+export async function recordCorrection(value: {
+  right: string
+  wrong: string
+  about: string
+}): Promise<RememberResult> {
+  const now = new Date()
+  const key = correctionKey(value)
+
+  return rememberDocuments([
+    {
+      source: 'manual',
+      kind: 'correction',
+      // L'id deriva dal contenuto: la stessa correzione due volte non ne fa due.
+      externalId: createHash('sha1').update(key).digest('hex').slice(0, 24),
+      title: correctionTitle(value),
+      body: correctionBody(value, now),
+      occurredAt: now.toISOString(),
+      url: null,
+      participants: [],
+      metadata: { origin: 'correzione', wrong: value.wrong || undefined, about: value.about || undefined },
+    },
+  ])
+}
+
 /* --- credenziali dei connettori: token OAuth e cursori di sincronizzazione --- */
 
 export async function readCredentials<T extends Record<string, unknown>>(
@@ -393,6 +427,22 @@ export async function closePoint(id: string, note?: string): Promise<void> {
     .update({ closed_at: new Date().toISOString(), closed_note: note ?? null })
     .eq('id', id)
   if (error) throw new BrainError(`Chiusura punto fallita: ${error.message}`)
+}
+
+/**
+ * Riformulare un punto aperto, senza perderne l'età.
+ *
+ * `opened_at` non si tocca: un punto riscritto meglio è lo stesso
+ * impegno, e azzerargli l'anzianità cancellerebbe l'unica informazione
+ * che conta davvero — da quanto lo stai rimandando.
+ */
+export async function rephrasePoint(id: string, text: string, fingerprint: string): Promise<void> {
+  const db = brainDb()
+  const { error } = await db
+    .from('brain_open_points')
+    .update({ text, fingerprint, last_seen_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw new BrainError(`Riformulazione fallita: ${error.message}`)
 }
 
 export async function reopenPoint(id: string): Promise<void> {

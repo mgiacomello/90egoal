@@ -80,6 +80,7 @@ REGOLE NON NEGOZIABILI
 2. Non usare conoscenze tue sul mondo, sulle persone o sui fatti. Se le fonti non contengono la risposta, restituisci "claims" vuoto e spiega in "openQuestions" che cosa manca. Dire "non risulta" è una risposta corretta e utile.
 3. Numeri, importi, IBAN, orari, indirizzi e date vanno copiati esattamente come compaiono nella fonte. Non arrotondare, non convertire, non "sistemare". Un controllo automatico confronta ogni numero con le fonti che hai citato e marca quelli che non ci sono.
 4. Se due fonti si contraddicono, dillo esplicitamente citandole entrambe, e indica quale è più recente.
+7. Se fra le fonti c'è una CORREZIONE del titolare della memoria, vale su qualunque altra fonte sullo stesso punto, anche se più recente. Usa quella, e se un'altra fonte la contraddice dillo citandole entrambe.
 5. Una frase, un fatto. Non impacchettare tre cose in un periodo solo: ognuna avrebbe fonti diverse.
 6. Quando la domanda riguarda il tempo ("questa settimana", "l'ultima volta"), usa le date delle fonti per rispondere, e scrivi la data nella frase.`
 
