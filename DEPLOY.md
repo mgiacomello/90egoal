@@ -62,6 +62,32 @@ viene mai esposta da questo endpoint.
 
 ---
 
+## Variabili in più per BRAIN (`/brain`)
+
+BRAIN è la memoria personale del proprietario: se non lo usi, non serve niente e
+la sezione resta chiusa da sola. Se lo usi, queste vanno su Vercel **oltre** alle
+tre di Supabase (la `SUPABASE_SERVICE_ROLE_KEY` diventa obbligatoria, perché le
+tabelle `brain_*` hanno RLS attiva e nessuna policy):
+
+```
+BRAIN_OWNER_EMAIL=tu@esempio.it        # chi può entrare. Senza, entra chi è admin
+ANTHROPIC_API_KEY=sk-ant-...           # già presente per ONE TAP, la riusa
+GOOGLE_CLIENT_ID=...                   # Gmail, Calendar, Drive (scope .readonly)
+GOOGLE_CLIENT_SECRET=...
+BRAIN_APP_URL=https://90egoal.vercel.app   # solo se l'origine vista dal server non è quella pubblica
+QONTO_LOGIN=...                        # transazioni, sola lettura
+QONTO_SECRET_KEY=...
+OURA_TOKEN=...                         # sonno, prontezza, attività
+```
+
+Prima del primo accesso va eseguito `supabase/migration_brain.sql` nell'SQL
+Editor del progetto Supabase. In Google Cloud Console il redirect URI da
+autorizzare è `https://iltuodominio/api/brain/connect/google/callback`, e deve
+coincidere **esattamente** con quello che il server costruisce: è il motivo per
+cui esiste `BRAIN_APP_URL`.
+
+Il dettaglio completo, limiti dichiarati compresi, è in [BRAIN.md](BRAIN.md).
+
 ## Opzione A — GitHub + Vercel (consigliata, deploy automatici a ogni push)
 
 ### 1. Crea il repo su GitHub

@@ -35,6 +35,27 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## 🧠 BRAIN (`/brain`)
+
+Il **capo di gabinetto** di una persona sola. Non una chat sui documenti: l'agente
+che ha letto tutto — Gmail, Calendar, Drive, movimenti Qonto, anello Oura — e che
+risponde per punti, con accanto a ogni punto **la fonte, la data e il canale**.
+
+La regola che lo distingue da un assistente qualsiasi: *non gli è permesso sapere
+niente che non sia in memoria*. E non è affidata al prompt. Il modello compila una
+risposta strutturata in cui ogni affermazione dichiara le fonti da cui viene, poi
+`lib/brain/cite.ts` verifica: **un'affermazione che cita una fonte inesistente non
+viene mostrata**, e un importo o un IBAN che non compare nelle fonti citate da
+quella frase viene marcato. È il parente stretto del controllo mod-97 di ONE TAP.
+
+Il nucleo — spezzettamento, ranking, verifica delle citazioni, scelta del modello —
+è fatto di funzioni pure: `npm run test:brain`, 36 test, zero dipendenze. I
+connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
+agente può scrivere una mail o disporre un pagamento.
+
+Le tabelle `brain_*` hanno RLS attiva e nessuna policy: dal browser non sono
+raggiungibili. Setup, limiti dichiarati e roadmap in **[BRAIN.md](BRAIN.md)**.
+
 ## ⚡ ONE TAP (`/onetap`)
 
 App consumer autonoma inclusa in questo deploy: **vedi una cosa → ONE TAP capisce

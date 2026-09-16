@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:onetap": "node --experimental-strip-types --no-warnings scripts/onetap-detect.test.ts",
+    "test:brain": "node --experimental-strip-types --no-warnings scripts/brain-core.test.ts",
+    "test": "npm run test:onetap && npm run test:brain",
     "onetap:icons": "node scripts/onetap-icons.mjs",
     "onetap:ocr": "node scripts/onetap-ocr-assets.mjs",
     "prebuild": "node scripts/onetap-ocr-assets.mjs",
