@@ -7,6 +7,18 @@ import { pickModel } from '../lib/brain/orchestrator.ts'
 import { isAuthorizedCron } from '../lib/brain/cron.ts'
 import { matchQuote, normalizeForMatch, tokenize } from '../lib/brain/quote.ts'
 import { assessExtraction } from '../lib/brain/pdf.ts'
+import {
+  findInvoice,
+  nameTokens,
+  parseAmount,
+  parseAmounts,
+  reconcile,
+  formatDay,
+  formatEuro,
+  requestInvoiceText,
+  type DocLike,
+  type TxLike,
+} from '../lib/brain/reconcile.ts'
 import type { SearchHit, SourceRef } from '../lib/brain/types.ts'
 
 // Riferimento fisso: martedì 15 settembre 2026, 10:00 UTC.
@@ -345,6 +357,157 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- riconciliazione: l'aritmetica non si delega a un modello --- */
+
+function tx(partial: Partial<TxLike> = {}): TxLike {
+  return {
+    id: 'tx-1',
+    label: 'STUDIO BIANCHI SRL',
+    amountCents: 125000,
+    occurredAt: '2026-09-10T09:00:00Z',
+    hasAttachment: false,
+    ...partial,
+  }
+}
+
+function doc(partial: Partial<DocLike> & { text: string }): DocLike {
+  return {
+    id: 'doc-1',
+    title: 'Fattura',
+    occurredAt: '2026-09-05T09:00:00Z',
+    ...partial,
+  }
+}
+
+check('formato italiano: il punto separa le migliaia', () => {
+  assert.equal(parseAmount('1.250,00'), 125000)
+  assert.equal(parseAmount('€ 1.250,00'), 125000)
+  assert.equal(parseAmount('1.250'), 125000)
+})
+
+check('formato inglese: la virgola separa le migliaia', () => {
+  assert.equal(parseAmount('1,250.00'), 125000)
+  assert.equal(parseAmount('$1,250.00'), 125000)
+})
+
+check('un separatore solo con due cifre in fondo è un decimale', () => {
+  assert.equal(parseAmount('1,25'), 125)
+  assert.equal(parseAmount('1.25'), 125)
+})
+
+check('separatori ripetuti sono per forza migliaia', () => {
+  assert.equal(parseAmount('1.250.000'), 125000000)
+  assert.equal(parseAmount('1,250,000'), 125000000)
+})
+
+check('un numero intero resta intero', () => {
+  assert.equal(parseAmount('900'), 90000)
+  assert.equal(parseAmount('0,50'), 50)
+})
+
+check('quello che non è un numero non diventa un importo', () => {
+  assert.equal(parseAmount('abc'), null)
+  assert.equal(parseAmount(''), null)
+})
+
+check('REGRESSIONE: "1250,00" vale 1250 euro, non 125', () => {
+  // La prima versione riconosceva il formato dentro alla regex e si
+  // fermava dopo tre cifre. È l'errore che questo modulo esiste per
+  // impedire, e ci è cascato per primo.
+  assert.deepEqual(parseAmounts('1250,00 €'), [125000])
+  assert.deepEqual(parseAmounts('1250,50 €'), [125050])
+  assert.deepEqual(parseAmounts('1.250,00 €'), [125000])
+  assert.deepEqual(parseAmounts('1,250.00 USD'), [125000])
+})
+
+check('dal testo escono gli importi, non i numeri di protocollo', () => {
+  const importi = parseAmounts('Fattura n. 12 del 2026 — imponibile 1.000,00, totale 1.220,00')
+  assert.ok(importi.includes(100000))
+  assert.ok(importi.includes(122000))
+  assert.ok(!importi.includes(1200), 'il numero di fattura non è un importo')
+  assert.ok(!importi.includes(202600), 'l\'anno non è un importo')
+})
+
+check('un intero nudo conta solo se ha una valuta accanto', () => {
+  assert.deepEqual(parseAmounts('totale 900 euro'), [90000])
+  assert.deepEqual(parseAmounts('€ 900'), [90000])
+  assert.deepEqual(parseAmounts('pratica 900 del registro'), [])
+})
+
+check('gli importi si formattano senza Intl: il risultato non dipende dall\'host', () => {
+  assert.equal(formatEuro(125000), '1.250,00')
+  assert.equal(formatEuro(1250000000), '12.500.000,00')
+  assert.equal(formatEuro(50), '0,50')
+  assert.equal(formatEuro(-125000), '-1.250,00')
+  assert.equal(formatDay('2026-09-10T09:00:00Z'), '10/09/2026')
+  assert.equal(formatDay('non una data'), '—')
+})
+
+check('il nome del fornitore perde le forme societarie e il rumore bancario', () => {
+  const t = nameTokens('PAGAMENTO CARTA STUDIO BIANCHI SRL')
+  assert.ok(t.includes('bianchi'))
+  assert.ok(t.includes('studio') === false, '"studio" è troppo generico')
+  assert.ok(!t.includes('srl'))
+  assert.ok(!t.includes('pagamento'))
+})
+
+check('senza importo identico non si è nemmeno candidati', () => {
+  const c = findInvoice(tx(), [doc({ text: 'Fattura Bianchi, totale 999,00 euro' })])
+  assert.equal(c.length, 0)
+})
+
+check('importo, nome e data vicina: abbinamento certo', () => {
+  const c = findInvoice(tx(), [doc({ text: 'Fattura Bianchi 1.250,00 euro' })])
+  assert.equal(c.length, 1)
+  assert.equal(c[0].confidence, 'certa')
+  assert.ok(c[0].why.some((w) => w.includes('importo identico')))
+  assert.ok(c[0].why.some((w) => w.includes('bianchi')))
+})
+
+check('stesso importo ma nessun nome in comune: solo probabile', () => {
+  const c = findInvoice(tx(), [doc({ text: 'Fattura Verdi 1.250,00 euro' })])
+  assert.equal(c[0].confidence, 'probabile')
+})
+
+check('stesso importo e nome ma a un anno di distanza: non è certa', () => {
+  const c = findInvoice(tx(), [doc({ text: 'Fattura Bianchi 1.250,00', occurredAt: '2024-01-05T09:00:00Z' })])
+  assert.equal(c[0].confidence, 'probabile')
+  assert.ok(c[0].why.includes('data lontana'))
+})
+
+check('fra due candidati vince quello con nome e data migliori', () => {
+  const c = findInvoice(tx(), [
+    doc({ id: 'lontano', text: 'Fattura 1.250,00', occurredAt: '2023-01-01T09:00:00Z' }),
+    doc({ id: 'giusto', text: 'Fattura Bianchi 1.250,00', occurredAt: '2026-09-09T09:00:00Z' }),
+  ])
+  assert.equal(c[0].documentId, 'giusto')
+})
+
+check('un movimento col giustificativo non compare fra i problemi', () => {
+  const r = reconcile([tx({ hasAttachment: true })], [])
+  assert.equal(r.length, 0)
+})
+
+check('prima i movimenti senza nessun candidato: sono le fatture da chiedere', () => {
+  const r = reconcile(
+    [
+      tx({ id: 'con-candidato', amountCents: 125000 }),
+      tx({ id: 'orfano', amountCents: 777700, label: 'ACME LIMITED' }),
+    ],
+    [doc({ text: 'Fattura Bianchi 1.250,00' })]
+  )
+  assert.equal(r[0].transaction.id, 'orfano')
+  assert.equal(r[0].candidates.length, 0)
+  assert.equal(r[1].candidates.length, 1)
+})
+
+check('il testo per chiedere la fattura porta importo e data giusti', () => {
+  const testo = requestInvoiceText(tx())
+  assert.ok(testo.includes('€ 1.250,00'), testo)
+  assert.ok(testo.includes('10/09/2026'))
+  assert.ok(testo.includes('STUDIO BIANCHI SRL'))
 })
 
 /* --- PDF: un guscio vuoto non deve passare per documento letto --- */

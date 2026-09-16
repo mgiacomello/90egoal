@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 57 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 76 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -64,6 +64,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/orchestrator.ts` | per ogni tipo di task, il modello che rende meglio | la scelta è una tabella, non un'opinione |
 | `lib/brain/quote.ts` | una clausola citata esiste nel contratto? | è la promessa dell'agente Contratti |
 | `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
+| `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -175,8 +176,8 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Due agenti.** Il capo di gabinetto risponde e l'agente Contratti analizza;
-  nessuno dei due scrive ancora bozze, prepara i 1:1 o abbina fatture e movimenti.
+- **Tre agenti.** Il capo di gabinetto risponde, Contratti analizza, Amministrazione
+  riconcilia. Nessuno dei tre prepara ancora i 1:1 o scrive il post-call.
 
 ---
 
@@ -231,6 +232,64 @@ controllare niente:
 
 L'interfaccia li tiene visivamente separati apposta: la citazione in monospazio
 dentro al suo riquadro col bollo, il resto fuori.
+
+---
+
+## L'agente Amministrazione
+
+Risponde a una domanda sola, ma è quella che costa più ore di chiunque altra:
+**di quali soldi usciti non ho la fattura, e dove sta quella che ho già?**
+
+Ordine dei risultati: **prima i movimenti per cui in memoria non esiste nessuna
+fattura**, perché quelli sono lavoro da fare. Per ognuno c'è la mail già pronta
+da mandare, costruita dai dati del movimento — importo, data, controparte — non
+generata, perché non c'è niente da inventare e un testo deterministico non può
+sbagliare la cifra che sta chiedendo.
+
+I movimenti che il giustificativo ce l'hanno già non compaiono: un elenco di
+cose a posto non serve a nessuno. E gli incassi nemmeno — quella fattura l'hai
+emessa tu.
+
+### Questo agente non usa nessun modello
+
+Non è una scorciatoia, è la scelta giusta. Abbinare una fattura a un addebito è
+aritmetica — un importo, una data, un nome — e delegarla a qualcosa che ogni
+tanto può leggere male una cifra sarebbe un peggioramento pagato anche in
+latenza e in costo. Il modello serve dove serve giudizio; sommare non è giudizio.
+
+Conseguenza pratica: **questa scheda funziona anche senza `ANTHROPIC_API_KEY`**,
+e risponde in un decimo di secondo.
+
+Tre segnali, in quest'ordine: l'importo esatto, il nome della controparte, la
+vicinanza nel tempo (finestra di 120 giorni). Senza importo identico non si è
+nemmeno candidati — è il vincolo che tiene fuori il rumore. Ma l'importo da solo
+non basta a dire "certa": due fornitori possono aver emesso la stessa cifra.
+
+| Confidenza | Quando |
+|---|---|
+| `certa` | importo esatto **e** nome della controparte **e** dentro la finestra |
+| `probabile` | importo esatto e uno solo fra nome e finestra |
+| `debole` | importo esatto e nient'altro |
+
+Ogni abbinamento porta le sue ragioni in chiaro — "importo identico (€ 1.250,00)
+· controparte: bianchi · 5 giorni di distanza" — perché chi guarda deve poter
+dire "sì, è questa" senza aprire niente.
+
+### Due trappole che ci sono costate un bug
+
+**Il formato degli importi.** "1.250,00" e "1,250.00" sono lo stesso numero con i
+segni invertiti, e "1.250" da solo è ambiguo. La prima versione riconosceva il
+formato *dentro alla regex* e su "1250,00" si fermava dopo tre cifre, leggendo
+**125,00 invece di 1.250,00** — esattamente l'errore che questo modulo esiste per
+impedire. Ora la regex prende il numero intero e il formato si decide in un posto
+solo, in `parseAmount()`. C'è un test di regressione che porta quel nome.
+
+**`Intl` dipende dalla build ICU.** `toLocaleString('it-IT')` su un runtime con
+ICU ridotto restituisce "1250,00" invece di "1.250,00". Una funzione dichiarata
+pura che cambia risultato secondo l'host non è pura — e qui il risultato finisce
+sia dentro a una mail che chiede soldi a qualcuno, sia dentro al documento in
+memoria che `parseAmounts()` poi rilegge per abbinare. Quindi `formatEuro()` e
+`formatDay()` formattano a mano, e il connettore Qonto le usa.
 
 ---
 
@@ -356,6 +415,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 6. Esecuzioni automatiche riuscite di fila (se scende, la memoria sta invecchiando)
 7. Clausole scartate per citazione inesistente, sul totale analizzato
 8. PDF entrati col solo titolo, sul totale dei PDF (dice quanto dell'archivio è scansionato)
+9. Movimenti senza giustificativo, e quanti di questi trovano la fattura in memoria
 
 La quinta è la più scomoda e la più utile: misura i buchi del *recupero*, non del
 modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
@@ -385,7 +445,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 57 test del nucleo, nessuna dipendenza
+npm run test:brain     # 76 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

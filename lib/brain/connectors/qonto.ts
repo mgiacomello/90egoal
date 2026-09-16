@@ -1,5 +1,6 @@
 import type { BrainDocument } from '../types'
 import { BrainError } from '../errors'
+import { formatEuro } from '../reconcile'
 import { clip, type Connector, type SyncWindow } from './types'
 
 /**
@@ -62,8 +63,17 @@ function amountOf(tx: QontoTransaction): number {
   return 0
 }
 
+/**
+ * L'importo come finisce dentro al documento in memoria.
+ *
+ * Non usa `Intl`: questa stringa viene riletta da `parseAmounts()` per
+ * abbinare le fatture ai movimenti, e la forma che `Intl` produce
+ * dipende dalla build ICU del runtime. Un importo che si scrive in un
+ * modo in sviluppo e in un altro in produzione è un abbinamento che
+ * salta senza che nessuno capisca perché.
+ */
 function money(value: number, currency = 'EUR'): string {
-  return new Intl.NumberFormat('it-IT', { style: 'currency', currency }).format(value)
+  return `${formatEuro(Math.round(value * 100))} ${currency}`
 }
 
 function toDocument(tx: QontoTransaction, accountLabel: string): BrainDocument | null {
@@ -99,6 +109,9 @@ function toDocument(tx: QontoTransaction, accountLabel: string): BrainDocument |
     participants: [],
     metadata: {
       side: tx.side,
+      // La controparte in chiaro: l'agente Amministrazione la confronta
+      // coi nomi nelle fatture, e ricavarla dal titolo sarebbe fragile.
+      counterparty: label,
       amount: value,
       currency,
       operationType: tx.operation_type,

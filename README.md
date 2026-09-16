@@ -55,10 +55,16 @@ controproposta pronta — e tiene ben separato quello che ha verificato (la
 citazione) da quello che è un giudizio (tutto il resto).
 
 Il nucleo — spezzettamento, ranking, verifica di citazioni e clausole, routing —
-è fatto di funzioni pure: `npm run test:brain`, 57 test, zero dipendenze. I
+è fatto di funzioni pure: `npm run test:brain`, 76 test, zero dipendenze. I
 connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
 agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
 da sola una volta al giorno via cron.
+
+Il terzo, **Amministrazione**, dice di quali soldi usciti manca la fattura e
+quale documento in memoria potrebbe esserlo, con le ragioni in chiaro e la mail
+pronta da mandare. Questo **non usa nessun modello**: abbinare una fattura a un
+addebito è aritmetica, e l'aritmetica non si delega a qualcosa che ogni tanto può
+leggere male una cifra. Funziona anche senza chiave AI.
 
 I PDF con un livello di testo si leggono; quelli scansionati **no, e viene detto
 dentro al documento** invece di riempire la memoria con quattro righe di

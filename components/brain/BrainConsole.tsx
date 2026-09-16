@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import ContractPanel from '@/components/brain/ContractPanel'
+import LedgerPanel from '@/components/brain/LedgerPanel'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
 import type { SyncReport } from '@/lib/brain/connectors'
@@ -15,7 +16,7 @@ type Answer = {
   empty: boolean
 }
 
-type Tab = 'ask' | 'contracts' | 'sources' | 'memory'
+type Tab = 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -215,6 +216,7 @@ export default function BrainConsole({
             [
               ['ask', 'Chiedi'],
               ['contracts', 'Contratti'],
+              ['ledger', 'Conto'],
               ['sources', 'Fonti'],
               ['memory', 'Memoria'],
             ] as const
@@ -331,6 +333,9 @@ export default function BrainConsole({
 
         {/* --- CONTRATTI --- */}
         {tab === 'contracts' ? <ContractPanel documents={documents} /> : null}
+
+        {/* --- CONTO --- */}
+        {tab === 'ledger' ? <LedgerPanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (
