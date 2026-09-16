@@ -305,6 +305,90 @@ export async function lastRun(agent: string): Promise<RunRecord | null> {
   }
 }
 
+/* --- punti aperti --- */
+
+export type OpenPoint = {
+  id: string
+  text: string
+  fingerprint: string
+  citations: SourceRefLike[]
+  openedAt: string
+  lastSeenAt: string
+  closedAt: string | null
+}
+
+/** La forma minima di una fonte che vale la pena conservare accanto a un punto. */
+export type SourceRefLike = {
+  source: SourceKey
+  title: string
+  occurredAt: string
+  url: string | null
+}
+
+function toOpenPoint(row: Record<string, unknown>): OpenPoint {
+  return {
+    id: String(row.id),
+    text: String(row.text ?? ''),
+    fingerprint: String(row.fingerprint ?? ''),
+    citations: (row.citations as SourceRefLike[]) ?? [],
+    openedAt: String(row.opened_at),
+    lastSeenAt: String(row.last_seen_at),
+    closedAt: (row.closed_at as string | null) ?? null,
+  }
+}
+
+export async function listOpenPoints(includeClosed = false): Promise<OpenPoint[]> {
+  const db = brainDb()
+  let q = db.from('brain_open_points').select('*').order('opened_at', { ascending: true })
+  if (!includeClosed) q = q.is('closed_at', null)
+
+  const { data, error } = await q
+  if (error) throw new BrainError(`Lettura punti aperti fallita: ${error.message}`)
+  return ((data ?? []) as Record<string, unknown>[]).map(toOpenPoint)
+}
+
+export async function openPoint(entry: {
+  text: string
+  fingerprint: string
+  citations: SourceRefLike[]
+}): Promise<void> {
+  const db = brainDb()
+  // `ignoreDuplicates`: se l'impronta c'è già, il punto è lo stesso e
+  // non va né duplicato né riscritto — la sua data di apertura è la
+  // cosa che vogliamo conservare.
+  const { error } = await db
+    .from('brain_open_points')
+    .upsert(
+      { text: entry.text, fingerprint: entry.fingerprint, citations: entry.citations },
+      { onConflict: 'fingerprint', ignoreDuplicates: true }
+    )
+  if (error) throw new BrainError(`Apertura punto fallita: ${error.message}`)
+}
+
+/** Il punto è stato rinominato oggi: aggiorna quando l'abbiamo visto l'ultima volta. */
+export async function touchPoint(id: string): Promise<void> {
+  const db = brainDb()
+  await db.from('brain_open_points').update({ last_seen_at: new Date().toISOString() }).eq('id', id)
+}
+
+export async function closePoint(id: string, note?: string): Promise<void> {
+  const db = brainDb()
+  const { error } = await db
+    .from('brain_open_points')
+    .update({ closed_at: new Date().toISOString(), closed_note: note ?? null })
+    .eq('id', id)
+  if (error) throw new BrainError(`Chiusura punto fallita: ${error.message}`)
+}
+
+export async function reopenPoint(id: string): Promise<void> {
+  const db = brainDb()
+  const { error } = await db
+    .from('brain_open_points')
+    .update({ closed_at: null, closed_note: null })
+    .eq('id', id)
+  if (error) throw new BrainError(`Riapertura punto fallita: ${error.message}`)
+}
+
 export async function logRun(entry: {
   agent: string
   question: string

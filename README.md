@@ -48,6 +48,13 @@ risposta strutturata in cui ogni affermazione dichiara le fonti da cui viene, po
 viene mostrata**, e un importo o un IBAN che non compare nelle fonti citate da
 quella frase viene marcato. È il parente stretto del controllo mod-97 di ONE TAP.
 
+Ogni notte, dopo la sincronizzazione, si scrive il **brief**: cosa c'è oggi, cosa
+è arrivato che richiede qualcosa da te, quali pagamenti non hanno giustificativo.
+Sta lì la mattina, e ricaricare la pagina non lo riscrive. Sotto ci sono i **punti
+aperti**, che **si chiudono solo a mano**: nessuno li toglie perché non se ne
+parla più, e più invecchiano più si vedono — è la differenza fra una memoria e un
+dimenticatoio con la barra di avanzamento.
+
 Il secondo agente, **Contratti**, applica la stessa idea con una regola più
 stretta: la clausola citata deve esistere *testualmente* nel contratto, altrimenti
 la sua analisi non viene mostrata. Per ognuna dà rischio, standard di mercato e
@@ -55,7 +62,7 @@ controproposta pronta — e tiene ben separato quello che ha verificato (la
 citazione) da quello che è un giudizio (tutto il resto).
 
 Il nucleo — spezzettamento, ranking, verifica di citazioni e clausole, routing —
-è fatto di funzioni pure: `npm run test:brain`, 76 test, zero dipendenze. I
+è fatto di funzioni pure: `npm run test:brain`, 89 test, zero dipendenze. I
 connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
 agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
 da sola una volta al giorno via cron.

@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 76 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 89 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -65,6 +65,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/quote.ts` | una clausola citata esiste nel contratto? | è la promessa dell'agente Contratti |
 | `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
 | `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
+| `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -104,7 +105,7 @@ non si rifà il lavoro di spezzettamento — la sincronizzazione dice quanti ne 
 saltati.
 
 Tabelle: `brain_documents`, `brain_chunks` (con `tsvector` italiano e indice
-GIN), `brain_credentials`, `brain_runs`. Tutte con **RLS attiva e nessuna
+GIN), `brain_credentials`, `brain_runs`, `brain_open_points`. Tutte con **RLS attiva e nessuna
 policy**: dal browser non sono raggiungibili nemmeno da autenticati. L'unica
 porta è la service role key, e sta solo lato server.
 
@@ -176,8 +177,8 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Tre agenti.** Il capo di gabinetto risponde, Contratti analizza, Amministrazione
-  riconcilia. Nessuno dei tre prepara ancora i 1:1 o scrive il post-call.
+- **Quattro agenti.** Brief, capo di gabinetto, Contratti, Amministrazione.
+  Nessuno prepara ancora i 1:1 né scrive il post-call.
 
 ---
 
@@ -232,6 +233,61 @@ controllare niente:
 
 L'interfaccia li tiene visivamente separati apposta: la citazione in monospazio
 dentro al suo riquadro col bollo, il resto fuori.
+
+---
+
+## Il brief, e i punti aperti
+
+Fino a un certo punto BRAIN rispondeva **solo se interrogato**. Una memoria che
+aspetta di essere cercata si usa due volte alla settimana: il valore c'è, ma te
+lo devi andare a prendere.
+
+Il brief gira **dopo la sincronizzazione notturna** e sta lì la mattina. Tre
+sezioni, tutte che possono essere vuote:
+
+- **Oggi e domani** — appuntamenti e scadenze con una data che cade adesso.
+- **Cosa è arrivato** — non un riassunto della posta: solo le cose che
+  richiedono qualcosa da te.
+- **Conto** — i pagamenti senza giustificativo, presi dall'agente Amministrazione
+  e quindi **calcolati senza modello**.
+
+Non inventa una nuova forma di garanzia: usa la stessa. Ogni riga passa da
+`verifyClaims()`, quindi è riconducibile a un documento in memoria esattamente
+come una risposta chiesta a mano. Il fatto che non l'abbia chiesta nessuno non la
+rende meno verificabile — semmai di più, perché nel momento in cui viene scritta
+non c'è nessuno lì a rileggerla.
+
+Aprire la console **non** riscrive il brief: quello che leggi è quello di
+stanotte. Ricaricare la pagina non deve cambiare quello che ti è stato detto, e
+non deve costare una chiamata al modello.
+
+### I punti aperti si chiudono solo a mano
+
+È la riga più preziosa del post che ha ispirato questo prodotto — *"i punti
+aperti si trascinano finché non li chiudo io"* — ed è quella che nessun
+assistente rispetta, perché ricordarsene costa uno stato e dimenticarsene no.
+
+Qui è letterale. **Nessuna chiusura automatica, mai.** Il brief di domani non
+lascia cadere un punto perché nessuno l'ha più nominato: se non se ne parla, il
+punto resta e invecchia. `decidePoints()` sa fare due cose sole — aprire un punto
+nuovo e riconoscerne uno che c'è già — e non sa chiudere.
+
+L'età è la cosa che si guarda, non il numero: `nuovo` sotto i 3 giorni, `in
+attesa` fino a 14, **`fermo`** oltre. Un punto fermo da tre settimane non è una
+cosa da fare: è una decisione che stai rimandando, e l'etichetta rossa serve a
+dirlo.
+
+Il problema tecnico è che lo stesso impegno, riformulato dal modello il giorno
+dopo, è una stringa diversa. Senza un riconoscimento tollerante la lista si
+riempirebbe di doppioni e sarebbe inguardabile in una settimana. Quindi:
+
+| Meccanismo | Cosa risolve |
+|---|---|
+| impronta a **sacco di parole ordinato** | "chiedere la fattura a Rossi" e "a Rossi, chiedere la fattura" hanno la stessa impronta, e il doppione identico lo ferma il vincolo di unicità del database |
+| **somiglianza di Jaccard** ≥ 0.6 sui token | riconosce la riformulazione — "devo ancora rispondere a Bianchi sul rinnovo" ritrova "rispondere a Bianchi sulla proposta di rinnovo" |
+| confronto anche **dentro lo stesso brief** | due frasi simili nello stesso giro non diventano due righe |
+
+Fra più candidati vince il più somigliante, non il primo trovato.
 
 ---
 
@@ -295,7 +351,11 @@ memoria che `parseAmounts()` poi rilegge per abbinare. Quindi `formatEuro()` e
 
 ## Il trigger
 
-`GET /api/brain/cron` sincronizza tutti i connettori configurati. Vercel lo chiama
+`GET /api/brain/cron` sincronizza tutti i connettori configurati **e poi scrive
+il brief** — è il passaggio che dà senso a tutto il resto: senza, la memoria si
+aggiornerebbe da sola senza dire mai niente a nessuno. Un brief fallito non fa
+fallire il giro (la memoria aggiornata vale comunque) ma lascia la sua riga di
+errore, e la console la mostra. Vercel lo chiama
 ogni giorno alle **05:00 UTC** (`vercel.json`), cioè prima che la giornata
 cominci: il momento in cui una memoria aggiornata serve davvero.
 
@@ -357,6 +417,7 @@ Opzionale: `BRAIN_GMAIL_QUERY` sovrascrive il filtro di Gmail.
 ### Passi
 
 1. **SQL Editor di Supabase** → incolla `supabase/migration_brain.sql` → Run.
+   Poi `supabase/migration_brain_brief.sql` (il delta per i punti aperti).
 2. Imposta `BRAIN_OWNER_EMAIL` e `ANTHROPIC_API_KEY`, riavvia.
 3. Apri `/brain`, scheda **Memoria**, incolla una nota. Funziona già: chiedi
    qualcosa e guarda la fonte comparire sotto la frase.
@@ -416,6 +477,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 7. Clausole scartate per citazione inesistente, sul totale analizzato
 8. PDF entrati col solo titolo, sul totale dei PDF (dice quanto dell'archivio è scansionato)
 9. Movimenti senza giustificativo, e quanti di questi trovano la fattura in memoria
+10. **Punti aperti in stato `fermo`** ← la metrica più scomoda: misura le decisioni rimandate, non il sistema
 
 La quinta è la più scomoda e la più utile: misura i buchi del *recupero*, non del
 modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
@@ -445,7 +507,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 76 test del nucleo, nessuna dipendenza
+npm run test:brain     # 89 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

@@ -1,3 +1,4 @@
+import { writeBrief } from '@/lib/brain/agents/brief'
 import { syncConnectors } from '@/lib/brain/connectors'
 import { CRON_AGENT, CRON_LIMIT, isAuthorizedCron } from '@/lib/brain/cron'
 import { toBrainError } from '@/lib/brain/errors'
@@ -20,6 +21,13 @@ export const maxDuration = 300
  * Un connettore che fallisce non ferma gli altri, e il suo errore
  * finisce nel registro: `syncConnectors` restituisce un rapporto per
  * fonte proprio perché una sincronizzazione parziale si deve vedere.
+ *
+ * Finita la sincronizzazione si scrive il brief, ed è il passaggio che
+ * dà un senso a tutto il resto: senza, la memoria si aggiornerebbe da
+ * sola senza dire mai niente a nessuno. Il brief fallito non fa
+ * fallire il giro — la memoria aggiornata vale comunque — ma lascia
+ * la sua riga di errore, perché un brief che smette di arrivare si
+ * deve poter spiegare.
  */
 export async function GET(request: Request) {
   const started = Date.now()
@@ -34,19 +42,34 @@ export async function GET(request: Request) {
     const stored = reports.reduce((sum, r) => sum + r.stored, 0)
     const failed = reports.filter((r) => r.error)
 
+    let brief: { oggi: number; novita: number; puntiAperti: number } | null = null
+    let briefError: string | null = null
+    try {
+      const written = await writeBrief()
+      brief = {
+        oggi: written.oggi.length,
+        novita: written.novita.length,
+        puntiAperti: written.puntiAperti.length,
+      }
+    } catch (err) {
+      briefError = (err as Error).message
+    }
+
     await logRun({
       agent: CRON_AGENT,
       question: '',
-      answer: { reports, stored, failed: failed.length },
+      answer: { reports, stored, failed: failed.length, brief, briefError },
       model: null,
       hits: stored,
       latencyMs: Date.now() - started,
     })
 
     return Response.json({
-      ok: failed.length === 0,
+      ok: failed.length === 0 && !briefError,
       stored,
       reports,
+      brief,
+      briefError,
       durationMs: Date.now() - started,
     })
   } catch (err) {

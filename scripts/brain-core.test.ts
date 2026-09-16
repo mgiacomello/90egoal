@@ -8,6 +8,16 @@ import { isAuthorizedCron } from '../lib/brain/cron.ts'
 import { matchQuote, normalizeForMatch, tokenize } from '../lib/brain/quote.ts'
 import { assessExtraction } from '../lib/brain/pdf.ts'
 import {
+  ageInDays,
+  decidePoints,
+  fingerprint,
+  matchExisting,
+  similarity,
+  sortByAge,
+  staleness,
+  type OpenPointLike,
+} from '../lib/brain/openpoints.ts'
+import {
   findInvoice,
   nameTokens,
   parseAmount,
@@ -357,6 +367,109 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- punti aperti: si chiudono solo a mano --- */
+
+function point(partial: Partial<OpenPointLike> & { text: string }): OpenPointLike {
+  return {
+    id: 'p-' + Math.random().toString(36).slice(2),
+    fingerprint: fingerprint(partial.text),
+    openedAt: '2026-09-01T09:00:00Z',
+    lastSeenAt: '2026-09-01T09:00:00Z',
+    ...partial,
+  }
+}
+
+check('lo stesso impegno in ordine diverso ha la stessa impronta', () => {
+  assert.equal(
+    fingerprint('Chiedere la fattura a Rossi'),
+    fingerprint('A Rossi, chiedere la fattura')
+  )
+})
+
+check('due impegni diversi hanno impronte diverse', () => {
+  assert.notEqual(
+    fingerprint('Chiedere la fattura a Rossi'),
+    fingerprint('Chiedere la fattura a Bianchi')
+  )
+})
+
+check('la somiglianza riconosce la riformulazione', () => {
+  const a = 'Rispondere a Bianchi sulla proposta di rinnovo del contratto'
+  const b = 'Devo ancora rispondere a Bianchi sulla proposta di rinnovo'
+  assert.ok(similarity(a, b) >= 0.6, `somiglianza ${similarity(a, b)}`)
+})
+
+check('la somiglianza non fonde due cose diverse', () => {
+  const a = 'Rispondere a Bianchi sul rinnovo'
+  const b = 'Pagare la parcella del notaio Verdi'
+  assert.ok(similarity(a, b) < 0.6)
+})
+
+check('un punto riformulato ritrova quello che c\'è già', () => {
+  const esistente = point({ text: 'Rispondere a Bianchi sulla proposta di rinnovo del contratto' })
+  const found = matchExisting('Devo ancora rispondere a Bianchi sulla proposta di rinnovo', [esistente])
+  assert.equal(found?.id, esistente.id)
+})
+
+check('fra più candidati vince il più somigliante, non il primo', () => {
+  const vago = point({ id: 'vago', text: 'Rispondere a Bianchi' })
+  const preciso = point({ id: 'preciso', text: 'Rispondere a Bianchi sulla proposta di rinnovo del contratto' })
+  const found = matchExisting('Rispondere a Bianchi sulla proposta di rinnovo del contratto', [vago, preciso])
+  assert.equal(found?.id, 'preciso')
+})
+
+check('un punto nuovo non viene confuso con quelli aperti', () => {
+  const esistente = point({ text: 'Rispondere a Bianchi sul rinnovo' })
+  assert.equal(matchExisting('Prenotare il volo per Bruxelles', [esistente]), null)
+})
+
+check('decidePoints apre i nuovi e riconosce i vecchi', () => {
+  const esistente = point({ id: 'vecchio', text: 'Rispondere a Bianchi sulla proposta di rinnovo' })
+  const d = decidePoints(
+    ['Devo rispondere a Bianchi sulla proposta di rinnovo', 'Prenotare il volo per Bruxelles'],
+    [esistente]
+  )
+  assert.equal(d.length, 2)
+  assert.deepEqual(d[0], { action: 'keep', id: 'vecchio', text: 'Rispondere a Bianchi sulla proposta di rinnovo' })
+  assert.equal(d[1].action, 'open')
+})
+
+check('due frasi simili nello stesso brief non diventano due righe', () => {
+  const d = decidePoints(
+    ['Chiedere la fattura allo Studio Bianchi', 'Bisogna chiedere la fattura allo Studio Bianchi'],
+    []
+  )
+  assert.equal(d.filter((x) => x.action === 'open').length, 1)
+})
+
+check('decidePoints non chiude mai niente da solo', () => {
+  const vecchio = point({ id: 'v', text: 'Una cosa di cui oggi nessuno parla' })
+  const d = decidePoints(['Tutt\'altro argomento, il volo per Bruxelles'], [vecchio])
+  // Nessuna decisione tocca il punto vecchio: resta aperto, e basta.
+  assert.ok(!d.some((x) => x.action === 'keep' && x.id === 'v'))
+  assert.equal(d.length, 1)
+  assert.equal(d[0].action, 'open')
+})
+
+check('un testo vuoto non apre un punto', () => {
+  assert.deepEqual(decidePoints(['  ', ''], []), [])
+})
+
+check('l\'età dice quanto stai rimandando', () => {
+  assert.equal(ageInDays('2026-09-14T09:00:00Z', NOW), 1)
+  assert.equal(staleness('2026-09-14T09:00:00Z', NOW), 'nuovo')
+  assert.equal(staleness('2026-09-08T09:00:00Z', NOW), 'in attesa')
+  assert.equal(staleness('2026-08-01T09:00:00Z', NOW), 'fermo')
+})
+
+check('i più vecchi vanno in cima: sono quelli che eviti', () => {
+  const ordinati = sortByAge([
+    { openedAt: '2026-09-14T09:00:00Z', id: 'nuovo' },
+    { openedAt: '2026-07-01T09:00:00Z', id: 'vecchio' },
+  ])
+  assert.equal(ordinati[0].id, 'vecchio')
 })
 
 /* --- riconciliazione: l'aritmetica non si delega a un modello --- */

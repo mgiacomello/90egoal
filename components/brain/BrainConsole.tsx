@@ -1,8 +1,10 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import BriefPanel from '@/components/brain/BriefPanel'
 import ContractPanel from '@/components/brain/ContractPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
+import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
 import type { SyncReport } from '@/lib/brain/connectors'
@@ -16,7 +18,7 @@ type Answer = {
   empty: boolean
 }
 
-type Tab = 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
+type Tab = 'brief' | 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -26,6 +28,8 @@ type Props = {
   initialConnectors: ConnectorStatus[]
   initialStats: MemoryStats
   initialDocuments: StoredDocument[]
+  initialBrief: Record<string, unknown> | null
+  initialPoints: BriefOpenPoint[]
   autoSync: AutoSync | null
   googleOutcome: { ok: boolean; detail: string } | null
 }
@@ -76,10 +80,12 @@ export default function BrainConsole({
   initialConnectors,
   initialStats,
   initialDocuments,
+  initialBrief,
+  initialPoints,
   autoSync,
   googleOutcome,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('ask')
+  const [tab, setTab] = useState<Tab>('brief')
 
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
@@ -214,6 +220,7 @@ export default function BrainConsole({
         <nav className="brain-tabs" role="tablist">
           {(
             [
+              ['brief', 'Brief'],
               ['ask', 'Chiedi'],
               ['contracts', 'Contratti'],
               ['ledger', 'Conto'],
@@ -237,6 +244,11 @@ export default function BrainConsole({
         {error ? <p className="brain-error">{error}</p> : null}
         {googleOutcome?.ok ? (
           <p className="brain-note">Google collegato{googleOutcome.detail ? ` come ${googleOutcome.detail}` : ''}.</p>
+        ) : null}
+
+        {/* --- BRIEF --- */}
+        {tab === 'brief' ? (
+          <BriefPanel initialBrief={initialBrief} initialPoints={initialPoints} />
         ) : null}
 
         {/* --- CHIEDI --- */}

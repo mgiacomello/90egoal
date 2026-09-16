@@ -10,7 +10,7 @@
  * si può testare, un'intuizione no.
  */
 
-import type { RankedHit, SearchHit, SourceKey, SourceRef } from './types'
+import type { RankedHit, SearchHit, SourceKey, SourceRef, StoredDocument } from './types'
 
 const STOPWORDS = new Set([
   'a', 'ad', 'ai', 'al', 'alla', 'alle', 'allo', 'anche', 'che', 'chi', 'ci', 'co', 'coi',
@@ -183,4 +183,31 @@ export function selectSources(ranked: RankedHit[], options: SelectOptions = {}):
         excerpt: excerpt.length > maxChars ? excerpt.slice(0, maxChars) + '…' : excerpt,
       }
     })
+}
+
+/**
+ * Fonti citabili a partire da documenti interi, senza passare da una
+ * ricerca.
+ *
+ * Serve al brief, che non ha una domanda da cui partire: deve guardare
+ * *tutto quello che è arrivato*, non quello che somiglia a qualcosa.
+ * Gli handle sono gli stessi (F1, F2…), quindi il verificatore delle
+ * citazioni non si accorge della differenza — ed è il punto: la
+ * garanzia sulle fonti vale identica anche quando la risposta non
+ * l'hai chiesta tu.
+ */
+export function sourcesFromDocuments(docs: StoredDocument[], maxCharsPerDocument = 1200): SourceRef[] {
+  return docs.map((doc, i) => {
+    const text = doc.body.trim()
+    return {
+      handle: `F${i + 1}`,
+      documentId: doc.id,
+      source: doc.source,
+      kind: doc.kind,
+      title: doc.title,
+      occurredAt: doc.occurredAt,
+      url: doc.url ?? null,
+      excerpt: text.length > maxCharsPerDocument ? text.slice(0, maxCharsPerDocument) + '…' : text,
+    }
+  })
 }

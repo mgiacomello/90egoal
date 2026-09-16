@@ -4,6 +4,7 @@ import { currentOwner } from '@/lib/brain/auth'
 import { connectorStatuses } from '@/lib/brain/connectors'
 import { memoryConfigured } from '@/lib/brain/db'
 import { CRON_AGENT } from '@/lib/brain/cron'
+import { BRIEF_AGENT, readOpenPoints, type BriefOpenPoint } from '@/lib/brain/agents/brief'
 import { lastRun, memoryStats, recentDocuments, type MemoryStats, type RunRecord } from '@/lib/brain/memory'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { StoredDocument } from '@/lib/brain/types'
@@ -21,11 +22,19 @@ function first(value: string | string[] | undefined): string {
  * non c'è, perché la memoria *sembra* aggiornata: qui si vede.
  */
 function summarizeAutoSync(answer: unknown): string {
-  const data = (answer ?? {}) as { error?: string; failed?: number; reports?: { label: string; error: string | null }[] }
+  const data = (answer ?? {}) as {
+    error?: string
+    briefError?: string | null
+    reports?: { label: string; error: string | null }[]
+  }
   if (data.error) return `non riuscita: ${data.error}`
+
   const broken = (data.reports ?? []).filter((r) => r.error)
-  if (broken.length) return `parziale — ${broken.map((r) => r.label).join(', ')} in errore`
-  return 'riuscita'
+  const parts: string[] = []
+  if (broken.length) parts.push(`${broken.map((r) => r.label).join(', ')} in errore`)
+  if (data.briefError) parts.push(`brief non scritto (${data.briefError})`)
+
+  return parts.length ? `parziale — ${parts.join('; ')}` : 'riuscita'
 }
 
 /** Lo schema non è ancora stato eseguito, oppure mancano le chiavi Supabase. */
@@ -66,12 +75,16 @@ export default async function BrainPage({ searchParams }: PageProps<'/brain'>) {
   let stats: MemoryStats
   let documents: StoredDocument[]
   let autoSync: RunRecord | null
+  let briefRun: RunRecord | null
+  let points: BriefOpenPoint[]
   try {
-    ;[connectors, stats, documents, autoSync] = await Promise.all([
+    ;[connectors, stats, documents, autoSync, briefRun, points] = await Promise.all([
       connectorStatuses(),
       memoryStats(),
       recentDocuments(40),
       lastRun(CRON_AGENT),
+      lastRun(BRIEF_AGENT),
+      readOpenPoints(),
     ])
   } catch (err) {
     return <Setup message={`La memoria non risponde: ${(err as Error).message}`} />
@@ -89,6 +102,10 @@ export default async function BrainPage({ searchParams }: PageProps<'/brain'>) {
       initialConnectors={connectors}
       initialStats={stats}
       initialDocuments={documents}
+      initialBrief={
+        briefRun ? { ...(briefRun.answer as Record<string, unknown>), at: briefRun.createdAt } : null
+      }
+      initialPoints={points}
       autoSync={
         autoSync
           ? { at: autoSync.createdAt, stored: autoSync.hits, detail: summarizeAutoSync(autoSync.answer) }

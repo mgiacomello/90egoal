@@ -629,3 +629,20 @@ select.brain-input {
   color: var(--brain-accent);
   border-color: var(--brain-accent);
 }
+
+/* L'età di un punto aperto. Il numero dei punti conta poco; da quanto
+   li hai lì conta molto — quindi l'etichetta cambia colore, non peso. */
+.brain-tag[data-age='in attesa'] {
+  color: var(--brain-warn);
+  border-color: rgba(251, 191, 36, 0.4);
+}
+
+.brain-tag[data-age='fermo'] {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.brain-section h2 .brain-tag {
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
