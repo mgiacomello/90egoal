@@ -35,68 +35,17 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-## 🧠 BRAIN (`/brain`)
+## 🧠 BRAIN (`brain/`)
 
-Il **capo di gabinetto** di una persona sola. Non una chat sui documenti: l'agente
-che ha letto tutto — Gmail, Calendar, Drive, movimenti Qonto, anello Oura — e che
-risponde per punti, con accanto a ogni punto **la fonte, la data e il canale**.
+Progetto a sé dentro a questo repository, con il suo `package.json` e il suo
+deploy: la memoria di lavoro personale del titolare — Gmail, Calendar, Drive,
+movimenti Qonto, anello Oura — che risponde solo con quello che ha davvero letto
+e dichiara sempre da dove viene ogni frase.
 
-La regola che lo distingue da un assistente qualsiasi: *non gli è permesso sapere
-niente che non sia in memoria*. E non è affidata al prompt. Il modello compila una
-risposta strutturata in cui ogni affermazione dichiara le fonti da cui viene, poi
-`lib/brain/cite.ts` verifica: **un'affermazione che cita una fonte inesistente non
-viene mostrata**, e un importo o un IBAN che non compare nelle fonti citate da
-quella frase viene marcato. È il parente stretto del controllo mod-97 di ONE TAP.
+Non condivide niente con il gioco: né dominio, né variabili, né build. Su Vercel
+si importa come progetto separato con **Root Directory `brain`**.
 
-Ogni notte, dopo la sincronizzazione, si scrive il **brief**: cosa c'è oggi, cosa
-è arrivato che richiede qualcosa da te, quali pagamenti non hanno giustificativo.
-Ti arriva per posta, e ricaricare la pagina non lo riscrive. La mail **non viene
-generata**: il brief è già verificato, l'email lo formatta e basta, fonti
-comprese. E non parte se non c'è niente da dire. Sotto ci sono i **punti
-aperti**, che **si chiudono solo a mano**: nessuno li toglie perché non se ne
-parla più, e più invecchiano più si vedono — è la differenza fra una memoria e un
-dimenticatoio con la barra di avanzamento.
-
-Quando la ricerca trova poco, il modello propone *altre parole con cui la stessa
-cosa potrebbe essere scritta* — e non vede nessun documento mentre lo fa, quindi
-non può proporre una risposta. E se non trova niente, lo dice in modo
-verificabile: *«ho cercato "pricing", "listino", "tariffe" su 1.240 documenti»*.
-Così **«non risulta» si può smentire**, invece di doverci credere.
-
-Sotto ogni affermazione c'è un `✗ correggi`, e **una correzione è memoria**: un
-documento come gli altri, cercato e citato come gli altri, che però pesa più di
-qualunque fonte — anche più recente. La precedenza è scritta dentro al documento,
-non nel prompt, così viaggia col dato verso qualunque agente lo peschi.
-
-Prima di un incontro, **Incontri** costruisce l'agenda da quello che è già stato
-detto con quella persona. Qui il recupero parte da *chi*, non da *cosa*: i
-partecipanti sono una colonna con il suo indice, quindi un elenco esatto di
-indirizzi — cercare "Bianchi" per parole prenderebbe anche il fornitore omonimo.
-
-Il secondo agente, **Contratti**, applica la stessa idea con una regola più
-stretta: la clausola citata deve esistere *testualmente* nel contratto, altrimenti
-la sua analisi non viene mostrata. Per ognuna dà rischio, standard di mercato e
-controproposta pronta — e tiene ben separato quello che ha verificato (la
-citazione) da quello che è un giudizio (tutto il resto).
-
-Il nucleo — spezzettamento, ranking, verifica di citazioni e clausole, routing —
-è fatto di funzioni pure: `npm run test:brain`, 129 test, zero dipendenze. I
-connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
-agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
-da sola una volta al giorno via cron.
-
-Il terzo, **Amministrazione**, dice di quali soldi usciti manca la fattura e
-quale documento in memoria potrebbe esserlo, con le ragioni in chiaro e la mail
-pronta da mandare. Questo **non usa nessun modello**: abbinare una fattura a un
-addebito è aritmetica, e l'aritmetica non si delega a qualcosa che ogni tanto può
-leggere male una cifra. Funziona anche senza chiave AI.
-
-I PDF con un livello di testo si leggono; quelli scansionati **no, e viene detto
-dentro al documento** invece di riempire la memoria con quattro righe di
-intestazione che poi un agente citerebbe come fonte.
-
-Le tabelle `brain_*` hanno RLS attiva e nessuna policy: dal browser non sono
-raggiungibili. Setup, limiti dichiarati e roadmap in **[BRAIN.md](BRAIN.md)**.
+Setup, architettura e limiti dichiarati in **[brain/README.md](brain/README.md)**.
 
 ## ⚡ ONE TAP (`/onetap`)
 

@@ -5,11 +5,11 @@ import Navbar from '@/components/Navbar'
 import ActivityTracker from '@/components/ActivityTracker'
 
 /**
- * Alcune rotte sono app a sé dentro allo stesso deploy: su `/onetap` e su
- * `/brain` la navigazione del sito non deve comparire (e il tracker non deve
- * girare). Ogni altra rotta resta esattamente com'era.
+ * ONE TAP è un'app a sé dentro allo stesso deploy: lì la navigazione del sito
+ * non deve comparire (e il tracker non deve girare). Ogni altra rotta resta
+ * esattamente com'era.
  */
-const STANDALONE = ['/onetap', '/brain']
+const STANDALONE = ['/onetap']
 
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

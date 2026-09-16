@@ -41,8 +41,7 @@ export type DeliveryReport = {
 }
 
 function consoleUrl(): string {
-  const base = process.env.BRAIN_APP_URL?.trim().replace(/\/$/, '')
-  return base ? `${base}/brain` : ''
+  return process.env.BRAIN_APP_URL?.trim().replace(/\/$/, '') ?? ''
 }
 
 function recipient(): string {

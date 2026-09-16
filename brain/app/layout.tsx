@@ -1,5 +1,14 @@
 import type { Metadata, Viewport } from 'next'
+import { Inter, Sora } from 'next/font/google'
 import './brain.css'
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' })
+const sora = Sora({
+  subsets: ['latin'],
+  variable: '--font-sora',
+  weight: ['400', '600', '700', '800'],
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'BRAIN — il tuo capo di gabinetto',
@@ -16,6 +25,10 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function BrainLayout({ children }: { children: React.ReactNode }) {
-  return children
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="it" className={`${inter.variable} ${sora.variable}`}>
+      <body>{children}</body>
+    </html>
+  )
 }

@@ -8,9 +8,13 @@ import { BRIEF_AGENT, readOpenPoints, type BriefOpenPoint } from '@/lib/brain/ag
 import { lastRun, memoryStats, recentDocuments, type MemoryStats, type RunRecord } from '@/lib/brain/memory'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { StoredDocument } from '@/lib/brain/types'
-import { createClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
+// Senza, con BRAIN_OWNER_EMAIL non impostata al momento del build la
+// pagina verrebbe prerenderizzata come un redirect fisso al login e
+// resterebbe tale: una console congelata invece di una che legge la
+// memoria a ogni richiesta.
+export const dynamic = 'force-dynamic'
 
 function first(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '')
@@ -48,23 +52,23 @@ function Setup({ message }: { message: string }) {
         </header>
         <p className="brain-error" style={{ marginTop: '1.5rem' }}>{message}</p>
         <p className="brain-note brain-section">
-          Esegui <code>supabase/migration_brain.sql</code> nell&apos;SQL Editor del progetto, poi
-          ricarica. Il dettaglio dei passi è in <code>BRAIN.md</code>.
+          Esegui <code>supabase/migration_brain.sql</code> e{' '}
+          <code>supabase/migration_brain_brief.sql</code> nell&apos;SQL Editor del progetto, poi
+          ricarica. Il dettaglio dei passi è nel <code>README.md</code>.
         </p>
       </div>
     </div>
   )
 }
 
-export default async function BrainPage({ searchParams }: PageProps<'/brain'>) {
+export default async function BrainPage({ searchParams }: PageProps<'/'>) {
   // Prima la porta: nessuna query alla memoria prima di sapere chi sta entrando.
   const owner = await currentOwner()
   if (!owner) {
-    const supabase = await createClient()
-    const {
-      data: { user },
-    } = await supabase.auth.getUser()
-    redirect(user ? '/' : '/auth/login')
+    // Il middleware ha già mandato al login chi non ha sessione: se si
+    // arriva qui senza essere il proprietario, la sessione c'è ma è di
+    // qualcun altro, e quella non è una cosa da risolvere con un redirect.
+    redirect('/login')
   }
 
   if (!memoryConfigured()) {

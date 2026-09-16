@@ -62,40 +62,15 @@ viene mai esposta da questo endpoint.
 
 ---
 
-## Variabili in più per BRAIN (`/brain`)
+## BRAIN è un deploy a parte
 
-BRAIN è la memoria personale del proprietario: se non lo usi, non serve niente e
-la sezione resta chiusa da sola. Se lo usi, queste vanno su Vercel **oltre** alle
-tre di Supabase (la `SUPABASE_SERVICE_ROLE_KEY` diventa obbligatoria, perché le
-tabelle `brain_*` hanno RLS attiva e nessuna policy):
+`brain/` non fa parte di questo deploy: è un progetto Next autonomo, si importa
+su Vercel con **Root Directory `brain`** e ha variabili sue. Istruzioni complete
+in [brain/README.md](brain/README.md).
 
-```
-BRAIN_OWNER_EMAIL=tu@esempio.it        # chi può entrare. Senza, entra chi è admin
-ANTHROPIC_API_KEY=sk-ant-...           # già presente per ONE TAP, la riusa
-GOOGLE_CLIENT_ID=...                   # Gmail, Calendar, Drive (scope .readonly)
-GOOGLE_CLIENT_SECRET=...
-BRAIN_APP_URL=https://90egoal.vercel.app   # solo se l'origine vista dal server non è quella pubblica
-QONTO_LOGIN=...                        # transazioni, sola lettura
-QONTO_SECRET_KEY=...
-OURA_TOKEN=...                         # sonno, prontezza, attività
-CRON_SECRET=...                        # senza, la sincronizzazione automatica resta chiusa
-RESEND_API_KEY=re_...                  # facoltativa: il brief arriva per posta
-BRAIN_MAIL_FROM=brain@tuodominio.it    # mittente verificato su Resend
-BRAIN_WEBHOOK_URL=https://...          # in alternativa: Slack, n8n, Telegram
-```
-
-`vercel.json` pianifica `/api/brain/cron` ogni giorno alle 05:00 UTC. Vercel
-manda `Authorization: Bearer $CRON_SECRET`: **senza quella variabile l'endpoint
-risponde 401 a tutti, Vercel compreso** — è voluto, chiuso per difetto. Genera
-il segreto con `openssl rand -hex 32`.
-
-Prima del primo accesso va eseguito `supabase/migration_brain.sql` nell'SQL
-Editor del progetto Supabase. In Google Cloud Console il redirect URI da
-autorizzare è `https://iltuodominio/api/brain/connect/google/callback`, e deve
-coincidere **esattamente** con quello che il server costruisce: è il motivo per
-cui esiste `BRAIN_APP_URL`.
-
-Il dettaglio completo, limiti dichiarati compresi, è in [BRAIN.md](BRAIN.md).
+Tenerli separati non è ordine formale: là dentro ci sono mail, contratti e
+movimenti del conto di una persona, e non devono condividere né dominio né
+ambiente con un gioco a cui accede il pubblico.
 
 ## Opzione A — GitHub + Vercel (consigliata, deploy automatici a ogni push)
 

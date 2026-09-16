@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 export async function GET(request: Request) {
   const origin = appOrigin(request)
   const back = (params: Record<string, string>) =>
-    NextResponse.redirect(`${origin}/brain?${new URLSearchParams(params)}`, 302)
+    NextResponse.redirect(`${origin}/?${new URLSearchParams(params)}`, 302)
 
   try {
     await requireOwner()

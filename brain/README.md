@@ -1,4 +1,4 @@
-# BRAIN (`/brain`)
+# BRAIN
 
 **Il capo di gabinetto di una persona sola.**
 
@@ -12,6 +12,58 @@ La differenza fra questo e un assistente qualsiasi sta in una regola:
 > **Non gli è permesso sapere niente che non sia in memoria.**
 
 E la regola non è affidata al prompt. Il prompt la chiede; il codice la impone.
+
+---
+
+## Metterlo online
+
+Progetto Next autonomo: ha il suo `package.json`, il suo `vercel.json` e le sue
+variabili. Vive in una sottocartella del repository `90egoal` solo perché ci è
+nato — a Vercel si importa come **progetto a sé**, con dominio e ambiente suoi.
+
+### 1. Su Vercel
+
+*New Project* → importa `mgiacomello/90egoal` → e qui l'unica cosa che conta:
+
+> **Root Directory: `brain`**
+
+Da quel momento è un deploy separato da quello del gioco. Non condividono né
+dominio, né variabili, né build.
+
+### 2. Le variabili
+
+Il minimo per vedere qualcosa:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...        # obbligatoria: le tabelle brain_* hanno RLS senza policy
+BRAIN_OWNER_EMAIL=tu@esempio.it      # senza, non entra nessuno. Voluto.
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Tutto il resto — Google, Qonto, Oura, la consegna del brief, il cron — si
+aggiunge dopo, una cosa alla volta, e finché manca semplicemente quella parte non
+c'è. Elenco completo più in basso.
+
+### 3. Le due migration
+
+Nell'SQL Editor del progetto Supabase, in quest'ordine:
+
+```
+supabase/migration_brain.sql
+supabase/migration_brain_brief.sql
+```
+
+### 4. Entri
+
+`/` è la console, `/login` è la porta. Va bene lo stesso account Supabase che
+usi già: a decidere chi entra è `BRAIN_OWNER_EMAIL`, non l'esistenza di un
+account.
+
+**Funziona subito, senza collegare niente:** scheda *Memoria*, incolli una nota,
+scheda *Chiedi*, fai una domanda. Vedi la fonte comparire sotto la frase. È il
+momento in cui si capisce se il prodotto serve.
 
 ---
 
@@ -52,7 +104,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 129 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 129 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -584,7 +636,7 @@ consenta: si cambia solo la riga `schedule` in `vercel.json`.
 
 ## Configurazione
 
-Nessuna chiave è obbligatoria per *vedere* la console: senza, `/brain` dice cosa
+Nessuna chiave è obbligatoria per *vedere* la console: senza, la console dice cosa
 manca. Per farla funzionare servono, nell'ordine:
 
 ```bash
@@ -611,7 +663,7 @@ BRAIN_WEBHOOK_URL=https://...          # in alternativa o in aggiunta: Slack, n8
 # 6. Le fonti (una alla volta, quando servono)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
-BRAIN_APP_URL=https://tuodominio.it   # solo dietro a un proxy
+BRAIN_APP_URL=https://tuodominio.it   # il dominio pubblico: serve a Google e al link nella mail
 QONTO_LOGIN=...
 QONTO_SECRET_KEY=...
 OURA_TOKEN=...
@@ -624,7 +676,7 @@ Opzionale: `BRAIN_GMAIL_QUERY` sovrascrive il filtro di Gmail.
 1. **SQL Editor di Supabase** → incolla `supabase/migration_brain.sql` → Run.
    Poi `supabase/migration_brain_brief.sql` (il delta per i punti aperti).
 2. Imposta `BRAIN_OWNER_EMAIL` e `ANTHROPIC_API_KEY`, riavvia.
-3. Apri `/brain`, scheda **Memoria**, incolla una nota. Funziona già: chiedi
+3. Apri la console, scheda **Memoria**, incolla una nota. Funziona già: chiedi
    qualcosa e guarda la fonte comparire sotto la frase.
 4. Per Google: crea un OAuth client (tipo *Web application*) in Google Cloud
    Console, aggiungi come redirect URI `https://iltuodominio/api/brain/connect/google/callback`,
@@ -719,8 +771,8 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 ## Comandi
 
 ```bash
-npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 129 test del nucleo, nessuna dipendenza
+npm run dev            # http://localhost:3000
+npm test               # 129 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```
