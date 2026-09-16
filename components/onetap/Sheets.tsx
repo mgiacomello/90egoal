@@ -92,6 +92,10 @@ export function PrivacySheet({
 
       <p className="mt-8 text-[13px] text-[var(--ot-muted)]">
         {actionsUsed} action{actionsUsed === 1 ? '' : 's'} this month on this device.
+        {' '}
+        <a href="/onetap/privacy" className="underline underline-offset-4">Full privacy notice</a>
+        {' · '}
+        <a href="/onetap/terms" className="underline underline-offset-4">Terms</a>
       </p>
 
       <button

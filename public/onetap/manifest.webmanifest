@@ -5,6 +5,8 @@
   "id": "/onetap",
   "start_url": "/onetap",
   "scope": "/onetap",
+  "lang": "it",
+  "dir": "ltr",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#08080a",
@@ -13,6 +15,7 @@
     "productivity",
     "utilities"
   ],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/onetap/icon-192.png",
@@ -31,6 +34,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/onetap/screenshots/home.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Fotografa, incolla o condividi: ONE TAP legge e propone l'azione"
+    },
+    {
+      "src": "/onetap/screenshots/calendar.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Una locandina diventa un evento in calendario con un tocco"
+    },
+    {
+      "src": "/onetap/screenshots/note.png",
+      "sizes": "780x1688",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Una lavagna diventa una nota ordinata da salvare"
     }
   ],
   "share_target": {
