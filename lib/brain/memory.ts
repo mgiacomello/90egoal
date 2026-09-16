@@ -179,6 +179,14 @@ export async function recentDocuments(limit = 30, source?: SourceKey): Promise<S
   return ((data ?? []) as Record<string, unknown>[]).map(toStored)
 }
 
+/** Un documento intero, corpo compreso: serve a chi deve analizzarlo. */
+export async function documentById(id: string): Promise<StoredDocument | null> {
+  const db = brainDb()
+  const { data, error } = await db.from('brain_documents').select('*').eq('id', id).maybeSingle()
+  if (error) throw new BrainError(`Lettura documento fallita: ${error.message}`)
+  return data ? toStored(data as Record<string, unknown>) : null
+}
+
 export type MemoryStats = {
   total: number
   bySource: { source: SourceKey; count: number; latest: string | null }[]

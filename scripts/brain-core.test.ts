@@ -5,6 +5,7 @@ import { fold, queryTerms, rankHits, recencyWeight, selectSources, toFtsQuery } 
 import { extractFacts, parseHandles, verifyClaims } from '../lib/brain/cite.ts'
 import { pickModel } from '../lib/brain/orchestrator.ts'
 import { isAuthorizedCron } from '../lib/brain/cron.ts'
+import { matchQuote, normalizeForMatch, tokenize } from '../lib/brain/quote.ts'
 import type { SearchHit, SourceRef } from '../lib/brain/types.ts'
 
 // Riferimento fisso: martedì 15 settembre 2026, 10:00 UTC.
@@ -289,6 +290,60 @@ check('per estrarre si sceglie il modello veloce', () => {
 check('se il provider preferito manca si scende al successivo disponibile', () => {
   const chosen = pickModel('answer', { openai: true })
   assert.equal(chosen?.provider, 'openai')
+})
+
+/* --- citazioni testuali: una clausola che non c'è non si analizza --- */
+
+const CONTRATTO = `8.1 Il presente contratto ha durata di 24 (ventiquattro) mesi.
+8.2 Ciascuna parte può recedere con preavviso scritto di 30 (trenta) giorni,
+da inviarsi a mezzo PEC all'indirizzo indicato in epigrafe.
+9.1 Il Fornitore risponde dei danni nei limiti del corrispettivo annuo.`
+
+check('una citazione testuale viene ritrovata', () => {
+  const m = matchQuote('preavviso scritto di 30 (trenta) giorni', CONTRATTO)
+  assert.equal(m.status, 'exact')
+  assert.equal(m.coverage, 1)
+})
+
+check('una clausola che nel contratto non c\'è risulta mancante', () => {
+  const m = matchQuote('il Cliente rinuncia a ogni azione di rivalsa', CONTRATTO)
+  assert.equal(m.status, 'missing')
+  assert.equal(m.matched, '')
+})
+
+check('gli a capo in mezzo alla frase non fanno fallire il confronto', () => {
+  const m = matchQuote('preavviso scritto di 30 (trenta) giorni, da inviarsi a mezzo PEC', CONTRATTO)
+  assert.equal(m.status, 'exact')
+})
+
+check('virgolette tipografiche e trattini lunghi vengono normalizzati', () => {
+  assert.equal(normalizeForMatch('\u201cRecesso\u201d \u2014 30\u00a0giorni'), '"recesso" - 30 giorni')
+  assert.equal(normalizeForMatch('pre\u00adavviso'), 'preavviso')
+})
+
+check('la punteggiatura NON viene ignorata: in un contratto una virgola pesa', () => {
+  assert.ok(normalizeForMatch('durata di 24 (ventiquattro) mesi.').includes('('))
+})
+
+check('una citazione quasi giusta è parziale, non esatta e non inventata', () => {
+  const m = matchQuote('ciascuna parte può recedere con preavviso scritto di 15 giorni', CONTRATTO)
+  assert.equal(m.status, 'partial')
+  assert.ok(m.coverage >= 0.6, `copertura ${m.coverage}`)
+  assert.equal(m.matched, 'ciascuna parte può recedere con preavviso scritto di')
+})
+
+check('poche parole in comune non bastano a far passare una citazione', () => {
+  const m = matchQuote('il contratto di durata', CONTRATTO)
+  assert.equal(m.status, 'missing')
+})
+
+check('una citazione vuota non passa per distrazione', () => {
+  assert.equal(matchQuote('   ', CONTRATTO).status, 'missing')
+  assert.equal(matchQuote('...', CONTRATTO).status, 'missing')
+})
+
+check('tokenize tiene i numeri e butta la punteggiatura', () => {
+  assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
 })
 
 /* --- esecuzione automatica: la porta è chiusa per difetto --- */

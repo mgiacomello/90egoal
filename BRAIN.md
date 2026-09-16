@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 41 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 50 test, zero
 dipendenze.
 
 | File | Ruolo | Perché non sta in un prompt |
@@ -61,6 +61,7 @@ dipendenze.
 | `lib/brain/rank.ts` | ordina i pezzi: full-text, parole in comune, freschezza, persone nominate, frase esatta | un ordinamento si può testare |
 | `lib/brain/cite.ts` | applica le due regole qui sopra | è la promessa del prodotto |
 | `lib/brain/orchestrator.ts` | per ogni tipo di task, il modello che rende meglio | la scelta è una tabella, non un'opinione |
+| `lib/brain/quote.ts` | una clausola citata esiste nel contratto? | è la promessa dell'agente Contratti |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -145,8 +146,62 @@ Un documento al giorno, non uno per misura: la domanda che si fa a un coach è
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Un solo agente.** Il capo di gabinetto risponde; non scrive ancora bozze,
-  non prepara ancora i 1:1, non abbina ancora fatture e movimenti.
+- **Due agenti.** Il capo di gabinetto risponde e l'agente Contratti analizza;
+  nessuno dei due scrive ancora bozze, prepara i 1:1 o abbina fatture e movimenti.
+
+---
+
+## L'agente Contratti
+
+Non un riassuntore: la griglia con cui un contratto si legge quando bisogna
+deciderlo. Per ogni clausola critica dice **se è accettabile o rischiosa**,
+**cos'è standard di mercato** e **quale controproposta fare**, col testo pronto
+da incollare.
+
+Prima di tutto chiede **da che parte stai**. Non è una gentilezza: la stessa
+clausola di limitazione di responsabilità è un problema per chi la subisce e una
+tutela per chi la scrive, e un'analisi che non lo sa è un'analisi che non serve.
+Se non lo dichiari, l'analisi resta neutra e lo scrive.
+
+### La regola, qui, è più stretta
+
+Per il capo di gabinetto valeva: nessuna affermazione senza una fonte in memoria.
+Per un contratto la regola giusta è un'altra, perché un'analisi costruita su una
+clausola inesistente non è imprecisa, è pericolosa:
+
+> **La clausola citata deve esistere testualmente nel contratto. Se non c'è,
+> la sua analisi non viene mostrata.**
+
+`matchQuote()` confronta dopo aver normalizzato quello che non cambia il
+significato — virgolette tipografiche, trattini lunghi, a capo in mezzo alla
+frase, spazi unificatori, trattini morbidi: il rumore che il testo estratto da un
+PDF o da un DOCX si porta sempre dietro. **La punteggiatura no**: in un contratto
+una virgola sposta un obbligo, e ignorarla renderebbe il confronto compiacente.
+
+Tre esiti:
+
+| Esito | Quando | Cosa succede |
+|---|---|---|
+| `exact` | il testo coincide dopo la normalizzazione | la clausola si mostra col bollo verde |
+| `partial` | coincide un tratto contiguo di almeno 6 parole e del 60% della citazione | si mostra col bollo giallo e l'invito a rileggere l'originale |
+| `missing` | nient'altro | **la clausola non esiste: viene scartata** |
+
+E se qualcosa viene scartato, il pannello lo dice in cima: il verdetto
+complessivo potrebbe essersi formato anche su quelle, quindi va riletto con
+diffidenza. Nasconderlo sarebbe peggio che non verificare affatto.
+
+### Cosa è verificato e cosa no
+
+Questa distinzione è il punto, e confonderla sarebbe più dannoso che non
+controllare niente:
+
+- **La citazione è un fatto.** Viene confrontata col testo. Se non regge, sparisce.
+- **Rischio, standard di mercato e controproposta sono giudizi.** Non sono
+  verificabili contro niente, e vanno letti come si legge il parere di un collega
+  giovane: utile per non partire da zero, non per firmare.
+
+L'interfaccia li tiene visivamente separati apposta: la citazione in monospazio
+dentro al suo riquadro col bollo, il resto fuori.
 
 ---
 
@@ -270,6 +325,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 4. Documenti in memoria per fonte, e quanti ne salta una sincronizzazione
 5. Domande a cui il sistema risponde "non risulta" pur avendo il dato
 6. Esecuzioni automatiche riuscite di fila (se scende, la memoria sta invecchiando)
+7. Clausole scartate per citazione inesistente, sul totale analizzato
 
 La quinta è la più scomoda e la più utile: misura i buchi del *recupero*, non del
 modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
@@ -283,8 +339,10 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 - **Push al posto del cron.** Gmail via Pub/Sub, webhook Qonto. Il connettore non
   cambia e nemmeno la memoria: cambia solo chi chiama `syncConnectors`.
 - **Altri agenti.** Ognuno è un file in `lib/brain/agents/` che recupera dalla
-  memoria e passa da `verifyClaims()`. I candidati dal post — amministrazione,
-  post-call, preparazione dei 1:1 — leggono tutti dalla stessa memoria.
+  memoria e passa da un verificatore deterministico — `verifyClaims()` per le
+  affermazioni, `matchQuote()` per le citazioni testuali. I candidati dal post —
+  amministrazione, post-call, preparazione dei 1:1 — leggono tutti dalla stessa
+  memoria.
 - **Azioni con approvazione.** Il punto d'innesto è un agente che produce una
   *bozza* (`task: 'draft'`) e la mette in una coda; a mandarla è un tocco umano.
   Con i connettori in sola lettura, oggi, non può partire niente per sbaglio.
@@ -295,7 +353,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 41 test del nucleo, nessuna dipendenza
+npm run test:brain     # 50 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

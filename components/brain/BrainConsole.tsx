@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
+import ContractPanel from '@/components/brain/ContractPanel'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
 import type { SyncReport } from '@/lib/brain/connectors'
@@ -13,6 +14,8 @@ type Answer = {
   hits: number
   empty: boolean
 }
+
+type Tab = 'ask' | 'contracts' | 'sources' | 'memory'
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -75,7 +78,7 @@ export default function BrainConsole({
   autoSync,
   googleOutcome,
 }: Props) {
-  const [tab, setTab] = useState<'ask' | 'sources' | 'memory'>('ask')
+  const [tab, setTab] = useState<Tab>('ask')
 
   const [question, setQuestion] = useState('')
   const [asking, setAsking] = useState(false)
@@ -108,7 +111,7 @@ export default function BrainConsole({
    * dice la cosa giusta — si ricarica perché l'utente ha chiesto di guardare.
    */
   const openTab = useCallback(
-    (key: 'ask' | 'sources' | 'memory') => {
+    (key: Tab) => {
       setTab(key)
       if (key === 'memory') void refreshDocuments()
     },
@@ -208,7 +211,14 @@ export default function BrainConsole({
         </header>
 
         <nav className="brain-tabs" role="tablist">
-          {([['ask', 'Chiedi'], ['sources', 'Fonti'], ['memory', 'Memoria']] as const).map(([key, label]) => (
+          {(
+            [
+              ['ask', 'Chiedi'],
+              ['contracts', 'Contratti'],
+              ['sources', 'Fonti'],
+              ['memory', 'Memoria'],
+            ] as const
+          ).map(([key, label]) => (
             <button
               key={key}
               type="button"
@@ -318,6 +328,9 @@ export default function BrainConsole({
             ) : null}
           </section>
         ) : null}
+
+        {/* --- CONTRATTI --- */}
+        {tab === 'contracts' ? <ContractPanel documents={documents} /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (
