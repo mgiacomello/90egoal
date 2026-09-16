@@ -7,6 +7,7 @@ import { pickModel } from '../lib/brain/orchestrator.ts'
 import { isAuthorizedCron } from '../lib/brain/cron.ts'
 import { matchQuote, normalizeForMatch, tokenize } from '../lib/brain/quote.ts'
 import { assessExtraction } from '../lib/brain/pdf.ts'
+import { isWorthSending, renderBriefEmail, type MailBrief } from '../lib/brain/briefmail.ts'
 import {
   ageInDays,
   decidePoints,
@@ -367,6 +368,88 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- il brief nella posta: si formatta, non si rigenera --- */
+
+function mail(partial: Partial<MailBrief> = {}): MailBrief {
+  return {
+    generatedAt: '2026-09-15T05:00:00Z',
+    oggi: [],
+    novita: [],
+    puntiAperti: [],
+    conto: null,
+    ...partial,
+  }
+}
+
+const CLAIM = {
+  text: 'Bianchi chiede conferma entro giovedì.',
+  sources: [
+    { source: 'gmail' as const, title: 'Rinnovo contratto', occurredAt: '2026-09-14T08:00:00Z', url: 'https://mail.example/1' },
+  ],
+}
+
+check('un brief vuoto non sveglia nessuno', () => {
+  assert.equal(isWorthSending(mail()), false)
+})
+
+check('i punti aperti da soli non giustificano una mail', () => {
+  const b = mail({ puntiAperti: [{ text: 'Rispondere a Bianchi', openedAt: '2026-09-14T08:00:00Z', age: 'nuovo' }] })
+  assert.equal(isWorthSending(b), false)
+})
+
+check('un punto fermo da settimane invece sì', () => {
+  const b = mail({ puntiAperti: [{ text: 'Decidere sul rinnovo', openedAt: '2026-08-01T08:00:00Z', age: 'fermo' }] })
+  assert.equal(isWorthSending(b), true)
+})
+
+check('qualcosa in agenda o di nuovo la giustifica', () => {
+  assert.equal(isWorthSending(mail({ oggi: [CLAIM] })), true)
+  assert.equal(isWorthSending(mail({ novita: [CLAIM] })), true)
+})
+
+check('anche una fattura mancante la giustifica', () => {
+  assert.equal(isWorthSending(mail({ conto: { missing: 1, missingCents: 125000, resolvable: 0 } })), true)
+})
+
+check('l\'oggetto dice cosa c\'è dentro, non "il tuo brief"', () => {
+  const { subject } = renderBriefEmail(mail({ oggi: [CLAIM, CLAIM], conto: { missing: 3, missingCents: 1, resolvable: 0 } }))
+  assert.ok(subject.includes('2 in agenda'), subject)
+  assert.ok(subject.includes('3 senza fattura'), subject)
+})
+
+check('le fonti sopravvivono nella mail, con canale e data', () => {
+  const { text, html } = renderBriefEmail(mail({ oggi: [CLAIM] }))
+  assert.ok(text.includes('Email 14/09'), text)
+  assert.ok(html.includes('Rinnovo contratto'))
+  assert.ok(html.includes('https://mail.example/1'), 'il link alla fonte deve restare cliccabile')
+})
+
+check('un dettaglio non verificato resta marcato anche nella mail', () => {
+  const claim = { ...CLAIM, unverified: ['2.500,00'] }
+  const { text, html } = renderBriefEmail(mail({ novita: [claim] }))
+  assert.ok(text.includes('2.500,00'))
+  assert.ok(html.includes('non compare nelle fonti citate'))
+})
+
+check('gli importi nella mail sono formattati in italiano', () => {
+  const { text } = renderBriefEmail(mail({ conto: { missing: 2, missingCents: 125000, resolvable: 1 } }))
+  assert.ok(text.includes('€ 1.250,00'), text)
+})
+
+check('il testo dell\'utente viene messo in sicurezza nell\'HTML', () => {
+  const cattivo = { ...CLAIM, text: '<script>alert(1)</script> & "virgolette"' }
+  const { html } = renderBriefEmail(mail({ oggi: [cattivo] }))
+  assert.ok(!html.includes('<script>'), 'lo script non deve arrivare intatto')
+  assert.ok(html.includes('&lt;script&gt;'))
+  assert.ok(html.includes('&amp;'))
+})
+
+check('una sezione vuota non lascia un titolo orfano', () => {
+  const { html } = renderBriefEmail(mail({ oggi: [CLAIM] }))
+  assert.ok(html.includes('Oggi e domani'))
+  assert.ok(!html.includes('Cosa è arrivato'), 'la sezione senza contenuto non va stampata')
 })
 
 /* --- punti aperti: si chiudono solo a mano --- */

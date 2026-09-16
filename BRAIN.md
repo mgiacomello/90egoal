@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 89 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 100 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -66,6 +66,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
 | `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
+| `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -261,6 +262,40 @@ Aprire la console **non** riscrive il brief: quello che leggi è quello di
 stanotte. Ricaricare la pagina non deve cambiare quello che ti è stato detto, e
 non deve costare una chiamata al modello.
 
+### E ti raggiunge
+
+Il brief arriva per posta (o su un webhook), così il sistema non si limita a
+partire da solo: **ti trova**.
+
+La mail **non viene generata**. Il modello ha già scritto il brief e ogni riga è
+già passata dal verificatore; `renderBriefEmail()` formatta e basta. Un secondo
+giro di modello — *"riscrivimelo in forma di email"* — potrebbe dire cose che il
+brief verificato non dice, e la garanzia costruita a monte varrebbe zero proprio
+nel punto in cui esce di casa. Per lo stesso motivo **le fonti restano attaccate
+a ogni riga anche nella mail**, link compresi: la posta non deve essere un
+artefatto meno affidabile della console.
+
+**Il brief non parte se non c'è niente da dire.** Una mail quotidiana che dice
+"niente di nuovo" viene archiviata senza leggerla entro una settimana, e da lì in
+poi non si legge nemmeno quella che conta. Servono almeno una riga in agenda, una
+novità, una fattura mancante o un punto **fermo** — i punti aperti da soli non
+bastano, quelli sono lì per definizione. Il silenzio diventa a sua volta
+un'informazione.
+
+> **Perché non con Gmail.** Sarebbe stata la strada comoda: il connettore c'è
+> già. Ma gli scope di questo prodotto sono tutti `.readonly`, e l'unica cosa che
+> li rende una garanzia e non una promessa è che nessuno li allarghi quando fa
+> comodo. Aggiungere `gmail.send` significherebbe che da domani un agente *può*
+> scrivere a nome tuo, e la frase "nessun agente può mandare una mail"
+> smetterebbe di essere vera. La posta esce da un canale suo, separato, che non
+> ha accesso a niente.
+
+Due canali, entrambi facoltativi: **email** via Resend, e un **webhook** generico
+che riceve il brief in JSON (il campo `text` è già pronto per un incoming webhook
+di Slack). Senza nessuno dei due il brief resta sulla console e non si rompe
+niente. Il pulsante *Provalo via mail* lo manda ignorando il controllo su "vale
+la pena", perché al primo giro devi poter verificare che la posta esca davvero.
+
 ### I punti aperti si chiudono solo a mano
 
 È la riga più preziosa del post che ha ispirato questo prodotto — *"i punti
@@ -403,7 +438,13 @@ ANTHROPIC_API_KEY=sk-ant-...
 # 4. La sincronizzazione automatica (senza, l'endpoint cron resta chiuso)
 CRON_SECRET=una-stringa-lunga-e-casuale
 
-# 5. Le fonti (una alla volta, quando servono)
+# 5. La consegna del brief (facoltativa: senza, resta sulla console)
+RESEND_API_KEY=re_...                  # email
+BRAIN_MAIL_FROM=brain@tuodominio.it    # mittente verificato su Resend
+BRAIN_MAIL_TO=tu@esempio.it            # se diverso da BRAIN_OWNER_EMAIL
+BRAIN_WEBHOOK_URL=https://...          # in alternativa o in aggiunta: Slack, n8n, Telegram
+
+# 6. Le fonti (una alla volta, quando servono)
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 BRAIN_APP_URL=https://tuodominio.it   # solo dietro a un proxy
@@ -478,6 +519,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 8. PDF entrati col solo titolo, sul totale dei PDF (dice quanto dell'archivio è scansionato)
 9. Movimenti senza giustificativo, e quanti di questi trovano la fattura in memoria
 10. **Punti aperti in stato `fermo`** ← la metrica più scomoda: misura le decisioni rimandate, non il sistema
+11. Brief non spediti perché non c'era niente da dire (se è sempre zero, la soglia è troppo bassa)
 
 La quinta è la più scomoda e la più utile: misura i buchi del *recupero*, non del
 modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
@@ -488,6 +530,8 @@ modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
 
 L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
+- **Il brief a orari diversi.** Oggi è uno al giorno alle 05:00 UTC; un secondo
+  giro a fine giornata cambierebbe solo la riga `schedule` in `vercel.json`.
 - **Push al posto del cron.** Gmail via Pub/Sub, webhook Qonto. Il connettore non
   cambia e nemmeno la memoria: cambia solo chi chiama `syncConnectors`.
 - **DOCX, e poi OCR.** Il primo è una dipendenza; il secondo è un servizio a
@@ -507,7 +551,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 89 test del nucleo, nessuna dipendenza
+npm run test:brain     # 100 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

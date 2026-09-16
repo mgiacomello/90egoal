@@ -1,4 +1,5 @@
-import { BRIEF_AGENT, readOpenPoints, writeBrief } from '@/lib/brain/agents/brief'
+import { BRIEF_AGENT, readOpenPoints, toMailBrief, writeBrief } from '@/lib/brain/agents/brief'
+import { deliverBrief, deliveryConfigured } from '@/lib/brain/notify'
 import { requireOwner } from '@/lib/brain/auth'
 import { toBrainError } from '@/lib/brain/errors'
 import { lastRun } from '@/lib/brain/memory'
@@ -34,14 +35,26 @@ export async function GET() {
   }
 }
 
-/** Riscrive il brief adesso. Serve alla prima volta e quando hai fretta. */
-export async function POST() {
+/**
+ * Riscrive il brief adesso. Serve alla prima volta e quando hai fretta.
+ *
+ * Con `?deliver=1` lo manda anche sui canali configurati, saltando il
+ * controllo su "vale la pena": al primo giro bisogna poter verificare
+ * che la posta esca davvero, anche in una giornata senza niente da dire.
+ */
+export async function POST(request: Request) {
   try {
     await requireOwner()
+
+    const deliver = new URL(request.url).searchParams.get('deliver') === '1'
     const brief = await writeBrief()
+    const delivery = deliver ? await deliverBrief(toMailBrief(brief), true) : null
+
     return Response.json({
       brief: { ...brief, at: brief.generatedAt },
       puntiAperti: brief.puntiAperti.map((p) => ({ ...p, age: staleness(p.openedAt, new Date()) })),
+      delivery,
+      deliveryConfigured: deliveryConfigured(),
       now: new Date().toISOString(),
     })
   } catch (err) {

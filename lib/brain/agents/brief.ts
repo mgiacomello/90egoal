@@ -9,6 +9,7 @@ import {
 } from '../memory'
 import { runStructured } from '../model'
 import { decidePoints, staleness, type Staleness } from '../openpoints'
+import type { MailBrief } from '../briefmail'
 import { sourcesFromDocuments } from '../rank'
 import { reviewLedger } from './ledger'
 import { CHANNEL_LABEL, type RawClaim, type SourceRef, type StoredDocument, type VerifiedClaim } from '../types'
@@ -286,6 +287,30 @@ export function lighten(brief: Brief): Record<string, unknown> {
     conto: brief.conto,
     dropped: brief.dropped,
     model: brief.model,
+  }
+}
+
+/** Il brief nella forma minima che serve alla consegna. */
+export function toMailBrief(brief: Brief): MailBrief {
+  return {
+    generatedAt: brief.generatedAt,
+    oggi: brief.oggi.map(toMailClaim),
+    novita: brief.novita.map(toMailClaim),
+    puntiAperti: brief.puntiAperti.map((p) => ({ text: p.text, openedAt: p.openedAt, age: p.age })),
+    conto: brief.conto,
+  }
+}
+
+function toMailClaim(claim: VerifiedClaim) {
+  return {
+    text: claim.text,
+    unverified: claim.unverified,
+    sources: claim.sources.map((s) => ({
+      source: s.source,
+      title: s.title,
+      occurredAt: s.occurredAt,
+      url: s.url,
+    })),
   }
 }
 

@@ -50,7 +50,9 @@ quella frase viene marcato. È il parente stretto del controllo mod-97 di ONE TA
 
 Ogni notte, dopo la sincronizzazione, si scrive il **brief**: cosa c'è oggi, cosa
 è arrivato che richiede qualcosa da te, quali pagamenti non hanno giustificativo.
-Sta lì la mattina, e ricaricare la pagina non lo riscrive. Sotto ci sono i **punti
+Ti arriva per posta, e ricaricare la pagina non lo riscrive. La mail **non viene
+generata**: il brief è già verificato, l'email lo formatta e basta, fonti
+comprese. E non parte se non c'è niente da dire. Sotto ci sono i **punti
 aperti**, che **si chiudono solo a mano**: nessuno li toglie perché non se ne
 parla più, e più invecchiano più si vedono — è la differenza fra una memoria e un
 dimenticatoio con la barra di avanzamento.
@@ -62,7 +64,7 @@ controproposta pronta — e tiene ben separato quello che ha verificato (la
 citazione) da quello che è un giudizio (tutto il resto).
 
 Il nucleo — spezzettamento, ranking, verifica di citazioni e clausole, routing —
-è fatto di funzioni pure: `npm run test:brain`, 89 test, zero dipendenze. I
+è fatto di funzioni pure: `npm run test:brain`, 100 test, zero dipendenze. I
 connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
 agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
 da sola una volta al giorno via cron.

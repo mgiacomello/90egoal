@@ -79,6 +79,9 @@ QONTO_LOGIN=...                        # transazioni, sola lettura
 QONTO_SECRET_KEY=...
 OURA_TOKEN=...                         # sonno, prontezza, attività
 CRON_SECRET=...                        # senza, la sincronizzazione automatica resta chiusa
+RESEND_API_KEY=re_...                  # facoltativa: il brief arriva per posta
+BRAIN_MAIL_FROM=brain@tuodominio.it    # mittente verificato su Resend
+BRAIN_WEBHOOK_URL=https://...          # in alternativa: Slack, n8n, Telegram
 ```
 
 `vercel.json` pianifica `/api/brain/cron` ogni giorno alle 05:00 UTC. Vercel

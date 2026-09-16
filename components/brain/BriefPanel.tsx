@@ -104,25 +104,40 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
   const [points, setPoints] = useState<BriefOpenPoint[]>(initialPoints)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sent, setSent] = useState<string | null>(null)
 
-  const regenerate = useCallback(async () => {
-    if (busy) return
-    setBusy(true)
-    setError(null)
-    try {
-      const res = await fetch('/api/brain/brief', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) setError(data.error ?? 'Non sono riuscito a scrivere il brief.')
-      else {
+  const regenerate = useCallback(
+    async (deliver = false) => {
+      if (busy) return
+      setBusy(true)
+      setError(null)
+      setSent(null)
+      try {
+        const res = await fetch(`/api/brain/brief${deliver ? '?deliver=1' : ''}`, { method: 'POST' })
+        const data = await res.json()
+        if (!res.ok) {
+          setError(data.error ?? 'Non sono riuscito a scrivere il brief.')
+          return
+        }
         setBrief(data.brief ?? null)
         setPoints(data.puntiAperti ?? [])
+
+        if (deliver) {
+          if (!data.deliveryConfigured) {
+            setSent('Nessun canale configurato: servono RESEND_API_KEY e BRAIN_MAIL_FROM, oppure BRAIN_WEBHOOK_URL.')
+          } else {
+            const results = (data.delivery?.results ?? []) as { channel: string; ok: boolean; detail: string }[]
+            setSent(results.map((r) => `${r.channel}: ${r.ok ? r.detail : `errore — ${r.detail}`}`).join(' · '))
+          }
+        }
+      } catch {
+        setError('Connessione interrotta.')
+      } finally {
+        setBusy(false)
       }
-    } catch {
-      setError('Connessione interrotta.')
-    } finally {
-      setBusy(false)
-    }
-  }, [busy])
+    },
+    [busy]
+  )
 
   async function act(id: string, action: 'close' | 'reopen') {
     const res = await fetch('/api/brain/points', {
@@ -156,13 +171,17 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
       </div>
 
       <div className="brain-actions" style={{ marginBottom: '1.25rem' }}>
-        <button type="button" className="brain-btn" onClick={() => void regenerate()} disabled={busy}>
+        <button type="button" className="brain-btn" onClick={() => void regenerate(false)} disabled={busy}>
           {busy ? 'Sto leggendo la memoria…' : brief ? 'Riscrivilo adesso' : 'Scrivilo adesso'}
+        </button>
+        <button type="button" className="brain-btn" onClick={() => void regenerate(true)} disabled={busy}>
+          Provalo via mail
         </button>
         {brief?.model ? <span className="brain-meta">modello {brief.model}</span> : null}
       </div>
 
       {error ? <p className="brain-error">{error}</p> : null}
+      {sent ? <p className="brain-note">{sent}</p> : null}
 
       {brief?.conto && brief.conto.missing > 0 ? (
         <div className="brain-verdict" data-tone="warn" style={{ marginBottom: '1.25rem' }}>

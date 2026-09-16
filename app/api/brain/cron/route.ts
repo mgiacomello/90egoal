@@ -1,4 +1,5 @@
-import { writeBrief } from '@/lib/brain/agents/brief'
+import { toMailBrief, writeBrief } from '@/lib/brain/agents/brief'
+import { deliverBrief } from '@/lib/brain/notify'
 import { syncConnectors } from '@/lib/brain/connectors'
 import { CRON_AGENT, CRON_LIMIT, isAuthorizedCron } from '@/lib/brain/cron'
 import { toBrainError } from '@/lib/brain/errors'
@@ -44,6 +45,7 @@ export async function GET(request: Request) {
 
     let brief: { oggi: number; novita: number; puntiAperti: number } | null = null
     let briefError: string | null = null
+    let delivery: unknown = null
     try {
       const written = await writeBrief()
       brief = {
@@ -51,6 +53,9 @@ export async function GET(request: Request) {
         novita: written.novita.length,
         puntiAperti: written.puntiAperti.length,
       }
+      // La consegna chiude il cerchio, ma non è il lavoro: se la posta
+      // non parte il brief è comunque scritto e la console lo mostra.
+      delivery = await deliverBrief(toMailBrief(written))
     } catch (err) {
       briefError = (err as Error).message
     }
@@ -58,7 +63,7 @@ export async function GET(request: Request) {
     await logRun({
       agent: CRON_AGENT,
       question: '',
-      answer: { reports, stored, failed: failed.length, brief, briefError },
+      answer: { reports, stored, failed: failed.length, brief, briefError, delivery },
       model: null,
       hits: stored,
       latencyMs: Date.now() - started,
@@ -70,6 +75,7 @@ export async function GET(request: Request) {
       reports,
       brief,
       briefError,
+      delivery,
       durationMs: Date.now() - started,
     })
   } catch (err) {
