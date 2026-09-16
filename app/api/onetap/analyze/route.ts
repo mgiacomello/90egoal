@@ -56,7 +56,7 @@ const SYSTEM = `You are the perception layer of ONE TAP. You read what the user 
 Return ONLY a JSON object with these keys:
 {
   "text": "every piece of text visible, transcribed verbatim, line by line",
-  "kind": "message | event | contact | address | receipt | product | document | code | screen | other",
+  "kind": "message | event | contact | address | receipt | product | document | notes | code | screen | other",
   "language": "ISO 639-1 code of the text",
   "title": "what this is, in 3-7 words, in the text's language (e.g. 'Fattura Studio Rossi 2026/114', 'Biglietto da visita di Giulia Neri', 'Cena da Nobu venerdì')",
   "replies": ["...", "...", "..."],
@@ -64,7 +64,8 @@ Return ONLY a JSON object with these keys:
   "contact": {"name": "...", "company": "...", "role": "..."},
   "email_draft": {"subject": "...", "body": "..."},
   "message_draft": "...",
-  "search_query": "..."
+  "search_query": "...",
+  "note": {"title": "...", "body": "..."}
 }
 
 Rules for "text":
@@ -79,6 +80,8 @@ Rules for everything else (all optional — omit a key or use "" when it does no
 - "email_draft": ONLY if an email address is visible: a subject and a 2-4 sentence body the reader would plausibly send to that address, in the text's language, ready to send, no placeholders like [name].
 - "message_draft": ONLY if a phone number is visible: one short message (max 30 words) the reader would plausibly send, same language, no placeholders.
 - "search_query": for a product, place, book, film or thing to look up: the best 3-8 word query.
+- kind "notes" is for anything one keeps rather than acts on: a whiteboard, a slide, handwritten notes, a to-do or shopping list, a recipe, instructions, a menu, a sign, a label.
+- "note": for kind notes, receipt or document (and any capture worth keeping): a title of 3-7 words and a body that puts what is written in order — short lines, one fact per line, steps numbered, lists as "- " items, key names, numbers, amounts and dates kept exactly as written. Same language as the text, max 120 words, nothing that is not in the text. Otherwise omit.
 - Output the JSON object and nothing else.`
 
 interface ModelOutput {
@@ -103,6 +106,7 @@ function parseModelJson(raw: string): ModelOutput | null {
     const event = obj(parsed.event)
     const contact = obj(parsed.contact)
     const emailDraft = obj(parsed.email_draft)
+    const note = obj(parsed.note)
     return {
       text: str(parsed.text, 20_000) ?? '',
       kind: str(parsed.kind, 40) ?? 'other',
@@ -124,6 +128,7 @@ function parseModelJson(raw: string): ModelOutput | null {
         emailDraft: { subject: str(emailDraft.subject, 120), body: str(emailDraft.body, 1200) },
         messageDraft: str(parsed.message_draft, 400),
         searchQuery: str(parsed.search_query, 120),
+        note: { title: str(note.title, 80), body: str(note.body, 1500) },
       },
     }
   } catch {

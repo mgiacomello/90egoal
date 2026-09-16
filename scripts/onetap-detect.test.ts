@@ -1,7 +1,7 @@
 // Test del motore ONE TAP. Zero dipendenze: `npm run test:onetap`.
 import assert from 'node:assert/strict'
 import { analyze, isValidIban } from '../lib/onetap/detect.ts'
-import { actionHref, buildIcs, buildVcf, googleCalendarHref } from '../lib/onetap/actions.ts'
+import { actionHref, buildIcs, buildVcf, googleCalendarHref, noteMailHref, noteText } from '../lib/onetap/actions.ts'
 import { expandQrPayload } from '../lib/onetap/image.ts'
 
 // Riferimento fisso: martedì 15 settembre 2026, 10:00.
@@ -381,6 +381,42 @@ check('evento: luogo e note del modello passano se ancorati al testo', () => {
   assert.ok(cal.event?.notes?.includes('Ingresso libero'), 'le note contengono il testo di partenza')
   const ics = buildIcs(cal.event!)
   assert.match(ics, /LOCATION:Piazza Castello\\, Torino/)
+})
+
+check('lavagna: la nota riordinata dal modello è l\'azione', () => {
+  const text = 'Sprint 42 - cose da fare\nlanding page entro il 25\nchiamare fornitore hosting\nbudget ads 1500\nreview venerdì'
+  const a = run(text, {
+    hintKind: 'notes',
+    enrich: { title: 'Lavagna sprint 42', note: { title: 'Sprint 42: cose da fare', body: '- Landing page entro il 25\n- Chiamare fornitore hosting\n- Budget ads: 1500\n- Review venerdì' } },
+  })
+  assert.equal(a.primary?.kind, 'NOTE')
+  assert.equal(a.confidence, 'high')
+  assert.equal(a.primary?.note?.title, 'Sprint 42: cose da fare')
+  assert.match(a.primary?.note?.body ?? '', /^- Landing page entro il 25/)
+  assert.match(noteText(a.primary!.note!), /^Sprint 42: cose da fare\n\n- Landing/)
+})
+
+check('nota: un numero che non è nel testo butta via il corpo riordinato', () => {
+  const text = 'Ricetta pane\n500 g farina\n10 g sale\n350 ml acqua'
+  const a = run(text, { hintKind: 'recipe', enrich: { note: { title: 'Pane fatto in casa', body: '- 500 g farina\n- 10 g sale\n- 350 ml acqua\n- 25 g lievito' } } })
+  assert.equal(a.primary?.kind, 'NOTE')
+  assert.equal(a.primary?.note?.body, text, 'con un ingrediente inventato resta il testo letto')
+  assert.equal(a.primary?.note?.title, 'Pane fatto in casa')
+})
+
+check('scontrino con numero di telefono: si salva, non si chiama', () => {
+  const text = 'TRATTORIA DA MARIO\nTel 02 8901234\n2x Primo 24,00\n1x Acqua 3,00\nTOTALE 27,00\n12/09/2026 21:40'
+  const a = run(text, { hintKind: 'receipt', enrich: { note: { title: 'Trattoria da Mario, 27 euro', body: 'Trattoria da Mario\n2x Primo 24,00\n1x Acqua 3,00\nTOTALE 27,00\n12/09/2026 21:40' } } })
+  assert.equal(a.primary?.kind, 'NOTE')
+  assert.ok(a.secondary.some((x) => x.kind === 'CALL'), 'chiamare resta a un tap di distanza')
+})
+
+check('senza un indizio sul tipo la nota resta un\'alternativa', () => {
+  const a = run('Ciao Marco, mi chiami quando puoi? Devo raccontarti come è andata la riunione con il cliente di ieri, ci sono novità. 333 1234567')
+  assert.notEqual(a.primary?.kind, 'NOTE')
+  const note = a.secondary.find((x) => x.kind === 'NOTE')!
+  assert.ok(note.note?.body, 'ogni nota ha titolo e corpo')
+  assert.match(noteMailHref(note.note!), /^mailto:\?subject=.*&body=Ciao%20Marco%2C%20mi%20chiami/)
 })
 
 check('l\'arricchimento non può inventare entità', () => {

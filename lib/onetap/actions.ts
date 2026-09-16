@@ -4,7 +4,7 @@
 // mezzo significa niente popup bloccati e nessun ritardo fra il dito e l'app
 // che si apre. Il codice qui sotto serve solo a costruire quell'href.
 
-import type { ActionKind, CalendarEvent, ContactCard, SuggestedAction } from './types'
+import type { ActionKind, CalendarEvent, ContactCard, Note, SuggestedAction } from './types'
 
 export type Platform = 'ios' | 'android' | 'other'
 
@@ -33,6 +33,17 @@ export function searchHref(query: string): string {
 
 export function translateHref(text: string, to: string): string {
   return `https://translate.google.com/?sl=auto&tl=${to}&text=${encodeURIComponent(text.slice(0, 1500))}&op=translate`
+}
+
+/** Il testo della nota come arriva in Note, Keep o in un file: titolo, riga vuota, corpo. */
+export function noteText(note: Note): string {
+  return `${note.title}\n\n${note.body}`.trim()
+}
+
+/** La nota nella propria casella di posta: un'altra strada per tenerla, su ogni telefono. */
+export function noteMailHref(note: Note): string {
+  const query = new URLSearchParams({ subject: note.title, body: note.body }).toString().replace(/\+/g, '%20')
+  return `mailto:?${query}`
 }
 
 export function googleCalendarHref(event: CalendarEvent): string {
@@ -202,6 +213,8 @@ const DONE = {
     contact: 'Contatto pronto: apri il file per salvarlo.',
     shared: 'Condiviso.',
     noted: 'Nota salvata.',
+    notedFile: 'Nota scaricata come file di testo e copiata.',
+    notedFileOnly: 'Nota scaricata come file di testo.',
     failed: 'Non è riuscito. Riprova.',
   },
   en: {
@@ -210,6 +223,8 @@ const DONE = {
     contact: 'Contact ready — open the file to save it.',
     shared: 'Shared.',
     noted: 'Note saved.',
+    notedFile: 'Note downloaded as a text file and copied.',
+    notedFileOnly: 'Note downloaded as a text file.',
     failed: "That didn't work. Try again.",
   },
 } as const
@@ -238,18 +253,24 @@ export async function runAction(action: SuggestedAction, lang: 'it' | 'en'): Pro
     }
     case 'NOTE': {
       // Su un telefono la strada vera per "salvare una nota" è il menu di
-      // sistema: da lì il testo entra in Note, Keep, Promemoria, dove vuole
-      // l'utente. Dove non c'è, resta negli appunti e nella cronologia.
+      // sistema: da lì titolo e testo entrano in Note, Keep, Promemoria, dove
+      // vuole l'utente. Su un computer la nota diventa un file di testo, e in
+      // ogni caso resta negli appunti.
+      const note = action.note ?? { title: action.subject, body: action.value }
+      const text = noteText(note)
       if (navigator.share) {
         try {
-          await navigator.share({ text: action.value })
+          await navigator.share({ title: note.title, text })
           return { ok: true, message: t.noted }
         } catch {
           // annullato: la copia sotto è comunque un salvataggio utile
         }
+        const ok = await copyText(text)
+        return { ok, message: ok ? t.copied : t.failed }
       }
-      const ok = await copyText(action.value)
-      return { ok, message: ok ? t.noted : t.failed }
+      const ok = await copyText(text)
+      downloadFile(text, `${slug(note.title)}.txt`, 'text/plain')
+      return { ok: true, message: ok ? t.notedFile : t.notedFileOnly }
     }
     case 'SHARE': {
       if (navigator.share) {

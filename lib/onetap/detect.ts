@@ -546,6 +546,28 @@ function eventNotes(modelNotes: string | undefined, text: string): string {
   return `${modelNotes}\n\n${source}`
 }
 
+/**
+ * La nota riordinata dal modello vale solo se è fatta del testo letto: ogni
+ * numero deve comparire nella sorgente e quasi tutte le parole anche. Una
+ * nota che "migliora" i fatti non è una nota, è un'invenzione.
+ */
+function groundedNoteBody(body: string | undefined, text: string): string | undefined {
+  const b = short(body, 1500)
+  if (!b) return undefined
+  const src = text.toLowerCase()
+  for (const run of b.match(/\d{2,}/g) ?? []) {
+    if (!text.includes(run)) return undefined
+  }
+  const words = b.toLowerCase().match(/\p{L}{4,}/gu) ?? []
+  if (!words.length) return undefined
+  const known = words.filter((w) => src.includes(w)).length
+  return known / words.length >= 0.6 ? b : undefined
+}
+
+/** Catture che si tengono: la nota è l'azione, non un ripiego. */
+const NOTE_STRONG = new Set(['notes', 'note', 'whiteboard', 'recipe', 'list', 'slide', 'receipt', 'handwriting'])
+const NOTE_SOFT = new Set(['document', 'sign', 'label', 'instructions', 'menu'])
+
 function grounded(value: string | undefined, text: string): string | undefined {
   const v = short(value, 120)
   if (!v) return undefined
@@ -834,8 +856,19 @@ export function analyze(input: string, options: DetectOptions = {}): Analysis {
     entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
   // Salvare quello che si è appena letto è utile su qualunque cattura: vale
   // più su un testo lungo, dove non c'è un'entità sola da cui ripartire.
-  add({ kind: 'NOTE', label: ACTION_LABEL.NOTE, subject: short(enrich?.title, 80) ?? firstSentence(text), value: text,
-    score: text.length > 120 ? 0.44 : 0.32,
+  // Su una lavagna, uno scontrino, una ricetta o una pagina di appunti la nota
+  // È l'azione: il modello la mette in ordine, il motore verifica che non
+  // contenga niente che non fosse nella foto.
+  const noteBody = groundedNoteBody(enrich?.note?.body, text)
+  const noteTitle = short(enrich?.note?.title, 80) ?? short(enrich?.title, 80) ?? firstSentence(text)
+  const kindHint = (options.hintKind ?? '').toLowerCase()
+  const noteScore = NOTE_STRONG.has(kindHint)
+    ? (noteBody ? 0.9 : 0.7)
+    : NOTE_SOFT.has(kindHint)
+      ? (noteBody ? 0.76 : 0.6)
+      : (text.length > 120 ? 0.44 : 0.32) + (noteBody ? 0.08 : 0)
+  add({ kind: 'NOTE', label: ACTION_LABEL.NOTE, subject: noteTitle, value: text, score: noteScore,
+    note: { title: noteTitle, body: noteBody ?? text },
     entity: { kind: 'title', value: text, raw: text, start: 0, end: text.length } })
   if (text.length > 12) {
     add({ kind: 'TRANSLATE', label: ACTION_LABEL.TRANSLATE, subject: firstSentence(text), value: text, score: 0.2,
