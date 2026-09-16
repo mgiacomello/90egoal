@@ -676,6 +676,7 @@ function Home({
         <span className="flex gap-4">
           <button onClick={onDemo} className="ot-ghost underline underline-offset-4">Demo</button>
           <button onClick={onIntro} className="ot-ghost underline underline-offset-4">How it works</button>
+          <Link href="/onetap/privacy" className="ot-ghost underline underline-offset-4">Privacy</Link>
         </span>
         <button onClick={onPro} className="ot-ghost">
           {left} of {FREE_ACTIONS_PER_MONTH} free actions left
