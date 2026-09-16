@@ -81,6 +81,7 @@ const SOURCE_WEIGHT: Record<SourceKey, number> = {
   qonto: 1.0,
   oura: 0.9,
   gdrive: 0.95,
+  calc: 1.0,
 }
 
 /**

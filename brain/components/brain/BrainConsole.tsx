@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import BriefPanel from '@/components/brain/BriefPanel'
 import ContractPanel from '@/components/brain/ContractPanel'
 import ClaimCard from '@/components/brain/ClaimCard'
+import CoachPanel from '@/components/brain/CoachPanel'
 import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
@@ -24,7 +25,7 @@ type Answer = {
   searchNote?: string
 }
 
-type Tab = 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
+type Tab = 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'sources' | 'memory'
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -209,6 +210,7 @@ export default function BrainConsole({
               ['ask', 'Chiedi'],
               ['contracts', 'Contratti'],
               ['ledger', 'Conto'],
+              ['coach', 'Coach'],
               ['sources', 'Fonti'],
               ['memory', 'Memoria'],
             ] as const
@@ -332,6 +334,9 @@ export default function BrainConsole({
 
         {/* --- CONTO --- */}
         {tab === 'ledger' ? <LedgerPanel /> : null}
+
+        {/* --- COACH --- */}
+        {tab === 'coach' ? <CoachPanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (

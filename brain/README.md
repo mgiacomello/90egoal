@@ -104,7 +104,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 129 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 139 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -117,6 +117,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/quote.ts` | una clausola citata esiste nel contratto? | è la promessa dell'agente Contratti |
 | `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
 | `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
+| `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
 | `lib/brain/expand.ts` | con quali altre parole cercare, e come raccontare una ricerca a vuoto | l'espansione allarga il recupero, non deve dirottarlo |
@@ -352,8 +353,9 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Cinque agenti.** Brief, capo di gabinetto, Incontri, Contratti, Amministrazione.
-  Manca il post-call, e manca per una ragione: non c'è una fonte di trascrizioni.
+- **Sei agenti.** Brief, capo di gabinetto, Incontri, Contratti, Amministrazione,
+  Coach. Manca il post-call, e manca per una ragione: non c'è una fonte di
+  trascrizioni. Manca chi fissa gli appuntamenti, perché scriverebbe in agenda.
 
 ---
 
@@ -600,6 +602,44 @@ memoria che `parseAmounts()` poi rilegge per abbinare. Quindi `formatEuro()` e
 
 ---
 
+## L'agente Coach
+
+È il "DiegoAI" del post, ridotto a quello che si può fare in modo onesto con un
+anello e un'agenda. Risponde a una domanda: **come sto dormendo e recuperando,
+e cosa c'entra la mia settimana?**
+
+La divisione del lavoro è la stessa dell'Amministrazione, per la stessa ragione:
+**i numeri li fa il codice, il modello dice cosa farci.** Medie di sonno,
+prontezza e attività, direzione della curva (pendenza dei minimi quadrati, con
+soglie che ignorano l'oscillazione naturale di un punteggio Oura), i tre giorni
+peggiori, e per ognuno cosa c'era in agenda il giorno prima — tutto arriva già
+calcolato da `lib/brain/health.ts`, con i suoi test. Il modello commenta e
+propone un cambiamento piccolo e verificabile la settimana dopo.
+
+### Un calcolo è una fonte
+
+Il verificatore pretende che ogni numero in una frase compaia nelle fonti
+citate. Ma una media di trenta giorni non sta in nessun documento. Quindi il
+riepilogo calcolato viene offerto al modello **come fonte**, sul canale
+`Calcolo`: "sonno medio 74,3" che cita il riepilogo passa, "78" no. È una fonte
+legittima perché è verificabile — sta in un file puro con i test accanto — e
+nell'interfaccia il chip dice `Calcolo`, che è la verità.
+
+### Cosa fa e cosa non fa
+
+- Mette i giorni di prontezza bassa accanto all'agenda del giorno prima. Non è
+  statistica: è il gesto di un coach umano che guarda due fogli affiancati. A
+  decidere se è un pattern sei tu, e il prompt vieta di inventarlo.
+- Con meno di sette giorni di dati lo dice per prima cosa e si ferma a
+  un'osservazione.
+- Può citare referti e note di salute che stanno in memoria (Drive, note
+  manuali), ma **non è un medico**: non diagnostica, non nomina patologie, non
+  interpreta esami oltre a quello che c'è scritto. Se qualcosa merita uno
+  sguardo, dice "vale la pena parlarne con il tuo medico" e nient'altro. Lo dice
+  il prompt, lo dice il file, e l'interfaccia lo scrive in cima, non in fondo.
+
+---
+
 ## Il trigger
 
 `GET /api/brain/cron` sincronizza tutti i connettori configurati **e poi scrive
@@ -759,9 +799,9 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
   parte, perché dentro a una lambda non ci sta.
 - **Altri agenti.** Ognuno è un file in `lib/brain/agents/` che recupera dalla
   memoria e passa da un verificatore deterministico — `verifyClaims()` per le
-  affermazioni, `matchQuote()` per le citazioni testuali. I candidati dal post —
-  amministrazione, post-call, preparazione dei 1:1 — leggono tutti dalla stessa
-  memoria.
+  affermazioni, `matchQuote()` per le citazioni testuali. Dal post restano fuori
+  il post-call (servono trascrizioni) e chi fissa gli appuntamenti (serve
+  scrivere in agenda): quando arriveranno, leggeranno dalla stessa memoria.
 - **Azioni con approvazione.** Il punto d'innesto è un agente che produce una
   *bozza* (`task: 'draft'`) e la mette in una coda; a mandarla è un tocco umano.
   Con i connettori in sola lettura, oggi, non può partire niente per sbaglio.
@@ -772,7 +812,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 129 test del nucleo, nessuna dipendenza
-npm test               # ONE TAP + BRAIN
+npm test               # 139 test del nucleo, nessuna dipendenza
 npm run build
 ```

@@ -10,6 +10,16 @@ import { assessExtraction } from '../lib/brain/pdf.ts'
 import { isWorthSending, renderBriefEmail, type MailBrief } from '../lib/brain/briefmail.ts'
 import { describeSearch, expandedQuery, mergeTerms, shouldExpand } from '../lib/brain/expand.ts'
 import {
+  average,
+  explainWorst,
+  isLate,
+  previousDay,
+  summarize,
+  trend,
+  worstDays,
+  type HealthDay,
+} from '../lib/brain/health.ts'
+import {
   addressesOf,
   displayPerson,
   extractPeople,
@@ -383,6 +393,82 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- salute: una media è una media, una pendenza è una pendenza --- */
+
+function hd(day: string, sleep: number | null, readiness: number | null = sleep, activity: number | null = sleep): HealthDay {
+  return { day, sleep, readiness, activity }
+}
+
+check('la media ignora i giorni senza dato invece di contarli come zero', () => {
+  assert.equal(average([80, null, 70]), 75)
+  assert.equal(average([null, null]), null)
+})
+
+check('la tendenza sale, scende o sta ferma secondo la pendenza', () => {
+  const su = [60, 64, 68, 72, 76, 80].map((v, i) => hd(`2026-09-0${i + 1}`, v))
+  const giu = [80, 76, 72, 68, 64, 60].map((v, i) => hd(`2026-09-0${i + 1}`, v))
+  const ferma = [70, 72, 69, 71, 70, 72].map((v, i) => hd(`2026-09-0${i + 1}`, v))
+  assert.equal(trend(su, 'sleep'), 'in miglioramento')
+  assert.equal(trend(giu, 'sleep'), 'in peggioramento')
+  assert.equal(trend(ferma, 'sleep'), 'stabile')
+})
+
+check('con meno di quattro giorni non si parla di tendenza', () => {
+  const tre = [50, 70, 90].map((v, i) => hd(`2026-09-0${i + 1}`, v))
+  assert.equal(trend(tre, 'sleep'), 'stabile')
+})
+
+check('un\'oscillazione di due punti non è una tendenza', () => {
+  const rumore = [70, 71, 70, 72, 71, 72].map((v, i) => hd(`2026-09-0${i + 1}`, v))
+  assert.equal(trend(rumore, 'sleep'), 'stabile')
+})
+
+check('i giorni peggiori sono i più bassi, e i giorni vuoti non entrano', () => {
+  const giorni = [hd('2026-09-01', 80), hd('2026-09-02', null), hd('2026-09-03', 55), hd('2026-09-04', 62)]
+  const w = worstDays(giorni, 'sleep', 2)
+  assert.deepEqual(w.map((d) => d.day), ['2026-09-03', '2026-09-04'])
+})
+
+check('il riassunto separa gli ultimi sette dal prima, per il confronto', () => {
+  const giorni = Array.from({ length: 14 }, (_, i) =>
+    hd(`2026-09-${String(i + 1).padStart(2, '0')}`, i < 7 ? 60 : 80)
+  )
+  const s = summarize(giorni)
+  const sonno = s.metrics.find((m) => m.metric === 'sleep')!
+  assert.equal(sonno.earlier, 60)
+  assert.equal(sonno.recent, 80)
+  assert.equal(sonno.samples, 14)
+  assert.equal(s.from, '2026-09-01')
+  assert.equal(s.to, '2026-09-14')
+})
+
+check('il giorno prima si calcola anche a cavallo del mese', () => {
+  assert.equal(previousDay('2026-09-01'), '2026-08-31')
+  assert.equal(previousDay('2026-01-01'), '2025-12-31')
+})
+
+check('la prontezza bassa viene affiancata a cosa c\'era il giorno prima', () => {
+  const giorni = [hd('2026-09-10', 80, 82), hd('2026-09-11', 70, 55), hd('2026-09-12', 75, 78)]
+  const agenda = [{ day: '2026-09-10', events: ['Cena con il cliente'], lateEnd: true }]
+  const c = explainWorst(giorni, agenda, 1)
+  assert.equal(c[0].day, '2026-09-11')
+  assert.equal(c[0].readiness, 55)
+  assert.deepEqual(c[0].before?.events, ['Cena con il cliente'])
+  assert.equal(c[0].before?.lateEnd, true)
+})
+
+check('senza niente in agenda il giorno prima, lo si dice invece di inventare', () => {
+  const giorni = [hd('2026-09-11', 70, 55)]
+  assert.equal(explainWorst(giorni, [], 1)[0].before, null)
+})
+
+check('"tardi" è dopo le 21 in ora italiana, estate e inverno', () => {
+  assert.equal(isLate('2026-07-10T19:30:00Z'), true)  // 21:30 a Roma d'estate
+  assert.equal(isLate('2026-07-10T18:30:00Z'), false) // 20:30
+  assert.equal(isLate('2026-01-10T20:30:00Z'), true)  // 21:30 d'inverno
+  assert.equal(isLate('2026-01-10T19:30:00Z'), false) // 20:30
 })
 
 /* --- persone: chi era nella stanza è un fatto, non una ricerca --- */
