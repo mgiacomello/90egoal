@@ -189,6 +189,46 @@ export async function documentById(id: string): Promise<StoredDocument | null> {
 }
 
 /**
+ * I documenti in cui compaiono queste persone.
+ *
+ * Non è una ricerca, è una query: `participants` è una colonna con il
+ * suo indice GIN, e chi era nella stanza è un fatto. Cercare una
+ * persona per parole è il modo più sicuro di sbagliare — "Bianchi"
+ * prende anche il fornitore, "Giulia" prende tre Giulie — mentre qui
+ * l'insieme è esatto per costruzione.
+ */
+export async function documentsWithParticipants(
+  emails: string[],
+  limit = 60
+): Promise<StoredDocument[]> {
+  if (!emails.length) return []
+  const db = brainDb()
+  const { data, error } = await db
+    .from('brain_documents')
+    .select('*')
+    .overlaps('participants', emails)
+    .order('occurred_at', { ascending: false })
+    .limit(Math.min(Math.max(limit, 1), 200))
+  if (error) throw new BrainError(`Lettura per partecipante fallita: ${error.message}`)
+  return ((data ?? []) as Record<string, unknown>[]).map(toStored)
+}
+
+/** Gli eventi di calendario da qui in avanti: quelli per cui ha senso prepararsi. */
+export async function upcomingEvents(days = 14, limit = 25): Promise<StoredDocument[]> {
+  const db = brainDb()
+  const { data, error } = await db
+    .from('brain_documents')
+    .select('*')
+    .eq('source', 'gcal')
+    .gte('occurred_at', new Date(Date.now() - 2 * 3_600_000).toISOString())
+    .lte('occurred_at', new Date(Date.now() + days * 86_400_000).toISOString())
+    .order('occurred_at', { ascending: true })
+    .limit(limit)
+  if (error) throw new BrainError(`Lettura eventi fallita: ${error.message}`)
+  return ((data ?? []) as Record<string, unknown>[]).map(toStored)
+}
+
+/**
  * Quanti documenti ci sono, senza tirarli giù tutti.
  *
  * Serve a una frase sola ma importante: "ho cercato X su N documenti".

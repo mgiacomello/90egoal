@@ -3,13 +3,14 @@
 import { useCallback, useState } from 'react'
 import BriefPanel from '@/components/brain/BriefPanel'
 import ContractPanel from '@/components/brain/ContractPanel'
-import Correct from '@/components/brain/Correct'
+import ClaimCard from '@/components/brain/ClaimCard'
+import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
 import type { SyncReport } from '@/lib/brain/connectors'
-import { CHANNEL_LABEL, type SourceKey, type StoredDocument, type VerifiedClaim } from '@/lib/brain/types'
+import { CHANNEL_LABEL, type StoredDocument, type VerifiedClaim } from '@/lib/brain/types'
 
 type Answer = {
   claims: VerifiedClaim[]
@@ -23,7 +24,7 @@ type Answer = {
   searchNote?: string
 }
 
-type Tab = 'brief' | 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
+type Tab = 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'sources' | 'memory'
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -56,28 +57,6 @@ function formatDate(iso: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
-}
-
-function SourceChip({ handle, source, title, occurredAt, url }: {
-  handle: string
-  source: SourceKey
-  title: string
-  occurredAt: string
-  url: string | null
-}) {
-  // Fonte, data e canale: i tre pezzi che rendono una frase verificabile.
-  const inner = (
-    <>
-      <b>{handle}</b>
-      <span>{CHANNEL_LABEL[source]} · {formatDate(occurredAt)}</span>
-      {title ? <span className="brain-source-title">· {title}</span> : null}
-    </>
-  )
-  return url ? (
-    <a className="brain-source" href={url} target="_blank" rel="noreferrer">{inner}</a>
-  ) : (
-    <span className="brain-source">{inner}</span>
-  )
 }
 
 export default function BrainConsole({
@@ -226,6 +205,7 @@ export default function BrainConsole({
           {(
             [
               ['brief', 'Brief'],
+              ['meeting', 'Incontri'],
               ['ask', 'Chiedi'],
               ['contracts', 'Contratti'],
               ['ledger', 'Conto'],
@@ -255,6 +235,9 @@ export default function BrainConsole({
         {tab === 'brief' ? (
           <BriefPanel initialBrief={initialBrief} initialPoints={initialPoints} />
         ) : null}
+
+        {/* --- INCONTRI --- */}
+        {tab === 'meeting' ? <MeetingPanel /> : null}
 
         {/* --- CHIEDI --- */}
         {tab === 'ask' ? (
@@ -306,20 +289,7 @@ export default function BrainConsole({
             {answer ? (
               <div className="brain-answer">
                 {answer.claims.map((claim, i) => (
-                  <article key={i} className="brain-claim" data-trust={claim.trust}>
-                    <p>{claim.text}</p>
-                    {claim.unverified.length ? (
-                      <p className="brain-flag">
-                        ⚠ {claim.unverified.join(', ')} — questo dato non compare nelle fonti citate. Verificalo prima di usarlo.
-                      </p>
-                    ) : null}
-                    <div className="brain-sources">
-                      {claim.sources.map((s) => (
-                        <SourceChip key={s.handle} {...s} />
-                      ))}
-                    </div>
-                    <Correct wrong={claim.text} about={claim.sources[0]?.title} />
-                  </article>
+                  <ClaimCard key={i} claim={claim} />
                 ))}
 
                 {!answer.claims.length ? (

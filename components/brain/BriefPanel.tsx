@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import Correct from '@/components/brain/Correct'
+import ClaimCard from '@/components/brain/ClaimCard'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import { formatEuro } from '@/lib/brain/reconcile'
 import { CHANNEL_LABEL, type SourceKey, type VerifiedClaim } from '@/lib/brain/types'
@@ -65,42 +65,6 @@ function daysSince(iso: string): number {
   return Math.max(0, Math.floor((Date.now() - t) / 86_400_000))
 }
 
-function Claim({ claim }: { claim: StoredClaim }) {
-  return (
-    <article className="brain-claim" data-trust={claim.trust}>
-      <p>{claim.text}</p>
-      {claim.unverified?.length ? (
-        <p className="brain-flag">
-          ⚠ {claim.unverified.join(', ')} — non compare nelle fonti citate. Verificalo.
-        </p>
-      ) : null}
-      <div className="brain-sources">
-        {claim.sources.map((s) => {
-          const inner = (
-            <>
-              <b>{s.handle}</b>
-              <span>
-                {CHANNEL_LABEL[s.source]} · {when(s.occurredAt)}
-              </span>
-              {s.title ? <span className="brain-source-title">· {s.title}</span> : null}
-            </>
-          )
-          return s.url ? (
-            <a key={s.handle} className="brain-source" href={s.url} target="_blank" rel="noreferrer">
-              {inner}
-            </a>
-          ) : (
-            <span key={s.handle} className="brain-source">
-              {inner}
-            </span>
-          )
-        })}
-      </div>
-      <Correct wrong={claim.text} about={claim.sources[0]?.title} />
-    </article>
-  )
-}
-
 export default function BriefPanel({ initialBrief, initialPoints }: Props) {
   const [brief, setBrief] = useState<StoredBrief | null>(initialBrief)
   const [points, setPoints] = useState<BriefOpenPoint[]>(initialPoints)
@@ -161,7 +125,9 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
         {brief ? (
           <>
             <b>Brief del {when(brief.at ?? brief.generatedAt)}</b> · scritto dalla sincronizzazione
-            notturna. {brief.dropped ? `${brief.dropped} righe scartate per fonte mancante. ` : ''}
+            notturna. {brief.dropped
+              ? `${brief.dropped} rig${brief.dropped === 1 ? 'a scartata' : 'he scartate'} per fonte mancante. `
+              : ''}
             Non si riscrive da solo quando ricarichi: quello che leggi è quello di stanotte.
           </>
         ) : (
@@ -204,7 +170,7 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
           <h2>Oggi e domani</h2>
           <div className="brain-answer" style={{ marginTop: 0 }}>
             {oggi.map((c, i) => (
-              <Claim key={i} claim={c} />
+              <ClaimCard key={i} claim={c} />
             ))}
           </div>
         </div>
@@ -215,7 +181,7 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
           <h2>Cosa è arrivato</h2>
           <div className="brain-answer" style={{ marginTop: 0 }}>
             {novita.map((c, i) => (
-              <Claim key={i} claim={c} />
+              <ClaimCard key={i} claim={c} />
             ))}
           </div>
         </div>

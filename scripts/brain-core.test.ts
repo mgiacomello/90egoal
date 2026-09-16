@@ -10,6 +10,14 @@ import { assessExtraction } from '../lib/brain/pdf.ts'
 import { isWorthSending, renderBriefEmail, type MailBrief } from '../lib/brain/briefmail.ts'
 import { describeSearch, expandedQuery, mergeTerms, shouldExpand } from '../lib/brain/expand.ts'
 import {
+  addressesOf,
+  displayPerson,
+  extractPeople,
+  matchesParticipant,
+  tokensFromEmail,
+  tokensFromName,
+} from '../lib/brain/people.ts'
+import {
   correctionBody,
   correctionKey,
   correctionTitle,
@@ -375,6 +383,53 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- persone: chi era nella stanza è un fatto, non una ricerca --- */
+
+check('da un indirizzo escono nome e cognome, non il dominio', () => {
+  assert.deepEqual(tokensFromEmail('giulia.bianchi@studiobianchi.it'), ['giulia', 'bianchi'])
+})
+
+check('una casella generica non identifica nessuno', () => {
+  assert.deepEqual(tokensFromEmail('amministrazione@studiobianchi.it'), [])
+  assert.deepEqual(tokensFromEmail('noreply@acme.com'), [])
+})
+
+check('nome scritto per esteso e indirizzo sono la stessa persona', () => {
+  const [persona] = extractPeople('Ho parlato con Giulia Bianchi ieri.')
+  assert.ok(persona)
+  assert.ok(matchesParticipant(persona, 'giulia.bianchi@studiobianchi.it'))
+})
+
+check('un omonimo parziale non aggancia', () => {
+  const [persona] = extractPeople('Ho parlato con Giulia Bianchi ieri.')
+  assert.equal(matchesParticipant(persona, 'marco.bianchi@studiobianchi.it'), false)
+  assert.equal(matchesParticipant(persona, 'giulia.verdi@altro.it'), false)
+})
+
+check('un indirizzo uguale è certezza, senza bisogno del nome', () => {
+  const persona = { email: 'g.b@x.it', tokens: [] }
+  assert.equal(matchesParticipant(persona, 'G.B@X.it'), true)
+})
+
+check('una parola maiuscola sola non diventa una persona', () => {
+  // Altrimenti ogni inizio di frase italiana sarebbe un cognome.
+  assert.deepEqual(extractPeople('Domani vediamo. Bianchi ha scritto.').filter((p) => !p.email), [])
+})
+
+check('gli indirizzi si estraggono anche in mezzo al testo', () => {
+  const people = extractPeople('scrivi a mario.rossi@studio.it e in copia a g.verdi@altro.it')
+  assert.deepEqual(addressesOf(people).sort(), ['g.verdi@altro.it', 'mario.rossi@studio.it'])
+})
+
+check('gli accenti non separano la stessa persona', () => {
+  assert.deepEqual(tokensFromName('Niccolò Dallè'), ['niccolo', 'dalle'])
+})
+
+check('una persona si scrive in modo leggibile in un\'intestazione', () => {
+  assert.equal(displayPerson({ email: 'giulia.bianchi@x.it', tokens: ['giulia', 'bianchi'] }), 'Giulia Bianchi')
+  assert.equal(displayPerson({ email: 'info@x.it', tokens: [] }), 'info@x.it')
 })
 
 /* --- correzioni: l'unica fonte che batte tutte le altre --- */

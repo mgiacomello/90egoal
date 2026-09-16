@@ -52,7 +52,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 120 test, zero
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 129 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -69,6 +69,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
 | `lib/brain/expand.ts` | con quali altre parole cercare, e come raccontare una ricerca a vuoto | l'espansione allarga il recupero, non deve dirottarlo |
 | `lib/brain/correction.ts` | come si scrive una correzione perché regga da sola | la precedenza deve viaggiare col dato, non col prompt |
+| `lib/brain/people.ts` | "Giulia Bianchi" e `giulia.bianchi@…` sono la stessa persona? | chi era nella stanza è un fatto: si interroga, non si cerca |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -299,8 +300,50 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Quattro agenti.** Brief, capo di gabinetto, Contratti, Amministrazione.
-  Nessuno prepara ancora i 1:1 né scrive il post-call.
+- **Cinque agenti.** Brief, capo di gabinetto, Incontri, Contratti, Amministrazione.
+  Manca il post-call, e manca per una ragione: non c'è una fonte di trascrizioni.
+
+---
+
+## L'agente Incontri
+
+È il *One to One* del post che ha ispirato questo prodotto, generalizzato: non solo
+i 1:1 col team, ma **qualunque incontro con qualcuno**. Cinque minuti prima di
+entrare: cosa è rimasto in sospeso, cosa toccare, cosa avere in testa.
+
+La scheda apre sugli appuntamenti veri dei prossimi 14 giorni, non su un campo
+vuoto — chi ha una riunione fra dieci minuti non ha voglia di descriverla, la
+tocca e legge.
+
+### Prima chi, poi cosa
+
+Qui il recupero è **l'opposto** di quello di tutti gli altri agenti, e vale la
+pena capire perché.
+
+Gli altri cercano per parole. Cercare una *persona* per parole è però il modo più
+sicuro di sbagliare: "Bianchi" prende anche il fornitore Bianchi Srl, "Giulia"
+prende tre Giulie. Ma **chi era nella stanza è un fatto strutturato** — sta nella
+colonna `participants`, con il suo indice GIN — e su un fatto si fa una query,
+non una ricerca.
+
+Quindi: prima l'elenco esatto degli indirizzi, poi — solo dopo — una ricerca per
+parole sul titolo dell'incontro, per pescare i documenti in cui la persona non è
+formalmente fra i partecipanti ma l'argomento sì.
+
+`lib/brain/people.ts` fa il ponte fra i due mondi, ed è lì che sta la parte
+delicata: un nome vale solo se **tutte** le sue parole si ritrovano nello stesso
+partecipante. "Giulia Bianchi" non deve agganciare `marco.bianchi@` né
+`giulia.verdi@`, e pretendere l'intersezione piena è l'unico modo per escluderli
+entrambi senza una rubrica. Le caselle generiche (`info@`, `amministrazione@`) non
+identificano nessuno e vengono scartate, altrimenti una mail della contabilità
+risulterebbe "di Giulia".
+
+### L'ordine delle sezioni è il prodotto
+
+**Prima cosa è rimasto in sospeso**, poi i punti, poi i fatti. Un'agenda che
+riassume quello che vi siete detti è un riassunto; una che dice cosa avete
+lasciato aperto è una preparazione. E i punti aperti già in memoria, filtrati su
+quelle persone, compaiono in cima con la loro età.
 
 ---
 
@@ -655,6 +698,9 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 - **Il brief a orari diversi.** Oggi è uno al giorno alle 05:00 UTC; un secondo
   giro a fine giornata cambierebbe solo la riga `schedule` in `vercel.json`.
+- **Il post-call.** Nel post c'è, qui no, e non per dimenticanza: richiede una
+  fonte di trascrizioni che questo sistema non ha. Il giorno in cui ci fosse, è
+  un file in `lib/brain/agents/` come gli altri.
 - **Push al posto del cron.** Gmail via Pub/Sub, webhook Qonto. Il connettore non
   cambia e nemmeno la memoria: cambia solo chi chiama `syncConnectors`.
 - **DOCX, e poi OCR.** Il primo è una dipendenza; il secondo è un servizio a
@@ -674,7 +720,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 120 test del nucleo, nessuna dipendenza
+npm run test:brain     # 129 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```

@@ -68,6 +68,11 @@ documento come gli altri, cercato e citato come gli altri, che però pesa più d
 qualunque fonte — anche più recente. La precedenza è scritta dentro al documento,
 non nel prompt, così viaggia col dato verso qualunque agente lo peschi.
 
+Prima di un incontro, **Incontri** costruisce l'agenda da quello che è già stato
+detto con quella persona. Qui il recupero parte da *chi*, non da *cosa*: i
+partecipanti sono una colonna con il suo indice, quindi un elenco esatto di
+indirizzi — cercare "Bianchi" per parole prenderebbe anche il fornitore omonimo.
+
 Il secondo agente, **Contratti**, applica la stessa idea con una regola più
 stretta: la clausola citata deve esistere *testualmente* nel contratto, altrimenti
 la sua analisi non viene mostrata. Per ognuna dà rischio, standard di mercato e
@@ -75,7 +80,7 @@ controproposta pronta — e tiene ben separato quello che ha verificato (la
 citazione) da quello che è un giudizio (tutto il resto).
 
 Il nucleo — spezzettamento, ranking, verifica di citazioni e clausole, routing —
-è fatto di funzioni pure: `npm run test:brain`, 120 test, zero dipendenze. I
+è fatto di funzioni pure: `npm run test:brain`, 129 test, zero dipendenze. I
 connettori sono **tutti in sola lettura**, con scope OAuth `.readonly`: nessun
 agente può scrivere una mail o disporre un pagamento, e la memoria si aggiorna
 da sola una volta al giorno via cron.
