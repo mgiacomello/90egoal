@@ -64,6 +64,8 @@ export interface SuggestedAction {
   contact?: ContactCard
   /** Testo precompilato per EMAIL / TEXT / WHATSAPP. */
   draft?: Draft
+  /** La nota pronta per NOTE: titolo e corpo riordinato. */
+  note?: Note
 }
 
 export interface CalendarEvent {
@@ -83,6 +85,12 @@ export interface ContactCard {
   role?: string
   phone?: string
   email?: string
+}
+
+/** Una nota pronta da salvare: un titolo e il contenuto messo in ordine. */
+export interface Note {
+  title: string
+  body: string
 }
 
 /** Testo già pronto per un'azione che scrive (email, SMS, WhatsApp). */
@@ -106,6 +114,8 @@ export interface Enrichment {
   emailDraft?: { subject?: string; body?: string }
   messageDraft?: string
   searchQuery?: string
+  /** La nota riordinata: vale solo se ogni numero e quasi ogni parola stanno nel testo. */
+  note?: { title?: string; body?: string }
 }
 
 export type Confidence = 'high' | 'medium' | 'low'
@@ -139,4 +149,5 @@ export interface HistoryItem {
   /** Rieseguibile: si ricostruisce l'href al tap. */
   event?: CalendarEvent
   contact?: ContactCard
+  note?: Note
 }

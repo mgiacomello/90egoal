@@ -8,6 +8,7 @@ import {
   actionHref,
   detectPlatform,
   googleCalendarHref,
+  noteMailHref,
   opensInNewTab,
   runAction,
   sendReply,
@@ -36,6 +37,8 @@ const COPY = {
     gcal: 'Apri in Google Calendar',
     ics: 'Scarica il file .ics',
     draft: 'Testo pronto',
+    note: 'La nota',
+    noteMail: 'Oppure mandala per email',
     nothing: 'Non ho trovato niente su cui agire.',
     done: 'Fatto',
   },
@@ -52,6 +55,8 @@ const COPY = {
     gcal: 'Open in Google Calendar',
     ics: 'Download the .ics file',
     draft: 'Ready to send',
+    note: 'Your note',
+    noteMail: 'Or email it to yourself',
     nothing: 'Nothing here to act on.',
     done: 'Done',
   },
@@ -207,6 +212,22 @@ export default function ActionCard({ analysis, onPerformed, onRestart }: Props) 
       </div>
 
       <DraftPreview draft={primary.draft} label={t.draft} />
+
+      {primary.kind === 'NOTE' && primary.note && (
+        <div>
+          {/* Si vede cosa si sta per salvare: titolo e testo messo in ordine. */}
+          <DraftPreview draft={{ subject: primary.note.title, body: primary.note.body }} label={t.note} />
+          <p className="mt-4 text-center">
+            <a
+              href={noteMailHref(primary.note)}
+              onClick={() => onPerformed(primary)}
+              className="ot-ghost inline-block text-[13px] underline underline-offset-4"
+            >
+              {t.noteMail}
+            </a>
+          </p>
+        </div>
+      )}
 
       {primary.kind === 'CALENDAR' && primary.event && (
         <div className="mt-4 text-center">

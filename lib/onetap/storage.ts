@@ -123,6 +123,7 @@ export function recordAction(action: SuggestedAction, preview: string, now = new
     value: action.value,
     event: action.event,
     contact: action.contact,
+    note: action.note,
   }
 
   const current = getSnapshot()

@@ -337,6 +337,7 @@ export default function OneTapApp() {
         entity: { kind: 'title', value: item.value, raw: item.value, start: 0, end: item.value.length },
         event: item.event,
         contact: item.contact,
+        note: item.note,
       }
       const href = actionHref(action, platform, 'en')
       if (href) {
