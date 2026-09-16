@@ -1,4 +1,5 @@
 import type { BrainDocument } from '../types'
+import { MAX_PDF_BYTES, extractPdfText, noteFor } from '../pdf'
 import { googleConfigured, googleConnection, googleFetch, googleJson } from './google'
 import { clip, mapLimit, type Connector, type SyncWindow } from './types'
 
@@ -6,16 +7,31 @@ import { clip, mapLimit, type Connector, type SyncWindow } from './types'
  * Drive: la parte pesante della memoria (contratti, delibere, note).
  *
  * Google Docs, Fogli e Presentazioni si esportano in testo con una
- * chiamata sola. PDF e file binari entrano in memoria **solo con il
- * titolo**: estrarne il testo è un lavoro a sé (OCR, layout, tabelle)
- * e va fatto bene o non fatto — meglio un limite dichiarato che un
- * corpo mezzo sbagliato dentro a una risposta con la fonte accanto.
+ * chiamata sola. I PDF si leggono con `lib/brain/pdf.ts`, ma solo
+ * quelli che un livello di testo ce l'hanno davvero: un PDF
+ * scansionato è un'immagine, e metterne in memoria le quattro righe di
+ * intestazione sarebbe peggio che saltarlo — il documento sembrerebbe
+ * letto e un agente lo citerebbe come fonte. In quel caso in memoria
+ * finisce il titolo più una riga che dice perché il testo non c'è.
+ *
+ * Gli altri binari restano al titolo, e lo dichiarano allo stesso modo.
  */
 
 const API = 'https://www.googleapis.com/drive/v3/files'
 
-/** Tetto ai byte di un singolo file esportato: un contratto sta comodo. */
+/** Tetto ai byte di un singolo file letto da Drive: un contratto sta comodo. */
 const MAX_EXPORT_BYTES = 400_000
+
+/**
+ * Tetto al testo che entra in memoria per un file di Drive.
+ *
+ * Volutamente molto più alto del default di `clip()`: Drive è la fonte
+ * dei documenti lunghi, e un contratto tagliato a ventimila caratteri
+ * è un contratto letto per un terzo — con l'aggravante che l'agente
+ * Contratti non se ne accorgerebbe, perché il testo che riceve finisce
+ * lì e sembra completo.
+ */
+const MAX_DRIVE_CHARS = 200_000
 
 type DriveFile = {
   id: string
@@ -40,6 +56,16 @@ const PLAIN_TEXT = new Set(['text/plain', 'text/markdown', 'text/csv', 'applicat
 
 async function bodyOf(file: DriveFile): Promise<string> {
   const mime = file.mimeType ?? ''
+
+  if (mime === 'application/pdf') {
+    // Il controllo sulla dimensione prima di scaricare: inutile tirare
+    // giù venti megabyte per poi rifiutarli.
+    if (Number(file.size ?? 0) > MAX_PDF_BYTES) return noteFor('too-large')
+
+    const res = await googleFetch(`${API}/${file.id}?alt=media`)
+    const extraction = await extractPdfText(new Uint8Array(await res.arrayBuffer()))
+    return extraction.quality === 'ok' ? extraction.text : extraction.note
+  }
 
   const exportAs = EXPORT_AS[mime]
   if (exportAs) {
@@ -68,7 +94,7 @@ function people(file: DriveFile): string[] {
 export const driveConnector: Connector = {
   key: 'gdrive',
   label: 'Google Drive',
-  hint: 'OAuth Google in sola lettura. Documenti, Fogli e Presentazioni in testo; PDF solo per titolo.',
+  hint: 'OAuth Google in sola lettura. Documenti, Fogli, Presentazioni e PDF con livello di testo; le scansioni restano al titolo.',
   configured: googleConfigured,
   connected: async () => (await googleConnection()).connected,
 
@@ -97,7 +123,7 @@ export const driveConnector: Connector = {
         kind: 'file',
         externalId: file.id,
         title: file.name ?? '(file senza nome)',
-        body: clip(body),
+        body: clip(body, MAX_DRIVE_CHARS),
         occurredAt: file.modifiedTime ?? new Date().toISOString(),
         url: file.webViewLink ?? `https://drive.google.com/file/d/${file.id}/view`,
         participants: people(file),

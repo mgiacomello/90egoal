@@ -18,6 +18,8 @@ type Props = {
   documents: StoredDocument[]
 }
 
+type Mode = 'paste' | 'pdf' | 'memory'
+
 /** Da che parte stai: cambia quali clausole sono un problema. */
 const SIDES = ['il Cliente', 'il Fornitore', 'il Locatario', 'il Licenziatario', "l'Investitore"]
 
@@ -49,9 +51,10 @@ function CopyButton({ text }: { text: string }) {
 }
 
 export default function ContractPanel({ documents }: Props) {
-  const [mode, setMode] = useState<'memory' | 'paste'>('paste')
+  const [mode, setMode] = useState<Mode>('paste')
   const [documentId, setDocumentId] = useState('')
   const [text, setText] = useState('')
+  const [file, setFile] = useState<File | null>(null)
   const [side, setSide] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +63,8 @@ export default function ContractPanel({ documents }: Props) {
   // Un movimento del conto o un dato del sonno non è un contratto.
   const candidates = documents.filter((d) => d.kind === 'file' || d.kind === 'note' || d.kind === 'email')
 
-  const ready = mode === 'memory' ? Boolean(documentId) : text.trim().length >= 200
+  const ready =
+    mode === 'memory' ? Boolean(documentId) : mode === 'pdf' ? Boolean(file) : text.trim().length >= 200
 
   async function analyze() {
     if (!ready || busy) return
@@ -68,11 +72,20 @@ export default function ContractPanel({ documents }: Props) {
     setError(null)
     setAnalysis(null)
     try {
-      const res = await fetch('/api/brain/contract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(mode === 'memory' ? { documentId, side } : { text, side }),
-      })
+      let res: Response
+      if (mode === 'pdf' && file) {
+        // multipart: niente Content-Type a mano, lo mette il browser col boundary.
+        const form = new FormData()
+        form.set('file', file)
+        form.set('side', side)
+        res = await fetch('/api/brain/contract', { method: 'POST', body: form })
+      } else {
+        res = await fetch('/api/brain/contract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(mode === 'memory' ? { documentId, side } : { text, side }),
+        })
+      }
       const data = await res.json()
       if (!res.ok) setError(data.error ?? 'Analisi non riuscita.')
       else setAnalysis(data as ContractAnalysis)
@@ -93,6 +106,14 @@ export default function ContractPanel({ documents }: Props) {
           onClick={() => setMode('paste')}
         >
           Incolla il testo
+        </button>
+        <button
+          type="button"
+          className="brain-chip"
+          aria-pressed={mode === 'pdf'}
+          onClick={() => setMode('pdf')}
+        >
+          Carica un PDF
         </button>
         <button
           type="button"
@@ -118,13 +139,27 @@ export default function ContractPanel({ documents }: Props) {
               </option>
             ))}
           </select>
+        ) : mode === 'pdf' ? (
+          <div>
+            <input
+              type="file"
+              accept="application/pdf"
+              className="brain-input"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            <p className="brain-meta" style={{ marginTop: '0.5rem' }}>
+              Il file non viene salvato da nessuna parte: si estrae il testo e finisce lì. Un PDF
+              scansionato non ha un livello di testo e verrà rifiutato dicendolo — in quel caso
+              copia e incolla.
+            </p>
+          </div>
         ) : (
           <textarea
             className="brain-field"
             rows={8}
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Incolla qui il contratto. Serve il testo, non il PDF: da un PDF copia e incolla, l'estrazione automatica non c'è ancora."
+            placeholder="Incolla qui il contratto."
           />
         )}
 

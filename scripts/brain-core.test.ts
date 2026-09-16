@@ -6,6 +6,7 @@ import { extractFacts, parseHandles, verifyClaims } from '../lib/brain/cite.ts'
 import { pickModel } from '../lib/brain/orchestrator.ts'
 import { isAuthorizedCron } from '../lib/brain/cron.ts'
 import { matchQuote, normalizeForMatch, tokenize } from '../lib/brain/quote.ts'
+import { assessExtraction } from '../lib/brain/pdf.ts'
 import type { SearchHit, SourceRef } from '../lib/brain/types.ts'
 
 // Riferimento fisso: martedì 15 settembre 2026, 10:00 UTC.
@@ -344,6 +345,47 @@ check('una citazione vuota non passa per distrazione', () => {
 
 check('tokenize tiene i numeri e butta la punteggiatura', () => {
   assert.deepEqual(tokenize('24 (ventiquattro) mesi.'), ['24', 'ventiquattro', 'mesi'])
+})
+
+/* --- PDF: un guscio vuoto non deve passare per documento letto --- */
+
+const PAGINA_VERA = `Contratto di fornitura di servizi professionali stipulato fra le parti
+in data odierna. Le parti convengono quanto segue in ordine alla durata,
+al corrispettivo, alle modalità di recesso e alla legge applicabile al
+presente rapporto contrattuale, come meglio specificato negli articoli
+che seguono e negli allegati che ne costituiscono parte integrante.`
+
+check('una pagina di contratto vera passa', () => {
+  assert.equal(assessExtraction(PAGINA_VERA, 1), 'ok')
+})
+
+check('un PDF scansionato non ha livello di testo', () => {
+  assert.equal(assessExtraction('', 12), 'no-text-layer')
+  assert.equal(assessExtraction('   \n  \n ', 12), 'no-text-layer')
+})
+
+check('quattro righe di intestazione su venti pagine restano una scansione', () => {
+  const briciole = 'Studio Legale Rossi — pag. 1 di 20\nRiservato\n'
+  assert.equal(assessExtraction(briciole.repeat(3), 20), 'no-text-layer')
+})
+
+check('la densità conta: lo stesso testo su una pagina va bene, su cento no', () => {
+  assert.equal(assessExtraction(PAGINA_VERA, 1), 'ok')
+  assert.equal(assessExtraction(PAGINA_VERA, 100), 'no-text-layer')
+})
+
+check('un PDF senza spazi estratti è illeggibile, non "ok"', () => {
+  const senzaSpazi = Array.from({ length: 40 }, () => 'contrattodifornituradiservizipro').join(' ')
+  assert.equal(assessExtraction(senzaSpazi, 1), 'garbled')
+})
+
+check('numeri e simboli senza parole non sono testo', () => {
+  assert.equal(assessExtraction('12 34 56 78 90 '.repeat(40), 1), 'no-text-layer')
+})
+
+check('senza numero di pagine si decide comunque sul totale', () => {
+  assert.equal(assessExtraction(PAGINA_VERA, 0), 'ok')
+  assert.equal(assessExtraction('poco', 0), 'no-text-layer')
 })
 
 /* --- esecuzione automatica: la porta è chiusa per difetto --- */

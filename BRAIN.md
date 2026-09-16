@@ -52,8 +52,9 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 50 test, zero
-dipendenze.
+Funzioni pure, senza rete e senza DOM. `npm run test:brain` — 57 test, zero
+dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
+tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
 | File | Ruolo | Perché non sta in un prompt |
 |---|---|---|
@@ -62,6 +63,7 @@ dipendenze.
 | `lib/brain/cite.ts` | applica le due regole qui sopra | è la promessa del prodotto |
 | `lib/brain/orchestrator.ts` | per ogni tipo di task, il modello che rende meglio | la scelta è una tabella, non un'opinione |
 | `lib/brain/quote.ts` | una clausola citata esiste nel contratto? | è la promessa dell'agente Contratti |
+| `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
 | `lib/brain/cron.ts` | chi può far partire un'esecuzione automatica | un controllo d'accesso si testa, e va testato |
 
 Due dettagli che cambiano i risultati e che è facile sbagliare:
@@ -118,7 +120,7 @@ interfaccia non cambiano.
 |---|---|---|
 | **Gmail** | OAuth Google, sola lettura | mail senza promozioni/social/spam, citazioni del thread tagliate |
 | **Google Calendar** | OAuth Google, sola lettura | eventi del calendario principale, **passato e prossimi 60 giorni** |
-| **Google Drive** | OAuth Google, sola lettura | Documenti, Fogli e Presentazioni in testo; PDF **solo per titolo** |
+| **Google Drive** | OAuth Google, sola lettura | Documenti, Fogli, Presentazioni e **PDF con livello di testo**; le scansioni restano al titolo |
 | **Qonto** | chiave API, sola lettura | transazioni con controparte, importo, e se il giustificativo manca |
 | **Oura** | token personale | un documento al giorno: sonno, prontezza, attività |
 
@@ -136,12 +138,39 @@ minuti batte un connettore che richiede un ciclo di review.
 Un documento al giorno, non uno per misura: la domanda che si fa a un coach è
 "come ho dormito questa settimana", non "qual era il mio HRV alle 4:12".
 
+### I PDF, e perché il limite è dichiarato
+
+I PDF si leggono con `unpdf` — una build di pdf.js che gira in una funzione
+serverless, senza dipendenze native. Ma **un PDF scansionato non contiene
+testo**: è un'immagine in un involucro PDF, e pdf.js ne estrae zero caratteri o
+quattro righe di intestazione.
+
+Il modo sbagliato di gestirlo è mettere in memoria quel poco e andare avanti. Il
+documento *sembrerebbe* letto, un agente lo citerebbe come fonte, e la citazione
+risulterebbe formalmente valida su un testo che non è il contratto. Sarebbe un
+buco esattamente nel punto che tutto il resto del sistema difende.
+
+Quindi `assessExtraction()` decide, guardando densità di caratteri per pagina,
+numero di parole e lunghezza media delle parole, e il verdetto finisce
+**dentro al documento**, in chiaro:
+
+> `[PDF scansionato: non contiene un livello di testo, quindi in memoria c'è solo il titolo. Per analizzarlo servirebbe un OCR, che qui non c'è.]`
+
+Nella scheda Contratti un PDF senza testo viene rifiutato dicendo perché, invece
+di produrre un'analisi vuota. Gli altri binari (immagini, archivi) restano al
+titolo allo stesso modo.
+
+Una conferma che il pezzo regge, venuta dalla prova: pdf.js converte gli
+apostrofi dritti in apostrofi tipografici. Una citazione scritta col dritto
+ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
+
 ### Il soffitto, dichiarato
 
-- **I PDF entrano solo con il titolo.** Estrarne il testo è un lavoro a sé (OCR,
-  layout, tabelle) e va fatto bene o non fatto: meglio un limite dichiarato — la
-  riga finisce dentro al documento — che un corpo mezzo sbagliato citato come
-  fonte.
+- **Nessun OCR.** Un PDF scansionato non entra. Farlo bene lato server (layout,
+  tabelle, più pagine) non sta nei limiti di una funzione serverless, e farlo
+  male sarebbe peggio che non farlo.
+- **I DOCX non si leggono.** Sono archivi zip di XML, e servirebbe una
+  dipendenza in più. Nel frattempo Drive li mostra col solo titolo.
 - **La sincronizzazione parte da sola una volta al giorno**, non a ogni mail che
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
@@ -326,6 +355,7 @@ provider non eseguibile, la chiamata fallisce dicendolo.
 5. Domande a cui il sistema risponde "non risulta" pur avendo il dato
 6. Esecuzioni automatiche riuscite di fila (se scende, la memoria sta invecchiando)
 7. Clausole scartate per citazione inesistente, sul totale analizzato
+8. PDF entrati col solo titolo, sul totale dei PDF (dice quanto dell'archivio è scansionato)
 
 La quinta è la più scomoda e la più utile: misura i buchi del *recupero*, non del
 modello. `brain_runs` registra modello, pezzi letti e latenza di ogni risposta.
@@ -338,6 +368,8 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 - **Push al posto del cron.** Gmail via Pub/Sub, webhook Qonto. Il connettore non
   cambia e nemmeno la memoria: cambia solo chi chiama `syncConnectors`.
+- **DOCX, e poi OCR.** Il primo è una dipendenza; il secondo è un servizio a
+  parte, perché dentro a una lambda non ci sta.
 - **Altri agenti.** Ognuno è un file in `lib/brain/agents/` che recupera dalla
   memoria e passa da un verificatore deterministico — `verifyClaims()` per le
   affermazioni, `matchQuote()` per le citazioni testuali. I candidati dal post —
@@ -353,7 +385,7 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000/brain
-npm run test:brain     # 50 test del nucleo, nessuna dipendenza
+npm run test:brain     # 57 test del nucleo, nessuna dipendenza
 npm test               # ONE TAP + BRAIN
 npm run build
 ```
