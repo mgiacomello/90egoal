@@ -33,12 +33,12 @@ export default function PrivacyPage() {
       <Section title="Cosa tratta ONE TAP e perché">
         <ul>
           <li>
-            <strong>La foto o lo screenshot che scegli tu.</strong> Viene ridotta nel tuo browser
+            <strong>La foto o lo screenshot che scegli tu.</strong>{' '}Viene ridotta nel tuo browser
             (1400 px sul lato lungo), inviata una volta al modello di lettura per trascriverne il
             testo e scartata. Serve solo a produrre l&apos;azione che ti viene proposta.
           </li>
           <li>
-            <strong>Il testo letto.</strong> Numeri, indirizzi, date, nomi che compaiono nell&apos;immagine.
+            <strong>Il testo letto.</strong>{' '}Numeri, indirizzi, date, nomi che compaiono nell&apos;immagine.
             Resta nel tuo dispositivo, dentro alla cronologia locale, finché non la cancelli.
           </li>
           <li>
@@ -83,7 +83,7 @@ export default function PrivacyPage() {
         <p>
           La cronologia delle catture, le azioni eseguite e il contatore mensile vivono nella
           memoria locale del tuo browser. Non esiste una copia altrove e nessuno può leggerli da
-          remoto. Il pulsante <strong>Delete everything</strong> nel pannello &laquo;Your data&raquo; li
+          remoto. Il pulsante <strong>Delete everything</strong>{' '}nel pannello &laquo;Your data&raquo; li
           cancella davvero e subito.
         </p>
       </Section>
