@@ -5,14 +5,16 @@ import Navbar from '@/components/Navbar'
 import ActivityTracker from '@/components/ActivityTracker'
 
 /**
- * ONE TAP è un'app a schermo intero dentro allo stesso deploy: su `/onetap`
- * la navigazione del sito non deve comparire (e il tracker non deve girare).
- * Ogni altra rotta resta esattamente com'era.
+ * ONE TAP è un'app a sé dentro allo stesso deploy: lì la navigazione del sito
+ * non deve comparire (e il tracker non deve girare). Ogni altra rotta resta
+ * esattamente com'era.
  */
+const STANDALONE = ['/onetap']
+
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
-  if (pathname?.startsWith('/onetap')) return <>{children}</>
+  if (STANDALONE.some((prefix) => pathname?.startsWith(prefix))) return <>{children}</>
 
   return (
     <>

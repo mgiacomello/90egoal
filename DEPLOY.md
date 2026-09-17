@@ -62,6 +62,16 @@ viene mai esposta da questo endpoint.
 
 ---
 
+## BRAIN è un deploy a parte
+
+`brain/` non fa parte di questo deploy: è un progetto Next autonomo, si importa
+su Vercel con **Root Directory `brain`** e ha variabili sue. Istruzioni complete
+in [brain/README.md](brain/README.md).
+
+Tenerli separati non è ordine formale: là dentro ci sono mail, contratti e
+movimenti del conto di una persona, e non devono condividere né dominio né
+ambiente con un gioco a cui accede il pubblico.
+
 ## Opzione A — GitHub + Vercel (consigliata, deploy automatici a ogni push)
 
 ### 1. Crea il repo su GitHub

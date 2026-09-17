@@ -43,3 +43,7 @@ next-env.d.ts
 # Motore OCR copiato da node_modules a ogni build (i dati di lingua restano versionati)
 /public/onetap/ocr/worker.min.js
 /public/onetap/ocr/*.wasm.js
+
+# brain è un progetto a sé, con le sue dipendenze
+/brain/node_modules
+/brain/.next/

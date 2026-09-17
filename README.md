@@ -35,6 +35,18 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
+## 🧠 BRAIN (`brain/`)
+
+Progetto a sé dentro a questo repository, con il suo `package.json` e il suo
+deploy: la memoria di lavoro personale del titolare — Gmail, Calendar, Drive,
+movimenti Qonto, anello Oura — che risponde solo con quello che ha davvero letto
+e dichiara sempre da dove viene ogni frase.
+
+Non condivide niente con il gioco: né dominio, né variabili, né build. Su Vercel
+si importa come progetto separato con **Root Directory `brain`**.
+
+Setup, architettura e limiti dichiarati in **[brain/README.md](brain/README.md)**.
+
 ## ⚡ ONE TAP (`/onetap`)
 
 App consumer autonoma inclusa in questo deploy: **vedi una cosa → ONE TAP capisce
