@@ -116,6 +116,42 @@ export function isSamePerson(name: string, email: string): boolean {
     .some((t) => t.length >= 4 && emailTokens.has(t))
 }
 
+export type CalendarLike = {
+  title: string
+  /** Inizio, ISO in UTC. */
+  occurredAt: string
+  participants: string[]
+}
+
+/**
+ * L'evento in agenda che corrisponde a questa call, se c'è.
+ *
+ * Stesso giorno e stesso titolo a meno di maiuscole e accenti. Se ci
+ * sono più candidati e il titolo di Meet porta l'ora, vince quello che
+ * comincia più vicino — provando gli scarti di zero, una e due ore,
+ * perché Meet scrive l'ora nel fuso di chi guarda e l'agenda la tiene
+ * in UTC, e indovinare il fuso è un lavoro che qui non serve fare.
+ */
+export function pickEvent<T extends CalendarLike>(events: T[], title: string, day: string, time: string | null): T | null {
+  const wanted = fold(title)
+  const sameDay = events.filter((e) => e.occurredAt.slice(0, 10) === day)
+  const byTitle = sameDay.filter((e) => {
+    const t = fold(e.title)
+    return t === wanted || (wanted.length >= 4 && t.includes(wanted)) || (t.length >= 4 && wanted.includes(t))
+  })
+  if (!byTitle.length) return null
+  if (byTitle.length === 1 || !time) return byTitle[0]
+
+  const [hh, mm] = time.split(':').map(Number)
+  const target = hh * 60 + mm
+  const distance = (e: T) => {
+    const d = new Date(e.occurredAt)
+    const minutes = d.getUTCHours() * 60 + d.getUTCMinutes()
+    return Math.min(...[0, 60, 120].map((offset) => Math.abs(target - offset - minutes)))
+  }
+  return [...byTitle].sort((a, b) => distance(a) - distance(b))[0]
+}
+
 /* ------------------------------------------------------------------ *
  * Il testo della trascrizione
  * ------------------------------------------------------------------ */

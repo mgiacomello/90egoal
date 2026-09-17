@@ -29,6 +29,7 @@ import {
   meetingTitle,
   parseNotes,
   parseTurns,
+  pickEvent,
   renderFollowUp,
   segment,
   speakerShares,
@@ -1184,6 +1185,20 @@ check('parseNotes legge gli appunti di Gemini per sezioni, con chi davanti a ogn
   assert.equal(n.passaggi[2].chi, 'Il gruppo')
   assert.deepEqual(n.dettagli, ['Configurazione postazione: Anna ha confermato.'])
   assert.equal(n.empty, false)
+})
+
+check('pickEvent trova l\'evento in agenda: stesso giorno, stesso titolo, inizio più vicino', () => {
+  const events = [
+    { title: 'Mlv Mg', occurredAt: '2026-08-31T11:40:00Z', participants: ['a@x.it'] },
+    { title: 'Mlv Mg', occurredAt: '2026-08-31T11:58:00Z', participants: ['b@x.it'] },
+    { title: 'Altro', occurredAt: '2026-08-31T09:00:00Z', participants: [] },
+    { title: 'Mlv Mg', occurredAt: '2026-09-01T11:40:00Z', participants: ['c@x.it'] },
+  ]
+  // Meet scrive 13:58 CEST; l'agenda ha 11:58 UTC: lo scarto di due ore va tollerato.
+  assert.equal(pickEvent(events, 'MLV MG', '2026-08-31', '13:58')?.participants[0], 'b@x.it')
+  assert.equal(pickEvent(events, 'mlv mg', '2026-08-31', '13:40')?.participants[0], 'a@x.it')
+  assert.equal(pickEvent(events, 'Mlv Mg', '2026-09-01', null)?.participants[0], 'c@x.it')
+  assert.equal(pickEvent(events, 'Kickoff', '2026-08-31', '13:40'), null)
 })
 
 check('parseNotes riconosce gli appunti vuoti ("non c\'era abbastanza conversazione")', () => {

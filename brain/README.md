@@ -104,7 +104,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 152 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 153 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -880,6 +880,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 152 test del nucleo, nessuna dipendenza
+npm test               # 153 test del nucleo, nessuna dipendenza
 npm run build
 ```

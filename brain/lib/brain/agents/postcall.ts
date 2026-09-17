@@ -1,14 +1,17 @@
 import { verifyClaims } from '../cite'
 import { documentById, listOpenPoints, logRun, recentDocuments, type OpenPoint } from '../memory'
 import { runStructured } from '../model'
+import { displayPerson, matchesParticipant, tokensFromEmail, type Person } from '../people'
 import {
   attendees,
   callKey,
   classifyMeetDoc,
   isSamePerson,
   meetingDay,
+  meetingTime,
   meetingTitle,
   parseNotes,
+  pickEvent,
   parseTurns,
   renderFollowUp,
   segment,
@@ -81,6 +84,8 @@ export type CallDebrief = {
   /** Chi ha parlato, e quanto. Calcolato, non stimato. Solo con la trascrizione. */
   speakers: SpeakerShare[]
   attendees: string[]
+  /** L'evento in agenda a cui la call corrisponde, se trovato. */
+  calendar: { id: string; title: string; occurredAt: string } | null
   /** Il riepilogo di Gemini, quando c'è: poche righe, citate. */
   sintesi: VerifiedClaim[]
   decisioni: VerifiedClaim[]
@@ -262,6 +267,20 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
     ? attendees(transcript.body)
     : [...new Set((parsedNotes?.passaggi ?? []).map((p) => p.chi).filter((c) => c && !GROUP.test(c)))]
 
+  // L'evento in agenda: stesso giorno, stesso titolo. Da lì gli
+  // indirizzi esatti di chi c'era, che sono la chiave dei punti aperti
+  // e il "a chi" della mail quando gli appunti non fanno nomi.
+  const calendarDocs = await recentDocuments(200, 'gcal').catch(() => [] as StoredDocument[])
+  const event = pickEvent(
+    calendarDocs.map((d) => ({ doc: d, title: d.title, occurredAt: d.occurredAt, participants: d.participants ?? [] })),
+    title,
+    day,
+    meetingTime(anchor.title)
+  )
+  const eventPeople: Person[] = (event?.participants ?? [])
+    .filter((email) => !isSamePerson(email, options.ownerEmail) && email.toLowerCase() !== options.ownerEmail.toLowerCase())
+    .map((email) => ({ email: email.toLowerCase(), tokens: tokensFromEmail(email) }))
+
   const segments = transcript ? segment(turns) : []
   const offeredSegments = segments.slice(0, MAX_SEGMENTS)
   const coverage = segments.length ? offeredSegments.length / segments.length : 0
@@ -310,14 +329,18 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
   const openPoints = allPoints.filter(
     (p) =>
       p.citations.some((c) => c.title.toLowerCase().includes(foldedTitle)) ||
-      who.some((name) => name && p.text.toLowerCase().includes(name.toLowerCase()))
+      who.some((name) => name && p.text.toLowerCase().includes(name.toLowerCase())) ||
+      eventPeople.some(
+        (person) => matchesParticipant(person, p.text) || p.citations.some((c) => matchesParticipant(person, c.title))
+      )
   )
 
   const empty = (model: string, reason: string | null): CallDebrief => ({
     title,
     day,
     speakers,
-    attendees: who,
+    attendees: who.length ? who : eventPeople.map(displayPerson),
+    calendar: event ? { id: event.doc.id, title: event.doc.title, occurredAt: event.doc.occurredAt } : null,
     sintesi: [],
     decisioni: [],
     impegni: [],
@@ -387,7 +410,7 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
     const followUp = renderFollowUp({
       title,
       day,
-      to: others,
+      to: others.length ? others : eventPeople.map(displayPerson),
       decisioni: decisioni.map((c) => c.text),
       impegni: impegni.map((i) => `${i.chi}: ${i.text}`),
       domande: [],
@@ -444,7 +467,7 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
   const followUp = renderFollowUp({
     title,
     day,
-    to: otherNames.length ? otherNames : who,
+    to: otherNames.length ? otherNames : who.length ? who : eventPeople.map(displayPerson),
     decisioni: decisioni.claims.map((c) => c.text),
     impegni: impegni.kept.map((i) => `${i.chi}: ${i.text}${i.entro ? ` — entro ${i.entro}` : ''}`),
     domande: domande.claims.map((c) => c.text),
