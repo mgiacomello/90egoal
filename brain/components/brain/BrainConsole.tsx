@@ -145,7 +145,7 @@ export default function BrainConsole({
     }
   }
 
-  async function sync(sources?: string[]) {
+  async function sync(sources?: string[], days?: number) {
     if (syncing) return
     setSyncing(true)
     setError(null)
@@ -154,7 +154,7 @@ export default function BrainConsole({
       const res = await fetch('/api/brain/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(sources ? { sources } : {}),
+        body: JSON.stringify({ ...(sources ? { sources } : {}), ...(days ? { days } : {}) }),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error ?? 'Sincronizzazione fallita.')
@@ -380,6 +380,11 @@ export default function BrainConsole({
             <div className="brain-actions" style={{ marginBottom: '1rem' }}>
               <button type="button" className="brain-btn brain-btn-primary" onClick={() => void sync()} disabled={syncing}>
                 {syncing ? 'Sincronizzo…' : 'Sincronizza tutto'}
+              </button>
+              {/* La prima volta la memoria guarda indietro di un mese. Le call
+                  e i contratti di prima esistono lo stesso: questo li va a prendere. */}
+              <button type="button" className="brain-btn" onClick={() => void sync(undefined, 90)} disabled={syncing}>
+                Riprendi gli ultimi 90 giorni
               </button>
               {!googleConnected ? (
                 <a className="brain-btn" href="/api/brain/connect/google">Collega Google</a>
