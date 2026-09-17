@@ -167,6 +167,7 @@ export default function PostCallPanel() {
             <p>
               {itDay(report.day)}
               {report.attendees.length ? ` · con ${report.attendees.join(', ')}` : ''}
+              {report.calendar ? ' · trovata in agenda' : ''}
             </p>
             {report.speakers.length ? (
               <p className="brain-meta">
