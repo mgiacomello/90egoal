@@ -738,7 +738,7 @@ NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
 SUPABASE_SERVICE_ROLE_KEY=...        # scrive e legge le tabelle brain_*
 
-# 2. Chi può entrare (consigliato: senza, entra chi è admin del sito)
+# 2. Chi può entrare (obbligatorio: senza, non entra nessuno)
 BRAIN_OWNER_EMAIL=tu@esempio.it
 
 # 3. Il modello che risponde (obbligatorio per "Chiedi")
