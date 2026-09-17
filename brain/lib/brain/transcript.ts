@@ -35,8 +35,14 @@ export type Turn = {
 const SUFFIX =
   /\s*[-–—]\s*(transcript|trascrizione|notes by gemini|gemini notes|note di gemini|appunti di gemini|appunti gemini)\s*$/i
 
-/** Il pezzo "(2026-09-15 at 10:02 GMT+2)" che Meet mette nel titolo. */
+/** Il pezzo "(2026-09-15 at 10:02 GMT+2)" che Meet mette nel titolo, in un formato. */
 const DATE_PAREN = /\s*\((\d{4}-\d{2}-\d{2})[^)]*\)\s*$/
+/** E " - 2026/09/14 15:00 BST", che è quello che lascia davvero in Drive in italiano. */
+const DATE_TAIL =
+  /\s*[-–—]\s*\d{4}[/.-]\d{2}[/.-]\d{2}(?:\s+(?:at\s+|alle\s+)?\d{1,2}:\d{2})?(?:\s+[A-Za-z]{2,5}(?:[+-]\d{1,2}(?::\d{2})?)?)?\s*$/
+/** Una riunione senza titolo: Meet la chiama con l'ora in cui è cominciata. */
+const STARTED = /^(riunione iniziata|meeting started)\b/i
+const ANY_DATE = /(\d{4})[/.-](\d{2})[/.-](\d{2})(?:\s+(?:at\s+|alle\s+)?(\d{1,2}:\d{2}))?/
 
 function fold(text: string): string {
   return text
@@ -56,22 +62,58 @@ export function classifyMeetDoc(title: string): MeetDocKind | null {
 
 /** Il titolo della riunione, senza il suffisso di Meet e senza la data. */
 export function meetingTitle(title: string): string {
-  const t = title.trim().replace(SUFFIX, '').replace(DATE_PAREN, '').trim()
+  const bare = title.trim().replace(SUFFIX, '')
+  if (STARTED.test(bare)) {
+    const m = bare.match(ANY_DATE)
+    return m ? `Riunione del ${m[3]}/${m[2]}/${m[1]}${m[4] ? ` alle ${m[4]}` : ''}` : 'Riunione senza titolo'
+  }
+  const t = bare.replace(DATE_PAREN, '').replace(DATE_TAIL, '').trim()
   return t || '(riunione senza titolo)'
 }
 
 /** Il giorno della riunione: dal titolo se c'è, altrimenti dal documento. */
 export function meetingDay(title: string, fallbackIso: string): string {
-  const m = title.replace(SUFFIX, '').match(/(\d{4}-\d{2}-\d{2})/)
-  return m ? m[1] : fallbackIso.slice(0, 10)
+  const m = title.replace(SUFFIX, '').match(ANY_DATE)
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : fallbackIso.slice(0, 10)
+}
+
+/** L'ora d'inizio, se il titolo la porta: due call lo stesso giorno non sono la stessa call. */
+export function meetingTime(title: string): string | null {
+  const m = title.replace(SUFFIX, '').match(ANY_DATE)
+  return m?.[4] ? m[4].padStart(5, '0') : null
 }
 
 /**
  * La chiave che tiene insieme trascrizione e appunti della stessa
- * riunione: stesso giorno, stesso titolo a meno di maiuscole e accenti.
+ * riunione: stesso giorno, stessa ora d'inizio, stesso titolo a meno
+ * di maiuscole e accenti.
  */
 export function callKey(title: string, fallbackIso: string): string {
-  return `${meetingDay(title, fallbackIso)}|${fold(meetingTitle(title))}`
+  return `${meetingDay(title, fallbackIso)}|${meetingTime(title) ?? ''}|${fold(meetingTitle(title))}`
+}
+
+/** Gli indirizzi email che compaiono in un testo, senza doppioni. */
+export function emailsIn(text: string): string[] {
+  const out = new Set<string>()
+  for (const m of text.matchAll(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g)) out.add(m[0].toLowerCase())
+  return [...out]
+}
+
+/**
+ * "Marco Giacomello" e marco@giacomello.digital sono la stessa persona?
+ * Basta una parola di almeno quattro lettere in comune fra il nome e
+ * l'indirizzo (parte locale e primo pezzo del dominio). Serve a
+ * riconoscere il titolare fra chi si è preso un impegno: abbastanza
+ * per quello, non per una rubrica.
+ */
+export function isSamePerson(name: string, email: string): boolean {
+  const [local = '', domain = ''] = email.toLowerCase().split('@')
+  const emailTokens = new Set(
+    [...local.split(/[._+-]+/), domain.split('.')[0] ?? ''].map(fold).filter((t) => t.length >= 4)
+  )
+  return fold(name)
+    .split(/[^a-z0-9]+/)
+    .some((t) => t.length >= 4 && emailTokens.has(t))
 }
 
 /* ------------------------------------------------------------------ *
@@ -168,6 +210,114 @@ export function segment(turns: Turn[], maxChars = 3500): string[] {
   }
   if (buf.length) out.push(buf.join('\n'))
   return out
+}
+
+/* ------------------------------------------------------------------ *
+ * Gli appunti di Gemini
+ * ------------------------------------------------------------------ */
+
+export type NoteStep = {
+  /** Chi se l'è preso, come lo scrive Gemini: "Maria Livia Rizzo", "Il gruppo". */
+  chi: string
+  /** L'etichetta breve fra graffe, se c'è. */
+  etichetta: string | null
+  testo: string
+}
+
+export type GeminiNotes = {
+  /** Gli indirizzi nell'intestazione: chi era invitato. */
+  attendees: string[]
+  riepilogo: string[]
+  decisioni: string[]
+  passaggi: NoteStep[]
+  dettagli: string[]
+  /** Gemini non ha prodotto niente: troppo poca conversazione. */
+  empty: boolean
+}
+
+type NotesSection = 'riepilogo' | 'decisioni' | 'passaggi' | 'dettagli' | 'header' | 'footer'
+
+const NOTES_HEADING: [RegExp, NotesSection][] = [
+  [/^(riepilogo|summary)$/i, 'riepilogo'],
+  [/^(decisioni|decisions)$/i, 'decisioni'],
+  [/^(passaggi successivi(?: suggeriti)?|suggested next steps|next steps)$/i, 'passaggi'],
+  [/^(dettagli|details)$/i, 'dettagli'],
+  [/^(dovresti rivedere le note|you should review)/i, 'footer'],
+]
+
+/** Sottotitoli interni che non sono contenuto. */
+const NOTES_SUBHEAD = /^(concordato|agreed|non concordato|not agreed)$/i
+const NOTES_EMPTY =
+  /non (?:è stato|sono stati) prodott|non c'era abbastanza|no summary was|no details were|not enough conversation|nessun passaggio successivo|no suggested next steps/i
+
+/** Via i segni di elenco e la formattazione che Docs lascia nell'esportazione. */
+function cleanLine(raw: string): string {
+  return raw
+    .replace(/^\s*(?:[-•*▪●]|\d+[.)])\s+/, '')
+    .replace(/\*\*/g, '')
+    .replace(/\\([[\]{}])/g, '$1')
+    .trim()
+}
+
+function headingOf(line: string): NotesSection | null {
+  const bare = line.replace(/^#+\s*/, '').replace(/\*\*/g, '').trim()
+  for (const [re, section] of NOTES_HEADING) if (re.test(bare)) return section
+  return null
+}
+
+const STEP = /^\[(.+?)\]\s*(?:\{(.+?)\}\s*:?\s*|([^:]{2,60}?):\s+)?(.*)$/
+
+/**
+ * Gli appunti di Gemini, sezione per sezione.
+ *
+ * Gemini scrive già decisioni e passaggi successivi, con il nome davanti
+ * a ogni passaggio. Sono un riassunto fatto da un altro modello, e
+ * nessuno qui li verifica contro la conversazione perché la
+ * conversazione non c'è. Ma è la stessa cosa che farebbe una persona:
+ * leggere gli appunti e copiare da lì. La garanzia che si può dare è
+ * che ogni riga mostrata sta negli appunti — ed è quella che si dà.
+ */
+export function parseNotes(text: string): GeminiNotes {
+  const notes: GeminiNotes = { attendees: [], riepilogo: [], decisioni: [], passaggi: [], dettagli: [], empty: false }
+  let section: NotesSection = 'header'
+  const header: string[] = []
+
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim()
+    if (!line) continue
+    const heading = headingOf(line)
+    if (heading) {
+      section = heading
+      continue
+    }
+    if (section === 'footer') continue
+    const clean = cleanLine(line)
+    if (!clean || NOTES_SUBHEAD.test(clean)) continue
+
+    if (section === 'header') header.push(line)
+    else if (section === 'riepilogo') notes.riepilogo.push(clean)
+    else if (section === 'decisioni') notes.decisioni.push(clean)
+    else if (section === 'dettagli') notes.dettagli.push(clean)
+    else if (section === 'passaggi') {
+      const m = clean.match(STEP)
+      if (m) notes.passaggi.push({ chi: m[1].trim(), etichetta: (m[2] ?? m[3] ?? '').trim() || null, testo: m[4].trim() })
+      else notes.passaggi.push({ chi: '', etichetta: null, testo: clean })
+    }
+  }
+
+  notes.attendees = emailsIn(header.join('\n'))
+  const said = [...notes.riepilogo, ...notes.passaggi.map((p) => p.testo), ...notes.dettagli].join(' ')
+  notes.empty =
+    !notes.decisioni.length &&
+    !notes.passaggi.some((p) => p.chi) &&
+    (NOTES_EMPTY.test(said) || !notes.riepilogo.length)
+  // Le righe "non è stato prodotto…" non sono contenuto.
+  if (notes.empty) {
+    notes.riepilogo = notes.riepilogo.filter((l) => !NOTES_EMPTY.test(l))
+    notes.passaggi = notes.passaggi.filter((p) => p.chi)
+    notes.dettagli = notes.dettagli.filter((l) => !NOTES_EMPTY.test(l))
+  }
+  return notes
 }
 
 /* ------------------------------------------------------------------ *

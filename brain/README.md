@@ -104,7 +104,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 147 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 152 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -649,15 +649,30 @@ di follow-up già scritta.
 
 ### La fonte è Google Meet, e non serve un connettore
 
-Con la trascrizione o "Prendi appunti con Gemini" attivi, Meet lascia in Drive
-un Google Doc per ciascuna delle due cose, con un titolo che finisce in
-"Transcript" / "Trascrizione" o "Notes by Gemini" / "Appunti di Gemini". Drive
-lo leggiamo già: `lib/brain/transcript.ts` li riconosce dal titolo, li
-ricongiunge alla stessa riunione (stesso giorno, stesso titolo) e sa leggere il
-formato — interventi "Nome: testo", timestamp su riga propria, intestazione con
-gli invitati.
+Con "Prendi appunti con Gemini" o la trascrizione attivi, Meet lascia in Drive
+un Google Doc per ciascuna delle due cose, con un titolo come
+`Titolo - 2026/09/14 15:00 BST - Appunti di Gemini` (o `… - Trascrizione`;
+in inglese `Notes by Gemini` / `Transcript`; una riunione senza titolo si
+chiama `Riunione iniziata …`). Drive lo leggiamo già: `lib/brain/transcript.ts`
+li riconosce dal titolo e li ricongiunge alla stessa riunione — stesso giorno,
+stessa ora d'inizio, stesso titolo, perché due call alle 13:40 e alle 13:43 con
+lo stesso nome sono due call.
 
-### La trascrizione entra a tratti
+### Con gli appunti di Gemini non serve un modello
+
+È il caso normale, e il più semplice. Gemini scrive già *Riepilogo*,
+*Decisioni*, *Passaggi successivi* (con il nome davanti a ognuno) e
+*Dettagli*. Il debrief è una lettura per sezioni: le decisioni sono quelle,
+gli impegni sono i passaggi con il loro nome, il titolare si riconosce dal
+nome accanto all'indirizzo. Ogni riga cita la sezione da cui è copiata, e la
+garanzia è esattamente quella: **sta negli appunti**. Che gli appunti siano
+fedeli alla call lo può dire solo chi c'era — e l'interfaccia lo scrive sotto
+la mail, prima del pulsante.
+
+Se Gemini non ha scritto niente ("non c'era abbastanza conversazione"), il
+debrief lo dice e si ferma, invece di inventare da un documento vuoto.
+
+### Con la trascrizione, il modello legge a tratti
 
 Una call di un'ora sono cinquantamila caratteri. Offerta come fonte unica, ogni
 riga del debrief citerebbe "F1" e chi legge dovrebbe rileggersi tutto. Spezzata
@@ -672,8 +687,8 @@ trascrizione vince la trascrizione.
 
 ### Cosa fa e cosa non fa
 
-- **Chi ha parlato quanto** è calcolato, non stimato. In una call commerciale
-  è il numero che un coach guarderebbe per primo.
+- **Chi ha parlato quanto** è calcolato, non stimato (solo con la trascrizione).
+  In una call commerciale è il numero che un coach guarderebbe per primo.
 - Un impegno ha sempre un nome davanti; se non si capisce chi se l'è preso,
   finisce fra le domande. Gli impegni del titolare si possono mettere fra i
   punti aperti con un tocco — passano dallo stesso riconoscimento del brief,
@@ -865,6 +880,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 147 test del nucleo, nessuna dipendenza
+npm test               # 152 test del nucleo, nessuna dipendenza
 npm run build
 ```

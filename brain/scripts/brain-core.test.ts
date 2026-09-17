@@ -23,8 +23,11 @@ import {
   attendees,
   callKey,
   classifyMeetDoc,
+  isSamePerson,
   meetingDay,
+  meetingTime,
   meetingTitle,
+  parseNotes,
   parseTurns,
   renderFollowUp,
   segment,
@@ -1126,10 +1129,81 @@ check('meetingTitle toglie suffisso e data; meetingDay la prende dal titolo o da
   assert.equal(meetingDay('Kickoff – Notes by Gemini', '2026-09-16T08:00:00Z'), '2026-09-16')
 })
 
+check('il formato italiano vero di Meet: "Titolo - 2026/09/14 15:00 BST - Appunti di Gemini"', () => {
+  const t = 'Trade Secret - 2026/09/14 15:00 BST - Appunti di Gemini'
+  assert.equal(classifyMeetDoc(t), 'notes')
+  assert.equal(meetingTitle(t), 'Trade Secret')
+  assert.equal(meetingDay(t, '2026-01-01T00:00:00Z'), '2026-09-14')
+  assert.equal(meetingTime(t), '15:00')
+  assert.equal(meetingTitle('Riunione iniziata 2026/09/02 10:07 CEST - Appunti di Gemini'), 'Riunione del 02/09/2026 alle 10:07')
+  assert.equal(meetingTime('Kickoff – Notes by Gemini'), null)
+})
+
+check('due call lo stesso giorno con lo stesso titolo non sono la stessa call', () => {
+  const a = callKey('Mlv Mg - 2026/08/31 13:40 CEST - Appunti di Gemini', '2026-08-31T11:46:00Z')
+  const b = callKey('Mlv Mg - 2026/08/31 13:43 CEST - Appunti di Gemini', '2026-08-31T11:56:00Z')
+  const c = callKey('Mlv Mg - 2026/08/31 13:40 CEST - Trascrizione', '2026-08-31T11:50:00Z')
+  assert.notEqual(a, b)
+  assert.equal(a, c)
+})
+
+check('isSamePerson riconosce il titolare dal nome, e non riconosce il gruppo', () => {
+  assert.equal(isSamePerson('Mario Rossi', 'mario.rossi@esempio.it'), true)
+  assert.equal(isSamePerson('Anna Verdi Rossi', 'rossi@studio.it'), true)
+  assert.equal(isSamePerson('Il gruppo', 'mario.rossi@esempio.it'), false)
+  assert.equal(isSamePerson('Luca Bianchi', 'mario.rossi@esempio.it'), false)
+})
+
+const GEMINI_NOTES = `Note
+set 7, 2026
+Prova
+invitato Mario Rossi <mario.rossi@esempio.it> <anna@studio.it>
+Allegati Prova
+Riepilogo
+La discussione ha definito l'architettura.
+Decisioni
+Concordato
+- Struttura di prezzo Il prezzo base è fissato a 30.000 euro.
+Passaggi successivi
+- [Anna Verdi] {Foto Coworking}: Inviare le fotografie.
+- [Mario Rossi] Prenotare auto: Prenotare un veicolo.
+- [Il gruppo] Testare flusso: Testare tutto.
+Dettagli
+- Configurazione postazione: Anna ha confermato.
+Dovresti rivedere le note di Gemini per assicurarti che siano accurate.
+Qual è la qualità di queste note?`
+
+check('parseNotes legge gli appunti di Gemini per sezioni, con chi davanti a ogni passaggio', () => {
+  const n = parseNotes(GEMINI_NOTES)
+  assert.deepEqual(n.attendees, ['mario.rossi@esempio.it', 'anna@studio.it'])
+  assert.deepEqual(n.riepilogo, ["La discussione ha definito l'architettura."])
+  assert.deepEqual(n.decisioni, ['Struttura di prezzo Il prezzo base è fissato a 30.000 euro.'])
+  assert.equal(n.passaggi.length, 3)
+  assert.deepEqual(n.passaggi[0], { chi: 'Anna Verdi', etichetta: 'Foto Coworking', testo: 'Inviare le fotografie.' })
+  assert.deepEqual(n.passaggi[1], { chi: 'Mario Rossi', etichetta: 'Prenotare auto', testo: 'Prenotare un veicolo.' })
+  assert.equal(n.passaggi[2].chi, 'Il gruppo')
+  assert.deepEqual(n.dettagli, ['Configurazione postazione: Anna ha confermato.'])
+  assert.equal(n.empty, false)
+})
+
+check('parseNotes riconosce gli appunti vuoti ("non c\'era abbastanza conversazione")', () => {
+  const n = parseNotes(`Note
+Riepilogo
+Non è stato prodotto un riepilogo per questa riunione perché non c'era abbastanza conversazione.
+Passaggi successivi
+Nessun passaggio successivo suggerito trovato per questa riunione.
+Dettagli
+Non sono stati prodotti dettagli per questa riunione.`)
+  assert.equal(n.empty, true)
+  assert.deepEqual(n.decisioni, [])
+  assert.deepEqual(n.passaggi, [])
+  assert.deepEqual(n.dettagli, [])
+})
+
 check('callKey tiene insieme trascrizione e appunti della stessa riunione', () => {
   const a = callKey('Kickoff Progetto Alfa (2026-09-15 at 10:02 GMT+2) – Transcript', '2026-09-15T09:00:00Z')
-  const b = callKey('kickoff progetto alfa – Notes by Gemini', '2026-09-15T09:30:00Z')
-  const c = callKey('kickoff progetto alfa – Notes by Gemini', '2026-09-22T09:30:00Z')
+  const b = callKey('kickoff progetto alfa (2026-09-15 at 10:02 GMT+2) – Notes by Gemini', '2026-09-15T09:30:00Z')
+  const c = callKey('kickoff progetto alfa (2026-09-22 at 10:02 GMT+2) – Notes by Gemini', '2026-09-22T09:30:00Z')
   assert.equal(a, b)
   assert.notEqual(a, c)
 })

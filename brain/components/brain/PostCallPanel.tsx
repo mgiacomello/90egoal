@@ -120,10 +120,10 @@ export default function PostCallPanel() {
   return (
     <section>
       <p className="brain-note" style={{ marginBottom: '1rem' }}>
-        Le call arrivano da <b>Google Meet</b>: con la trascrizione o gli appunti di Gemini attivi,
-        Meet lascia un documento in Drive, e Drive è già in memoria. Ogni riga del debrief cita il
-        <b> tratto</b> di trascrizione in cui la cosa è stata detta. La mail non parte da qui: la
-        mandi tu.
+        Le call arrivano da <b>Google Meet</b>: gli appunti di Gemini (o la trascrizione) finiscono
+        in Drive, e Drive è già in memoria. Con gli appunti il debrief è <b>copiato per sezioni,
+        senza modello</b>: ogni riga cita la sezione da cui viene. Con la trascrizione, ogni riga
+        cita il tratto in cui la cosa è stata detta. La mail non parte da qui: la mandi tu.
       </p>
 
       <div className="brain-list">
@@ -175,12 +175,27 @@ export default function PostCallPanel() {
               </p>
             ) : null}
             <span className="brain-meta">
-              {report.offered.length} fonti lette · modello {report.model}
+              {report.offered.length} fonti lette ·{' '}
+              {report.model === 'nessuno' ? 'senza modello' : `modello ${report.model}`}
               {report.coverage && report.coverage < 1 ? ` · letta solo il ${Math.round(report.coverage * 100)}% della trascrizione` : ''}
-              {report.hadNotes ? ' · con gli appunti di Gemini' : ''}
+              {report.hadNotes && report.hadTranscript ? ' · con gli appunti di Gemini' : ''}
+              {report.hadNotes && !report.hadTranscript ? ' · dagli appunti di Gemini' : ''}
               {report.dropped ? ` · ${report.dropped} righe scartate per fonte mancante` : ''}
             </span>
           </div>
+
+          {report.reason ? <p className="brain-empty">{report.reason}</p> : null}
+
+          {report.sintesi.length ? (
+            <div className="brain-section">
+              <h2>In due righe</h2>
+              <div className="brain-answer" style={{ marginTop: 0 }}>
+                {report.sintesi.map((c, k) => (
+                  <ClaimCard key={k} claim={c} />
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {report.impegni.length ? (
             <div className="brain-section">
@@ -247,6 +262,9 @@ export default function PostCallPanel() {
               </h2>
               <p className="brain-meta" style={{ marginBottom: '0.5rem' }}>
                 Formattata dalle righe qui sopra, non generata. Oggetto: <b>{report.followUp.subject}</b>
+                {report.hadNotes && !report.hadTranscript
+                  ? ' · Le righe vengono dagli appunti di Gemini: rileggile prima di mandare, tu c\'eri.'
+                  : ''}
               </p>
               <pre className="brain-counter">{report.followUp.text}</pre>
               <div className="brain-actions" style={{ marginTop: '0.75rem' }}>
@@ -260,7 +278,7 @@ export default function PostCallPanel() {
             </div>
           ) : null}
 
-          {!report.impegni.length && !report.decisioni.length && !report.domande.length ? (
+          {!report.reason && !report.impegni.length && !report.decisioni.length && !report.domande.length ? (
             <p className="brain-empty">
               La trascrizione non contiene decisioni, impegni o domande che reggano a una fonte.
               Meglio dirlo che inventare un riepilogo.

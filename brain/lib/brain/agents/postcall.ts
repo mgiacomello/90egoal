@@ -5,13 +5,16 @@ import {
   attendees,
   callKey,
   classifyMeetDoc,
+  isSamePerson,
   meetingDay,
   meetingTitle,
+  parseNotes,
   parseTurns,
   renderFollowUp,
   segment,
   speakerShares,
   type FollowUp,
+  type GeminiNotes,
   type SpeakerShare,
 } from '../transcript'
 import { CHANNEL_LABEL, type RawClaim, type SourceRef, type StoredDocument, type VerifiedClaim } from '../types'
@@ -29,11 +32,20 @@ import { CHANNEL_LABEL, type RawClaim, type SourceRef, type StoredDocument, type
  * riconosce quei documenti dal titolo (`lib/brain/transcript.ts`) e li
  * ricongiunge alla stessa riunione.
  *
- * La trascrizione entra spezzata in tratti di qualche minuto, ognuno
- * con il suo handle: una riga del debrief cita il tratto, non l'ora, e
- * il verificatore controlla i numeri contro quel tratto. Gli appunti
- * di Gemini sono una fonte in più, con un limite dichiarato nel
- * prompt: sono un riassunto fatto da un altro modello, e dove
+ * Due strade, a seconda di cosa c'è.
+ *
+ * **Solo gli appunti di Gemini** — il caso normale. Gemini scrive già
+ * decisioni e passaggi successivi, con il nome davanti a ognuno. Non
+ * c'è niente da far scrivere a un modello: il debrief è una lettura
+ * per sezioni, senza modello, come l'Amministrazione. Ogni riga cita
+ * la sezione da cui è copiata, e la garanzia è esattamente quella —
+ * sta negli appunti. Che gli appunti siano fedeli alla call lo può
+ * dire solo chi c'era, e l'interfaccia lo scrive.
+ *
+ * **C'è la trascrizione** — entra spezzata in tratti di qualche
+ * minuto, ognuno con il suo handle: il modello cita il tratto, non
+ * l'ora, e il verificatore controlla i numeri contro quel tratto. Gli
+ * appunti restano una fonte in più, con la regola nel prompt: dove
  * contraddicono la trascrizione vince la trascrizione.
  *
  * Gli impegni presi dal titolare diventano punti aperti — ma solo se lo
@@ -66,18 +78,23 @@ export type Commitment = VerifiedClaim & {
 export type CallDebrief = {
   title: string
   day: string
-  /** Chi ha parlato, e quanto. Calcolato, non stimato. */
+  /** Chi ha parlato, e quanto. Calcolato, non stimato. Solo con la trascrizione. */
   speakers: SpeakerShare[]
   attendees: string[]
+  /** Il riepilogo di Gemini, quando c'è: poche righe, citate. */
+  sintesi: VerifiedClaim[]
   decisioni: VerifiedClaim[]
   impegni: Commitment[]
   domande: VerifiedClaim[]
   followUp: FollowUp | null
   /** I punti già aperti che il debrief ritrova. */
   openPoints: OpenPoint[]
-  /** Quanta trascrizione è stata letta davvero, 0–1. */
+  /** Quanta trascrizione è stata letta davvero, 0–1. Zero senza trascrizione. */
   coverage: number
+  hadTranscript: boolean
   hadNotes: boolean
+  /** Perché non c'è niente, quando non c'è niente. */
+  reason: string | null
   dropped: number
   model: string
   offered: SourceRef[]
@@ -235,40 +252,58 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
 
   const turns = transcript ? parseTurns(transcript.body) : []
   const speakers = speakerShares(turns)
-  const who = transcript ? attendees(transcript.body) : []
+  const parsedNotes: GeminiNotes | null = notes ? parseNotes(notes.body) : null
+
+  // Chi c'era: gli invitati in testa alla trascrizione, oppure i nomi
+  // davanti ai passaggi di Gemini (che non è un elenco di invitati, ma
+  // è quello che c'è).
+  const GROUP = /^(il gruppo|the group|tutti|everyone)$/i
+  const who = transcript
+    ? attendees(transcript.body)
+    : [...new Set((parsedNotes?.passaggi ?? []).map((p) => p.chi).filter((c) => c && !GROUP.test(c)))]
 
   const segments = transcript ? segment(turns) : []
   const offeredSegments = segments.slice(0, MAX_SEGMENTS)
   const coverage = segments.length ? offeredSegments.length / segments.length : 0
 
   const offered: SourceRef[] = []
+  const ref = (doc: StoredDocument, label: string, excerpt: string): SourceRef => ({
+    handle: '',
+    documentId: doc.id,
+    source: 'gdrive',
+    kind: 'file',
+    title: `${title} · ${label}`,
+    occurredAt: doc.occurredAt,
+    url: doc.url ?? null,
+    excerpt,
+  })
   if (transcript) {
     offeredSegments.forEach((excerpt, i) => {
-      offered.push({
-        handle: '',
-        documentId: transcript.id,
-        source: 'gdrive',
-        kind: 'file',
-        title: `${title} · trascrizione, tratto ${i + 1} di ${segments.length}`,
-        occurredAt: transcript.occurredAt,
-        url: transcript.url ?? null,
-        excerpt,
-      })
+      offered.push(ref(transcript, `trascrizione, tratto ${i + 1} di ${segments.length}`, excerpt))
     })
   }
-  if (notes) {
-    offered.push({
-      handle: '',
-      documentId: notes.id,
-      source: 'gdrive',
-      kind: 'file',
-      title: `${title} · APPUNTI DI GEMINI`,
-      occurredAt: notes.occurredAt,
-      url: notes.url ?? null,
-      excerpt: notes.body.slice(0, MAX_NOTES_CHARS),
-    })
+  // Gli appunti entrano per sezione: una riga cita "Decisioni", non
+  // "gli appunti", e chi legge trova il punto.
+  const sectionRef: Partial<Record<'riepilogo' | 'decisioni' | 'passaggi' | 'dettagli', SourceRef>> = {}
+  if (notes && parsedNotes) {
+    const sections: ['riepilogo' | 'decisioni' | 'passaggi' | 'dettagli', string, string[]][] = [
+      ['riepilogo', 'appunti di Gemini, Riepilogo', parsedNotes.riepilogo],
+      ['decisioni', 'appunti di Gemini, Decisioni', parsedNotes.decisioni],
+      [
+        'passaggi',
+        'appunti di Gemini, Passaggi successivi',
+        parsedNotes.passaggi.map((p) => `[${p.chi || '—'}] ${p.etichetta ? `${p.etichetta}: ` : ''}${p.testo}`),
+      ],
+      ['dettagli', 'appunti di Gemini, Dettagli', parsedNotes.dettagli],
+    ]
+    for (const [key, label, lines] of sections) {
+      if (!lines.length) continue
+      const r = ref(notes, label, lines.join('\n').slice(0, MAX_NOTES_CHARS))
+      sectionRef[key] = r
+      offered.push(r)
+    }
   }
-  offered.forEach((ref, i) => (ref.handle = `F${i + 1}`))
+  offered.forEach((r, i) => (r.handle = `F${i + 1}`))
 
   const allPoints = await listOpenPoints().catch(() => [] as OpenPoint[])
   const foldedTitle = title.toLowerCase()
@@ -278,28 +313,90 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
       who.some((name) => name && p.text.toLowerCase().includes(name.toLowerCase()))
   )
 
-  const empty = (model: string): CallDebrief => ({
+  const empty = (model: string, reason: string | null): CallDebrief => ({
     title,
     day,
     speakers,
     attendees: who,
+    sintesi: [],
     decisioni: [],
     impegni: [],
     domande: [],
     followUp: null,
     openPoints,
     coverage,
+    hadTranscript: Boolean(transcript),
     hadNotes: Boolean(notes),
+    reason,
     dropped: 0,
     model,
     offered,
   })
 
-  if (!offered.length) {
-    await logRun({ agent: AGENT_KEY, question: title, answer: { vuoto: true }, model: null, hits: 0, latencyMs: Date.now() - started })
-    return empty('nessuno')
+  const finish = async (report: CallDebrief) => {
+    await logRun({
+      agent: AGENT_KEY,
+      question: title,
+      answer: {
+        decisioni: report.decisioni.length,
+        impegni: report.impegni.length,
+        domande: report.domande.length,
+        dropped: report.dropped,
+        coverage,
+        reason: report.reason,
+      },
+      model: report.model === 'nessuno' ? null : report.model,
+      hits: offered.length,
+      latencyMs: Date.now() - started,
+    })
+    return report
   }
 
+  // Gemini c'era ma non ha scritto niente: troppo poca conversazione.
+  if (!transcript && parsedNotes?.empty) {
+    return finish(empty('nessuno', 'Gemini non ha prodotto appunti per questa riunione: troppo poca conversazione.'))
+  }
+  if (!offered.length) {
+    return finish(empty('nessuno', 'Il documento è vuoto.'))
+  }
+
+  const cite = (text: string, r: SourceRef | undefined): VerifiedClaim | null => {
+    if (!r) return null
+    const { claims } = verifyClaims([{ text, sources: [r.handle] }], offered)
+    return claims[0] ?? null
+  }
+
+  /* --- Solo appunti: lettura per sezioni, senza modello. --- */
+  if (!transcript && parsedNotes) {
+    const sintesi = parsedNotes.riepilogo
+      .slice(0, 4)
+      .map((t) => cite(t, sectionRef.riepilogo))
+      .filter((c): c is VerifiedClaim => c !== null)
+    const decisioni = parsedNotes.decisioni
+      .map((t) => cite(t, sectionRef.decisioni))
+      .filter((c): c is VerifiedClaim => c !== null)
+    const impegni: Commitment[] = []
+    for (const p of parsedNotes.passaggi) {
+      if (!p.chi) continue
+      const text = `${p.etichetta ? `${p.etichetta}: ` : ''}${p.testo}`
+      const c = cite(text, sectionRef.passaggi)
+      if (c) impegni.push({ ...c, chi: p.chi, mio: isSamePerson(p.chi, options.ownerEmail), entro: null })
+    }
+
+    const others = who.filter((n) => !isSamePerson(n, options.ownerEmail))
+    const followUp = renderFollowUp({
+      title,
+      day,
+      to: others,
+      decisioni: decisioni.map((c) => c.text),
+      impegni: impegni.map((i) => `${i.chi}: ${i.text}`),
+      domande: [],
+    })
+
+    return finish({ ...empty('nessuno', null), sintesi, decisioni, impegni, followUp })
+  }
+
+  /* --- C'è la trascrizione: il modello legge i tratti e cita. --- */
   const { data, model } = await runStructured<{
     decisioni?: RawClaim[]
     impegni?: (RawClaim & { chi?: string; mio?: boolean; entro?: string })[]
@@ -341,7 +438,7 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
 
   const otherNames = speakers
     .map((s) => s.speaker)
-    .filter((n) => !impegni.kept.some((i) => i.mio && i.chi === n))
+    .filter((n) => !isSamePerson(n, options.ownerEmail))
     .filter((n) => !who.length || who.includes(n))
 
   const followUp = renderFollowUp({
@@ -353,29 +450,13 @@ export async function debrief(options: DebriefOptions): Promise<CallDebrief> {
     domande: domande.claims.map((c) => c.text),
   })
 
-  const report: CallDebrief = {
-    ...empty(model),
+  return finish({
+    ...empty(model, null),
+    sintesi: [],
     decisioni: decisioni.claims,
     impegni: impegni.kept,
     domande: domande.claims,
     followUp,
     dropped: decisioni.dropped.length + domande.dropped.length + impegni.dropped,
-  }
-
-  await logRun({
-    agent: AGENT_KEY,
-    question: title,
-    answer: {
-      decisioni: report.decisioni.length,
-      impegni: report.impegni.length,
-      domande: report.domande.length,
-      dropped: report.dropped,
-      coverage,
-    },
-    model,
-    hits: offered.length,
-    latencyMs: Date.now() - started,
   })
-
-  return report
 }
