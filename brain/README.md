@@ -789,7 +789,9 @@ Opzionale: `BRAIN_GMAIL_QUERY` sovrascrive il filtro di Gmail.
 4. Per Google: crea un OAuth client (tipo *Web application*) in Google Cloud
    Console, aggiungi come redirect URI `https://iltuodominio/api/brain/connect/google/callback`,
    abilita le API Gmail, Calendar e Drive. Poi scheda **Fonti** → *Collega Google*.
-5. Qonto e Oura: basta la chiave nell'ambiente, poi *Sincronizza tutto*.
+5. Qonto e Oura: basta la chiave nell'ambiente, poi *Sincronizza tutto*. La
+   prima volta la memoria guarda indietro di 30 giorni; *Riprendi gli ultimi
+   90 giorni* va a prendere anche quello che c'era prima (call, contratti).
 6. Imposta `CRON_SECRET` su Vercel e rifai il deploy: da lì in poi la memoria si
    aggiorna da sola, e la scheda *Fonti* dice quando è successo l'ultima volta.
 
