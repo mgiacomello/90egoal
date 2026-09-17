@@ -104,7 +104,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 139 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 147 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -117,6 +117,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/quote.ts` | una clausola citata esiste nel contratto? | è la promessa dell'agente Contratti |
 | `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
 | `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
+| `lib/brain/transcript.ts` | riconosce le trascrizioni di Meet, le spezza in tratti citabili, formatta la mail di follow-up | una call di un'ora citata come "F1" non è una citazione |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
@@ -353,9 +354,9 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Sei agenti.** Brief, capo di gabinetto, Incontri, Contratti, Amministrazione,
-  Coach. Manca il post-call, e manca per una ragione: non c'è una fonte di
-  trascrizioni. Manca chi fissa gli appuntamenti, perché scriverebbe in agenda.
+- **Sette agenti.** Brief, capo di gabinetto, Incontri, Contratti, Amministrazione,
+  Coach, Dopo la call. Manca chi fissa gli appuntamenti, perché scriverebbe in
+  agenda e manderebbe mail: BRAIN è in sola lettura per scelta.
 
 ---
 
@@ -640,6 +641,58 @@ nell'interfaccia il chip dice `Calcolo`, che è la verità.
 
 ---
 
+## L'agente Dopo la call
+
+È il "Supporto Commerciale" del post. Finita una call, dice **chi si è preso
+cosa, cosa è stato deciso, cosa è rimasto per aria** — e mette davanti la mail
+di follow-up già scritta.
+
+### La fonte è Google Meet, e non serve un connettore
+
+Con la trascrizione o "Prendi appunti con Gemini" attivi, Meet lascia in Drive
+un Google Doc per ciascuna delle due cose, con un titolo che finisce in
+"Transcript" / "Trascrizione" o "Notes by Gemini" / "Appunti di Gemini". Drive
+lo leggiamo già: `lib/brain/transcript.ts` li riconosce dal titolo, li
+ricongiunge alla stessa riunione (stesso giorno, stesso titolo) e sa leggere il
+formato — interventi "Nome: testo", timestamp su riga propria, intestazione con
+gli invitati.
+
+### La trascrizione entra a tratti
+
+Una call di un'ora sono cinquantamila caratteri. Offerta come fonte unica, ogni
+riga del debrief citerebbe "F1" e chi legge dovrebbe rileggersi tutto. Spezzata
+in tratti di qualche minuto — mai a metà di un intervento — la citazione porta
+al punto in cui la cosa è stata detta, e il verificatore controlla i numeri
+contro quel tratto, non contro l'ora intera. Se la trascrizione è più lunga di
+quanto si può offrire, la percentuale letta compare nel risultato.
+
+Gli appunti di Gemini sono una fonte in più, con il limite scritto nel prompt:
+sono un riassunto fatto da un altro modello, e dove contraddicono la
+trascrizione vince la trascrizione.
+
+### Cosa fa e cosa non fa
+
+- **Chi ha parlato quanto** è calcolato, non stimato. In una call commerciale
+  è il numero che un coach guarderebbe per primo.
+- Un impegno ha sempre un nome davanti; se non si capisce chi se l'è preso,
+  finisce fra le domande. Gli impegni del titolare si possono mettere fra i
+  punti aperti con un tocco — passano dallo stesso riconoscimento del brief,
+  quindi non si duplicano — e si chiudono solo a mano, come tutti gli altri.
+- **La mail è formattata, non generata**: righe già verificate, sezioni vuote
+  che spariscono, e se non c'è niente da dire la mail non c'è. Non parte da
+  qui: si copia o si apre nel client di posta, e a mandarla è chi la legge.
+
+---
+
+## I nomi degli assistenti
+
+Nel post ogni agente ha un nome di persona, e non è un vezzo: un nome dice *a
+chi* stai chiedendo. I nomi stanno in `lib/brain/names.ts` e in nessun altro
+posto; finché `name` è `null` l'interfaccia mostra il ruolo. Il ruolo resta
+sempre accanto al nome, perché "Giorgia" da sola non dice cosa fa.
+
+---
+
 ## Il trigger
 
 `GET /api/brain/cron` sincronizza tutti i connettori configurati **e poi scrive
@@ -799,9 +852,9 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
   parte, perché dentro a una lambda non ci sta.
 - **Altri agenti.** Ognuno è un file in `lib/brain/agents/` che recupera dalla
   memoria e passa da un verificatore deterministico — `verifyClaims()` per le
-  affermazioni, `matchQuote()` per le citazioni testuali. Dal post restano fuori
-  il post-call (servono trascrizioni) e chi fissa gli appuntamenti (serve
-  scrivere in agenda): quando arriveranno, leggeranno dalla stessa memoria.
+  affermazioni, `matchQuote()` per le citazioni testuali. Dal post resta fuori
+  chi fissa gli appuntamenti: serve scrivere in agenda, e il giorno in cui si
+  deciderà di farlo passerà da una bozza approvata a mano, non da un'azione.
 - **Azioni con approvazione.** Il punto d'innesto è un agente che produce una
   *bozza* (`task: 'draft'`) e la mette in una coda; a mandarla è un tocco umano.
   Con i connettori in sola lettura, oggi, non può partire niente per sbaglio.
@@ -812,6 +865,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 139 test del nucleo, nessuna dipendenza
+npm test               # 147 test del nucleo, nessuna dipendenza
 npm run build
 ```

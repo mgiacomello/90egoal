@@ -1,7 +1,15 @@
 import { requireOwner } from '@/lib/brain/auth'
 import { BrainError, toBrainError } from '@/lib/brain/errors'
-import { closePoint, listOpenPoints, reopenPoint, rephrasePoint } from '@/lib/brain/memory'
-import { fingerprint } from '@/lib/brain/openpoints'
+import {
+  closePoint,
+  listOpenPoints,
+  openPoint,
+  reopenPoint,
+  rephrasePoint,
+  touchPoint,
+  type SourceRefLike,
+} from '@/lib/brain/memory'
+import { decidePoints, fingerprint } from '@/lib/brain/openpoints'
 
 export const runtime = 'nodejs'
 
@@ -22,12 +30,34 @@ export async function POST(request: Request) {
       action?: unknown
       note?: unknown
       text?: unknown
+      texts?: unknown
+      citations?: unknown
+    }
+
+    const action = String(body.action ?? 'close')
+
+    // Aprire punti a mano — per esempio gli impegni presi in una call.
+    // Passa dallo stesso riconoscimento del brief: un punto che c'è già
+    // non si duplica, e la sua età non si azzera.
+    if (action === 'open') {
+      const texts = (Array.isArray(body.texts) ? body.texts : [])
+        .map((t) => String(t ?? '').trim().slice(0, 500))
+        .filter((t) => t.length >= 3)
+      if (!texts.length) throw new BrainError('Niente da aprire.', 400)
+      const citations = (Array.isArray(body.citations) ? body.citations : [])
+        .filter((c): c is SourceRefLike => Boolean(c && typeof c === 'object' && 'title' in c))
+        .slice(0, 5)
+      const existing = await listOpenPoints()
+      for (const decision of decidePoints(texts, existing)) {
+        if (decision.action === 'keep') await touchPoint(decision.id)
+        else await openPoint({ text: decision.text, fingerprint: decision.fingerprint, citations })
+      }
+      return Response.json({ puntiAperti: await listOpenPoints() })
     }
 
     const id = String(body.id ?? '').trim()
     if (!id) throw new BrainError('Manca l\'id del punto.', 400)
 
-    const action = String(body.action ?? 'close')
     if (action === 'reopen') {
       await reopenPoint(id)
     } else if (action === 'rephrase') {

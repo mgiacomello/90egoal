@@ -737,3 +737,27 @@ select.brain-input {
 
 .brain-tile[data-trend='in miglioramento'] .brain-tile-mark { color: var(--brain-ok); }
 .brain-tile[data-trend='in peggioramento'] .brain-tile-mark { color: #f87171; }
+
+/* ============================================================
+   Il nome dell'assistente
+
+   Sotto le schede, una riga sola: chi stai interrogando e cosa fa.
+   Piccola, perché la scheda l'hai già scelta; c'è perché un nome
+   senza ruolo non dice niente a chi arriva da fuori.
+   ============================================================ */
+
+.brain-agent {
+  margin: -0.25rem 0 1rem;
+  font-size: 0.8125rem;
+  color: var(--brain-muted);
+  letter-spacing: 0.02em;
+}
+
+.brain-agent::first-letter {
+  text-transform: uppercase;
+}
+
+pre.brain-counter {
+  font: inherit;
+  margin: 0;
+}

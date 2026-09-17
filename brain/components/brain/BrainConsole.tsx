@@ -7,9 +7,11 @@ import ClaimCard from '@/components/brain/ClaimCard'
 import CoachPanel from '@/components/brain/CoachPanel'
 import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
+import PostCallPanel from '@/components/brain/PostCallPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
+import { agentHeadline, agentTab, type AgentKey } from '@/lib/brain/names'
 import type { SyncReport } from '@/lib/brain/connectors'
 import { CHANNEL_LABEL, type StoredDocument, type VerifiedClaim } from '@/lib/brain/types'
 
@@ -25,7 +27,18 @@ type Answer = {
   searchNote?: string
 }
 
-type Tab = 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'sources' | 'memory'
+type Tab = 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall' | 'sources' | 'memory'
+
+/** Le schede che sono un assistente, e con che nome si presenta. */
+const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
+  brief: 'brief',
+  meeting: 'meeting',
+  ask: 'chief',
+  contracts: 'contracts',
+  ledger: 'ledger',
+  coach: 'coach',
+  postcall: 'postcall',
+}
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -196,7 +209,7 @@ export default function BrainConsole({
       <div className="brain-shell">
         <header className="brain-head">
           <span className="brain-mark">BRAIN<span>.</span></span>
-          <span className="brain-role">capo di gabinetto · {ownerEmail}</span>
+          <span className="brain-role">{agentHeadline('chief')} · {ownerEmail}</span>
           <span className="brain-count">
             {stats.total.toLocaleString('it-IT')} document{stats.total === 1 ? 'o' : 'i'} in memoria
           </span>
@@ -205,12 +218,13 @@ export default function BrainConsole({
         <nav className="brain-tabs" role="tablist">
           {(
             [
-              ['brief', 'Brief'],
-              ['meeting', 'Incontri'],
-              ['ask', 'Chiedi'],
-              ['contracts', 'Contratti'],
-              ['ledger', 'Conto'],
-              ['coach', 'Coach'],
+              ['brief', agentTab('brief')],
+              ['meeting', agentTab('meeting')],
+              ['ask', agentTab('chief')],
+              ['contracts', agentTab('contracts')],
+              ['ledger', agentTab('ledger')],
+              ['coach', agentTab('coach')],
+              ['postcall', agentTab('postcall')],
               ['sources', 'Fonti'],
               ['memory', 'Memoria'],
             ] as const
@@ -227,6 +241,8 @@ export default function BrainConsole({
             </button>
           ))}
         </nav>
+
+        {AGENT_OF[tab] ? <p className="brain-agent">{agentHeadline(AGENT_OF[tab]!)}</p> : null}
 
         {error ? <p className="brain-error">{error}</p> : null}
         {googleOutcome?.ok ? (
@@ -337,6 +353,9 @@ export default function BrainConsole({
 
         {/* --- COACH --- */}
         {tab === 'coach' ? <CoachPanel /> : null}
+
+        {/* --- DOPO LA CALL --- */}
+        {tab === 'postcall' ? <PostCallPanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (

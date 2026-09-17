@@ -20,6 +20,17 @@ import {
   type HealthDay,
 } from '../lib/brain/health.ts'
 import {
+  attendees,
+  callKey,
+  classifyMeetDoc,
+  meetingDay,
+  meetingTitle,
+  parseTurns,
+  renderFollowUp,
+  segment,
+  speakerShares,
+} from '../lib/brain/transcript.ts'
+import {
   addressesOf,
   displayPerson,
   extractPeople,
@@ -1081,6 +1092,94 @@ check('un segreto sbagliato o di lunghezza diversa non entra', () => {
 check('il segreto nudo senza schema Bearer non basta', () => {
   assert.equal(isAuthorizedCron('segreto', 'segreto'), false)
   assert.equal(isAuthorizedCron('Basic segreto', 'segreto'), false)
+})
+
+/* ------------------------------------------------------------------ *
+ * transcript: le call di Meet
+ * ------------------------------------------------------------------ */
+
+const MEET_TRANSCRIPT = `Kickoff progetto Alfa (2026-09-15 at 10:02 GMT+2) – Transcript
+Attendees
+Marco Giacomello, Giulia Bianchi
+Transcript
+This editable transcript was computer generated and might contain errors.
+00:00:05
+Marco Giacomello: Buongiorno Giulia, partiamo dal contratto.
+Giulia Bianchi: Sì. Vi mando la bozza entro venerdì 19,
+con il canone a 1.250 euro al mese.
+00:01:10
+Marco Giacomello: Perfetto, allora io preparo la lettera di incarico.`
+
+check('classifyMeetDoc riconosce trascrizione e appunti, in inglese e in italiano', () => {
+  assert.equal(classifyMeetDoc('Kickoff (2026-09-15 at 10:02 GMT+2) – Transcript'), 'transcript')
+  assert.equal(classifyMeetDoc('Kickoff – Trascrizione'), 'transcript')
+  assert.equal(classifyMeetDoc('Kickoff - Notes by Gemini'), 'notes')
+  assert.equal(classifyMeetDoc('Kickoff — Appunti di Gemini'), 'notes')
+  assert.equal(classifyMeetDoc('Contratto di fornitura.pdf'), null)
+  assert.equal(classifyMeetDoc('Transcript delle lezioni'), null)
+})
+
+check('meetingTitle toglie suffisso e data; meetingDay la prende dal titolo o dal documento', () => {
+  assert.equal(meetingTitle('Kickoff progetto Alfa (2026-09-15 at 10:02 GMT+2) – Transcript'), 'Kickoff progetto Alfa')
+  assert.equal(meetingTitle('Kickoff – Notes by Gemini'), 'Kickoff')
+  assert.equal(meetingDay('Kickoff (2026-09-15 at 10:02 GMT+2) – Transcript', '2026-09-16T08:00:00Z'), '2026-09-15')
+  assert.equal(meetingDay('Kickoff – Notes by Gemini', '2026-09-16T08:00:00Z'), '2026-09-16')
+})
+
+check('callKey tiene insieme trascrizione e appunti della stessa riunione', () => {
+  const a = callKey('Kickoff Progetto Alfa (2026-09-15 at 10:02 GMT+2) – Transcript', '2026-09-15T09:00:00Z')
+  const b = callKey('kickoff progetto alfa – Notes by Gemini', '2026-09-15T09:30:00Z')
+  const c = callKey('kickoff progetto alfa – Notes by Gemini', '2026-09-22T09:30:00Z')
+  assert.equal(a, b)
+  assert.notEqual(a, c)
+})
+
+check('parseTurns salta intestazione e timestamp e unisce le righe di continuazione', () => {
+  const turns = parseTurns(MEET_TRANSCRIPT)
+  assert.equal(turns.length, 3)
+  assert.equal(turns[0].speaker, 'Marco Giacomello')
+  assert.equal(turns[1].text, 'Sì. Vi mando la bozza entro venerdì 19, con il canone a 1.250 euro al mese.')
+  assert.equal(turns[2].speaker, 'Marco Giacomello')
+})
+
+check('attendees legge gli invitati in testa', () => {
+  assert.deepEqual(attendees(MEET_TRANSCRIPT), ['Marco Giacomello', 'Giulia Bianchi'])
+  assert.deepEqual(attendees('Solo testo, senza intestazione'), [])
+})
+
+check('speakerShares somma a uno e mette per primo chi ha parlato di più', () => {
+  const shares = speakerShares(parseTurns(MEET_TRANSCRIPT))
+  assert.equal(shares.length, 2)
+  assert.equal(shares[0].speaker, 'Marco Giacomello')
+  assert.ok(Math.abs(shares[0].share + shares[1].share - 1) <= 0.01)
+  assert.deepEqual(speakerShares([]), [])
+})
+
+check('segment non spezza mai un intervento a metà', () => {
+  const turns = Array.from({ length: 10 }, (_, i) => ({ speaker: `P${i}`, text: 'x'.repeat(100) }))
+  const parts = segment(turns, 250)
+  assert.equal(parts.length, 5)
+  for (const p of parts) assert.equal(p.split('\n').length, 2)
+  assert.equal(segment([{ speaker: 'A', text: 'x'.repeat(900) }], 250).length, 1)
+})
+
+check('renderFollowUp formatta le sezioni piene e sparisce se sono tutte vuote', () => {
+  const mail = renderFollowUp({
+    title: 'Kickoff',
+    day: '2026-09-15',
+    to: ['Giulia Bianchi', 'Luca Verdi'],
+    decisioni: ['Si parte a ottobre'],
+    impegni: ['Giulia Bianchi: manda la bozza — entro venerdì 19'],
+    domande: [],
+  })
+  assert.ok(mail)
+  assert.equal(mail.subject, 'Riepilogo — Kickoff')
+  assert.ok(mail.text.startsWith('Ciao Giulia e Luca,'))
+  assert.ok(mail.text.includes('15/09/2026'))
+  assert.ok(mail.text.includes('Cosa abbiamo deciso\n- Si parte a ottobre'))
+  assert.ok(mail.text.includes('Prossimi passi'))
+  assert.ok(!mail.text.includes('Da chiarire'))
+  assert.equal(renderFollowUp({ title: 'X', day: '2026-09-15', to: [], decisioni: [], impegni: [], domande: [] }), null)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)
