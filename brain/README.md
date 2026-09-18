@@ -21,6 +21,20 @@ Progetto Next autonomo: ha il suo `package.json`, il suo `vercel.json` e le sue
 variabili. Vive in una sottocartella del repository `90egoal` solo perché ci è
 nato — a Vercel si importa come **progetto a sé**, con dominio e ambiente suoi.
 
+### In un comando
+
+```bash
+cp .env.deploy.example .env.deploy   # compila: token Vercel + le 5 variabili
+node scripts/go-live.mjs
+```
+
+Crea il progetto Vercel con Root Directory `brain` collegato al repository,
+carica le variabili, fa il deploy, aspetta che sia pronto, imposta
+`BRAIN_APP_URL` sul dominio ottenuto e stampa l'URL. Con
+`SUPABASE_ACCESS_TOKEN` esegue anche le due migration. È idempotente: si può
+rilanciare per aggiornare le variabili o rifare il deploy. Il resto di questa
+sezione è la stessa cosa fatta a mano.
+
 ### 1. Su Vercel
 
 *New Project* → importa `mgiacomello/90egoal` → e qui l'unica cosa che conta:
