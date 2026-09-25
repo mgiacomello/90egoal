@@ -112,7 +112,6 @@ export function useRecorder() {
         attach(src);
         if (src instanceof WebBluetoothMendi) {
           await src.connect({ acceptAllDevices, log });
-          await src.enableAutoCalibration().catch(() => log("Autocalibrazione non disponibile (non è bloccante)."));
         } else {
           await src.connect();
         }
@@ -129,6 +128,27 @@ export function useRecorder() {
     },
     [attach],
   );
+
+  /** Contatore grezzo dei campioni ricevuti dalla fascia (anche fuori dalle fasi registrate). */
+  const [received, setReceived] = useState(0);
+  useEffect(() => {
+    if (!device) return;
+    const t = setInterval(() => {
+      const src = source.current;
+      if (src instanceof WebBluetoothMendi) setReceived(src.frameCount);
+      else if (src) setReceived((n) => n + 25);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [device]);
+
+  /** Riaccende LED e sensore a mano (tasto nella schermata iniziale). */
+  const wake = useCallback(async () => {
+    const src = source.current;
+    if (src instanceof WebBluetoothMendi) {
+      await src.readDiagnostics();
+      await src.wakeUp();
+    }
+  }, []);
 
   const disconnect = useCallback(async () => {
     await source.current?.disconnect();
@@ -190,8 +210,8 @@ export function useRecorder() {
       const src = source.current;
       if (n === 0 && src instanceof WebBluetoothMendi) {
         // Collegata ma muta: riprovo ad accendere il sensore ottico prima della nuova baseline.
-        src.enableSensor().catch(() => undefined);
-        setError("La fascia è collegata ma non ha inviato campioni in 30 s. Ho riacceso il sensore ottico: riprovo la baseline. Se resta a zero, scollega e ricollega la fascia (e controlla che i LED sulla fronte siano accesi).");
+        src.wakeUp().catch(() => undefined);
+        setError("La fascia è collegata ma non ha inviato campioni in 30 s. Ho rimandato l'accensione (calibrazione + sensore): riprova la baseline. Se resta a zero, spegni e riaccendi la fascia, poi «scollega» e ricollega; il log nero dice che cosa risponde.");
       } else {
         setError(`Baseline insufficiente: ${n} campioni ricevuti, ma con luce ambiente troppo alta o sensori scoperti. Controlla che la fascia aderisca alla fronte, lontano da luce diretta, e riprovo.`);
       }
@@ -292,9 +312,9 @@ export function useRecorder() {
   }, []);
 
   return {
-    phase, device, battery, error, connecting, btLog, document, clauseIndex, live, frameCount, baseline,
+    phase, device, battery, error, connecting, btLog, document, clauseIndex, live, frameCount, baseline, received,
     session: session.current,
-    connect, disconnect, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
+    connect, disconnect, wake, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
     clearError: () => setError(null),
   };
 }

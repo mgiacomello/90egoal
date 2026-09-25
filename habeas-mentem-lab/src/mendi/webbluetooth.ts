@@ -12,7 +12,7 @@ import {
   SENSOR_CHARACTERISTIC,
   MENDI_SERVICE_UUID,
 } from "./protocol";
-import { decodeAdc, decodeCalibration, decodeDiagnostics, decodeFrame, encodeCalibration, encodeSensor } from "./protobuf";
+import { decodeAdc, decodeCalibration, decodeDiagnostics, decodeFrame, decodeSensor, encodeCalibration, encodeSensor } from "./protobuf";
 import type { DeviceInfo, MendiListener, MendiSource } from "./types";
 
 const DEVICE_INFORMATION_SERVICE = "device_information";
@@ -102,10 +102,16 @@ export function explainBluetoothError(e: unknown): string {
 export class WebBluetoothMendi implements MendiSource {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
+  private service: BluetoothRemoteGATTService | null = null;
   private calibration: BluetoothRemoteGATTCharacteristic | null = null;
   private sensor: BluetoothRemoteGATTCharacteristic | null = null;
+  private diagnostics: BluetoothRemoteGATTCharacteristic | null = null;
+  private frameChar: BluetoothRemoteGATTCharacteristic | null = null;
   private frames = 0;
+  private otherNotifications = 0;
   private listeners = new Set<MendiListener>();
+  private log: (line: string) => void = () => undefined;
+  private watchdog: ReturnType<typeof setTimeout>[] = [];
 
   get connected(): boolean {
     return this.server?.connected ?? false;
@@ -122,6 +128,7 @@ export class WebBluetoothMendi implements MendiSource {
 
   async connect(options: ConnectOptions = {}): Promise<DeviceInfo> {
     const log = options.log ?? (() => undefined);
+    this.log = log;
     if (!isWebBluetoothAvailable()) {
       throw new Error("Web Bluetooth non disponibile: usa Chrome o Edge su desktop o Android.");
     }
@@ -138,8 +145,13 @@ export class WebBluetoothMendi implements MendiSource {
     );
     log(`Dispositivo scelto: ${this.device.name ?? "(senza nome)"} · id ${this.device.id.slice(0, 8)}…`);
     this.device.addEventListener("gattserverdisconnected", () => {
+      this.clearWatchdog();
       this.server = null;
+      this.service = null;
       this.calibration = null;
+      this.sensor = null;
+      this.diagnostics = null;
+      this.frameChar = null;
       log("Disconnessa.");
       this.emit({ type: "disconnected" });
     });
@@ -160,85 +172,228 @@ export class WebBluetoothMendi implements MendiSource {
       const dis = await server.getPrimaryService(DEVICE_INFORMATION_SERVICE);
       info.firmwareVersion = await readString(dis, FIRMWARE_REVISION);
       info.hardwareVersion = await readString(dis, HARDWARE_REVISION);
+      log(`Firmware ${info.firmwareVersion ?? "?"} · hardware ${info.hardwareVersion ?? "?"}`);
     } catch {
-      // Il servizio Device Information è facoltativo.
+      log("Servizio Device Information assente (non è bloccante).");
     }
 
     const service = await server.getPrimaryService(MENDI_SERVICE_UUID);
-    log("Servizio Mendi trovato. Attivo le notifiche del flusso dati (0xABB1)…");
+    this.service = service;
+    log("Servizio Mendi trovato.");
 
+    // Inventario: quali caratteristiche ci sono e che cosa permettono.
+    // Serve a capire, dal log, con quale firmware abbiamo a che fare.
+    try {
+      const chars = await service.getCharacteristics();
+      log(
+        "Caratteristiche: " +
+          chars
+            .map((c) => {
+              const short = c.uuid.slice(4, 8).toUpperCase();
+              const p = c.properties;
+              const flags = [p.read && "r", p.write && "w", p.writeWithoutResponse && "W", p.notify && "n", p.indicate && "i"].filter(Boolean).join("");
+              return `${short}[${flags}]`;
+            })
+            .join(" "),
+      );
+    } catch (e) {
+      log(`Elenco caratteristiche non disponibile: ${errText(e)}`);
+    }
+
+    // 1. Frame (0xABB1): il flusso dati. Prima le notifiche, poi i comandi che lo avviano.
     const frame = await service.getCharacteristic(FRAME_CHARACTERISTIC);
+    this.frameChar = frame;
     frame.addEventListener("characteristicvaluechanged", (ev) => {
       const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
       if (!value) return;
-      const decoded = decodeFrame(toBytes(value));
+      const bytes = toBytes(value);
+      const decoded = decodeFrame(bytes);
       if (decoded) {
         this.frames++;
-        if (this.frames === 1) log("Primo campione ricevuto: la fascia trasmette.");
+        if (this.frames === 1) {
+          this.clearWatchdog();
+          log(`Primo campione ricevuto (${bytes.length} byte: ${hex(bytes, 16)}…): la fascia trasmette.`);
+          log(`IR sx ${decoded.irLeft} · IR dx ${decoded.irRight} · ambiente sx ${decoded.ambLeft} · temp ${decoded.temperature.toFixed(1)}°`);
+        } else if (this.frames === 250) {
+          log("250 campioni ricevuti (~10 s a 25 Hz). Flusso regolare.");
+        }
         this.emit({ type: "frame", frame: decoded });
+      } else if (this.frames === 0) {
+        log(`Notifica su ABB1 non decodificabile (${bytes.length} byte: ${hex(bytes, 16)})`);
       }
     });
     await frame.startNotifications();
-    log("Notifiche attive sul flusso dati.");
+    log("Notifiche attive sul flusso dati (ABB1).");
 
-    // Su alcune versioni di firmware il flusso ottico parte solo dopo un
-    // messaggio Sensor(read=true) su 0xABB2: è ciò che fa l'app Mendi
-    // (listenForSensorUpdates). Senza, la fascia resta collegata ma muta.
+    // 2. Le altre caratteristiche: ascoltiamo tutto, e scriviamo nel log
+    //    i byte grezzi delle prime risposte, così si vede se la fascia «parla».
+    this.sensor = await this.listen(service, SENSOR_CHARACTERISTIC, "ABB2 Sensor", (bytes) => {
+      const r = decodeSensor(bytes);
+      if (r) log(`Sensor → read=${r.read} indirizzo 0x${r.address.toString(16)} dato 0x${r.data.toString(16)}`);
+    });
+    await this.listen(service, ADC_CHARACTERISTIC, "ABB4 Batteria", (bytes) => {
+      const decoded = decodeAdc(bytes);
+      if (decoded) this.emit({ type: "battery", reading: decoded });
+    });
+    this.calibration = await this.listen(service, CALIBRATION_CHARACTERISTIC, "ABB6 Calibrazione", (bytes) => {
+      const decoded = decodeCalibration(bytes);
+      if (decoded) {
+        log(`Calibrazione → offset L ${decoded.offsetLeft.toFixed(1)} R ${decoded.offsetRight.toFixed(1)} P ${decoded.offsetPulse.toFixed(1)} · auto ${decoded.autoCalibration ? "sì" : "no"} · risparmio ${decoded.lowPowerMode ? "sì" : "no"}`);
+        this.emit({ type: "calibration", reading: decoded });
+      }
+    });
     try {
-      const sensor = await service.getCharacteristic(SENSOR_CHARACTERISTIC);
-      this.sensor = sensor;
-      await sensor.writeValueWithResponse(encodeSensor(true).slice().buffer as ArrayBuffer);
-      log("Sensore ottico acceso (Sensor read=true).");
+      this.diagnostics = await service.getCharacteristic(DIAGNOSTICS_CHARACTERISTIC);
+      await this.readDiagnostics();
     } catch (e) {
-      log(`Accensione del sensore non riuscita: ${e instanceof Error ? e.message : String(e)}`);
+      log(`Diagnostica non disponibile: ${errText(e)}`);
     }
 
-    try {
-      const adc = await service.getCharacteristic(ADC_CHARACTERISTIC);
-      adc.addEventListener("characteristicvaluechanged", (ev) => {
-        const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
-        if (!value) return;
-        const decoded = decodeAdc(toBytes(value));
-        if (decoded) this.emit({ type: "battery", reading: decoded });
-      });
-      await adc.startNotifications();
-    } catch {
-      // Batteria non disponibile: non è bloccante.
-    }
+    // 3. Accensione. È la sequenza della CLI Rust `mendi` (tasti c, e) e
+    //    dell'app Mendi: autocalibrazione dei LED, poi Sensor(read=true).
+    await this.wakeUp();
 
-    // Le notifiche della caratteristica Sensor portano le risposte di lettura registri: non servono qui.
-    try {
-      const cal = await service.getCharacteristic(CALIBRATION_CHARACTERISTIC);
-      cal.addEventListener("characteristicvaluechanged", (ev) => {
-        const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
-        if (!value) return;
-        const decoded = decodeCalibration(toBytes(value));
-        if (decoded) this.emit({ type: "calibration", reading: decoded });
-      });
-      await cal.startNotifications();
-      this.calibration = cal;
-    } catch {
-      this.calibration = null;
-    }
-
-    try {
-      const diag = await service.getCharacteristic(DIAGNOSTICS_CHARACTERISTIC);
-      const decoded = decodeDiagnostics(toBytes(await diag.readValue()));
-      if (decoded) this.emit({ type: "diagnostics", reading: decoded });
-    } catch {
-      // Diagnostica facoltativa.
-    }
+    // 4. Se in pochi secondi non arriva nulla, riproviamo da soli, in modo
+    //    diverso: il log dice che cosa abbiamo tentato.
+    this.armWatchdog();
 
     log(`Collegata: ${info.name}${info.firmwareVersion ? ` · firmware ${info.firmwareVersion}` : ""}`);
     this.emit({ type: "connected", device: info });
     return info;
   }
 
-  /** Riprova ad accendere il sensore ottico (se la baseline non riceve campioni). */
+  private async listen(
+    service: BluetoothRemoteGATTService,
+    uuid: string,
+    label: string,
+    onValue: (bytes: Uint8Array) => void,
+  ): Promise<BluetoothRemoteGATTCharacteristic | null> {
+    try {
+      const c = await service.getCharacteristic(uuid);
+      c.addEventListener("characteristicvaluechanged", (ev) => {
+        const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
+        if (!value) return;
+        const bytes = toBytes(value);
+        this.otherNotifications++;
+        if (this.otherNotifications <= 12) this.log(`${label} ← ${bytes.length} byte: ${hex(bytes, 24)}`);
+        onValue(bytes);
+      });
+      if (c.properties.notify || c.properties.indicate) await c.startNotifications();
+      return c;
+    } catch (e) {
+      this.log(`${label}: ${errText(e)}`);
+      return null;
+    }
+  }
+
+  private async write(c: BluetoothRemoteGATTCharacteristic | null, payload: Uint8Array, label: string): Promise<boolean> {
+    if (!c) {
+      this.log(`${label}: caratteristica assente.`);
+      return false;
+    }
+    // Copia su un ArrayBuffer "puro": l'API BLE non accetta viste su SharedArrayBuffer.
+    const buf = payload.slice().buffer as ArrayBuffer;
+    try {
+      if (c.properties.write) await c.writeValueWithResponse(buf);
+      else if (c.properties.writeWithoutResponse) await c.writeValueWithoutResponse(buf);
+      else await c.writeValue(buf);
+      this.log(`${label} → ${hex(payload, 24) || "(vuoto)"} ok`);
+      return true;
+    } catch (e) {
+      this.log(`${label} → ${hex(payload, 24) || "(vuoto)"} fallita: ${errText(e)}`);
+      return false;
+    }
+  }
+
+  /** Legge l'autodiagnosi (IMU ok, sensore ok, batteria) e la scrive nel log. */
+  async readDiagnostics(): Promise<void> {
+    if (!this.diagnostics) return;
+    try {
+      const bytes = toBytes(await this.diagnostics.readValue());
+      const decoded = decodeDiagnostics(bytes);
+      if (decoded) {
+        this.log(
+          `Diagnostica: IMU ${decoded.imuOk ? "ok" : "NO"} · sensore ottico ${decoded.sensorOk ? "ok" : "NO"}` +
+            (decoded.adc ? ` · batteria ${decoded.adc.voltageMv} mV${decoded.adc.charging ? " in carica" : ""}` : "") +
+            ` (${bytes.length} byte: ${hex(bytes, 16)})`,
+        );
+        this.emit({ type: "diagnostics", reading: decoded });
+      } else this.log(`Diagnostica: ${bytes.length} byte non decodificabili (${hex(bytes, 16)})`);
+    } catch (e) {
+      this.log(`Lettura diagnostica fallita: ${errText(e)}`);
+    }
+  }
+
+  /** Sequenza di accensione: autocalibrazione LED, poi sensore ottico. */
+  async wakeUp(): Promise<void> {
+    await this.enableAutoCalibration();
+    await this.enableSensor();
+  }
+
+  /** Accende (o riaccende) il sensore ottico: Sensor(read=true) su 0xABB2. */
   async enableSensor(): Promise<boolean> {
-    if (!this.sensor) return false;
-    await this.sensor.writeValueWithResponse(encodeSensor(true).slice().buffer as ArrayBuffer);
-    return true;
+    return this.write(this.sensor, encodeSensor(true), "Sensore ottico acceso (Sensor read=true)");
+  }
+
+  /** Attiva l'autocalibrazione dei LED (equivale al comando `c` della CLI Rust). */
+  async enableAutoCalibration(): Promise<void> {
+    const payload = encodeCalibration({
+      offsetLeft: 0, offsetRight: 0, offsetPulse: 0, autoCalibration: true, lowPowerMode: false,
+    });
+    await this.write(this.calibration, payload, "Autocalibrazione LED (Calibration enable=true)");
+  }
+
+  /** Tentativi alternativi quando la fascia resta muta, uno per volta. */
+  async nudge(step: number): Promise<void> {
+    if (!this.service) return;
+    if (this.frames > 0) return;
+    if (step === 1) {
+      this.log("Nessun campione dopo 4 s: riprovo Sensor(read=true).");
+      await this.enableSensor();
+    } else if (step === 2) {
+      this.log("Ancora nulla dopo 8 s: leggo la diagnostica e rimando la calibrazione con risparmio energetico spento.");
+      await this.readDiagnostics();
+      await this.enableAutoCalibration();
+      await this.enableSensor();
+    } else if (step === 3) {
+      this.log("Ancora nulla dopo 14 s: provo a leggere direttamente il Frame e a riattivare le notifiche.");
+      if (this.frameChar?.properties.read) {
+        try {
+          const bytes = toBytes(await this.frameChar.readValue());
+          this.log(`Lettura diretta ABB1: ${bytes.length} byte: ${hex(bytes, 24)}`);
+          const f = decodeFrame(bytes);
+          if (f && bytes.length > 0) this.emit({ type: "frame", frame: f });
+        } catch (e) {
+          this.log(`Lettura diretta ABB1 fallita: ${errText(e)}`);
+        }
+      }
+      try {
+        await this.frameChar?.stopNotifications();
+        await this.frameChar?.startNotifications();
+        this.log("Notifiche ABB1 riattivate.");
+      } catch (e) {
+        this.log(`Riattivazione notifiche fallita: ${errText(e)}`);
+      }
+      await this.enableSensor();
+    } else {
+      this.log(
+        "La fascia è collegata ma non trasmette. Prova: spegni e riaccendi la fascia (tasto laterale, fino alla vibrazione), " +
+          "assicurati che l'app Mendi sia chiusa, poi «scollega» e ricollega. Se i LED restano spenti, copia questo log e mandamelo.",
+      );
+    }
+  }
+
+  private armWatchdog(): void {
+    this.clearWatchdog();
+    const plan: [number, number][] = [[4000, 1], [8000, 2], [14000, 3], [20000, 4]];
+    for (const [ms, step] of plan) {
+      this.watchdog.push(setTimeout(() => void this.nudge(step).catch(() => undefined), ms));
+    }
+  }
+
+  private clearWatchdog(): void {
+    for (const t of this.watchdog) clearTimeout(t);
+    this.watchdog = [];
   }
 
   /** Campioni ricevuti dall'inizio del collegamento. */
@@ -246,17 +401,8 @@ export class WebBluetoothMendi implements MendiSource {
     return this.frames;
   }
 
-  /** Attiva l'autocalibrazione dei LED (equivale al comando `c` della CLI Rust). */
-  async enableAutoCalibration(): Promise<void> {
-    if (!this.calibration) return;
-    const payload = encodeCalibration({
-      offsetLeft: 0, offsetRight: 0, offsetPulse: 0, autoCalibration: true, lowPowerMode: false,
-    });
-    // Copia su un ArrayBuffer "puro": l'API BLE non accetta viste su SharedArrayBuffer.
-    await this.calibration.writeValueWithResponse(payload.slice().buffer as ArrayBuffer);
-  }
-
   async disconnect(): Promise<void> {
+    this.clearWatchdog();
     try {
       if (this.sensor) await this.sensor.writeValueWithResponse(encodeSensor(false).slice().buffer as ArrayBuffer);
     } catch {
@@ -264,8 +410,21 @@ export class WebBluetoothMendi implements MendiSource {
     }
     this.device?.gatt?.disconnect();
     this.server = null;
+    this.service = null;
     this.sensor = null;
+    this.calibration = null;
+    this.diagnostics = null;
+    this.frameChar = null;
   }
+}
+
+function hex(bytes: Uint8Array, max: number): string {
+  const head = Array.from(bytes.subarray(0, max), (b) => b.toString(16).padStart(2, "0")).join(" ");
+  return bytes.length > max ? `${head} …` : head;
+}
+
+function errText(e: unknown): string {
+  return e instanceof Error ? `${e.name}: ${e.message}` : String(e);
 }
 
 function toBytes(view: DataView): Uint8Array {

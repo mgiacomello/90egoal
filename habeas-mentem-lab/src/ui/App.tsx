@@ -132,11 +132,32 @@ function Setup({ r }: { r: R }) {
       <section className="card">
         <h2>1. Fascia Mendi</h2>
         {r.device ? (
-          <p>
-            Collegata: <strong>{r.device.name}</strong>
-            {r.device.firmwareVersion ? ` · firmware ${r.device.firmwareVersion}` : ""}{" "}
-            <button onClick={r.disconnect}>scollega</button>
-          </p>
+          <>
+            <p>
+              Collegata: <strong>{r.device.name}</strong>
+              {r.device.firmwareVersion ? ` · firmware ${r.device.firmwareVersion}` : ""}{" "}
+              <button onClick={r.disconnect}>scollega</button>
+            </p>
+            {!r.device.simulated && (
+              <>
+                <div className={`diag ${r.received > 0 ? "diag-ok" : "diag-bad"}`}>
+                  <strong>{r.received > 0 ? `La fascia trasmette: ${r.received} campioni ricevuti.` : "Collegata, ma ancora nessun campione."}</strong>
+                  {r.received === 0 && (
+                    <span className="diag-detail">
+                      I LED sulla fronte devono accendersi. Se restano spenti: «riaccendi», poi spegni e riaccendi la fascia e ricollega. Il log qui sotto dice che cosa risponde.
+                    </span>
+                  )}
+                </div>
+                <div className="row">
+                  <button onClick={r.wake}>riaccendi LED e sensore</button>
+                  <button onClick={() => navigator.clipboard?.writeText(r.btLog.join("\n")).catch(() => undefined)}>copia il log</button>
+                </div>
+                <pre className="btlog" id="btlog">
+                  {r.btLog.join("\n")}
+                </pre>
+              </>
+            )}
+          </>
         ) : (
           <>
             <div className="row">
