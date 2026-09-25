@@ -111,3 +111,11 @@ code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
 .dossier { margin-top: 20px; }
 .dossier .row { margin-top: 10px; }
 .dossier input { flex: 1; min-width: 260px; }
+
+/* Aggregato */
+.status { display: flex; gap: 12px; align-items: center; }
+.linklike { border: 0; background: none; color: var(--accent); text-decoration: underline; padding: 4px 6px; font-size: 13px; }
+.files { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; font-size: 13px; }
+.files button { padding: 2px 8px; font-size: 12px; }
+.errors { color: var(--warn); font-size: 13px; margin: 10px 0 0; padding-left: 18px; }
+.table-wrap { overflow-x: auto; }
