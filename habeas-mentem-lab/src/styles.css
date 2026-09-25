@@ -119,3 +119,11 @@ code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
 .files button { padding: 2px 8px; font-size: 12px; }
 .errors { color: var(--warn); font-size: 13px; margin: 10px 0 0; padding-left: 18px; }
 .table-wrap { overflow-x: auto; }
+
+/* Diagnostica Bluetooth */
+.check.small { font-weight: 400; font-size: 13px; margin: 0; }
+.diag { margin-top: 12px; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; display: grid; gap: 4px; }
+.diag-ok { background: #e3f1e8; color: #1f5a38; }
+.diag-bad { background: #fbe9e7; color: #7a1f18; }
+.diag-detail { font-size: 12px; opacity: 0.8; }
+.btlog { margin: 10px 0 0; padding: 10px 12px; background: #1d1b18; color: #e8e4dc; border-radius: 8px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; max-height: 220px; overflow: auto; }
