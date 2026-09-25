@@ -132,8 +132,7 @@ tests/           vitest
 
 2. ~~Test e prova operativa~~ — fatto.
 3. ~~Mappa della frizione~~ — fatto (prima versione; le soglie sono dichiarate nel codice).
-4. **LX Score Analyzer** — le quattro dimensioni (complessità linguistica, densità
-   concettuale, struttura informativa, distanza semantica) e la ricalibrazione dei pesi sui dati raccolti.
+4. ~~LX Score Analyzer~~ — fatto in prima versione: `src/session/calibrate.ts` ricalibra i pesi delle quattro strade sui dati aggregati (misura composita di comprensione = verifica, prova operativa, tempo compatibile con la lettura; ricerca dei pesi che rendono più negativa la correlazione, come nel libro; soglia osservata), con minimi dichiarati (5 lettori, 6 clausole), confronto con r = −0,71/−0,68 del libro e cautele esplicite. Il risultato entra nel fascicolo aggregato.
 6. ~~Fascicolo aggregato~~ — fatto: `src/session/aggregate.ts` importa i JSON di più sessioni sullo stesso documento e calcola, in forma anonima, dove i lettori si perdono (quote di lettori troppo veloci o tornati indietro, accuratezza della verifica, riuscita della prova, sforzo medio tra chi aveva il segnale, quota di lettori "persi"); frizione per convergenza tra lettori con soglie dichiarate (`AGGREGATE_THRESHOLDS`) e PDF aggregato in orizzontale.
 5. ~~Fascicolo di comprensibilità~~ — fatto: `src/session/dossier.ts` genera nel browser (jsPDF) il PDF con sintesi, mappa della frizione, risposte e compiti, metodo dichiarato, costituzione applicata, nome di chi risponde del documento e impronta SHA-256 del JSON di sessione.
 

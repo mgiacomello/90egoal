@@ -8,6 +8,8 @@ import type { Document } from "../session/model";
 import { Sparkline } from "./Sparkline";
 import { Operate, Verify } from "./VerifyOperate";
 import { AggregateScreen } from "./AggregateScreen";
+import { Stepper } from "./Stepper";
+import { FrictionStrip } from "./FrictionStrip";
 import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
@@ -40,6 +42,17 @@ export function App() {
           )}
         </div>
       </header>
+
+      {mode === "session" && r.phase !== "setup" && r.document && (
+        <Stepper
+          phase={r.phase}
+          skip={[
+            ...(r.device ? [] : ["baseline"]),
+            ...(r.document.questions.length ? [] : ["verify"]),
+            ...(r.document.tasks.length ? [] : ["operate"]),
+          ]}
+        />
+      )}
 
       {r.error && (
         <div className="banner error">
@@ -243,8 +256,18 @@ function BaselineScreen({ r }: { r: R }) {
     <main className="screen center">
       <h1>Baseline a riposo</h1>
       <p className="lead">Occhi aperti, sguardo sul punto, testa ferma. Non leggere nulla.</p>
-      <div className="fixation">+</div>
-      <div className="countdown">{Math.max(left, 0)} s</div>
+      <div className="ring-wrap" aria-live="polite">
+        <svg className="ring" viewBox="0 0 120 120" width="220" height="220" aria-label={`${Math.max(left, 0)} secondi rimasti`}>
+          <circle cx="60" cy="60" r="52" className="ring-track" />
+          <circle
+            cx="60" cy="60" r="52"
+            className="ring-fill"
+            style={{ strokeDasharray: 2 * Math.PI * 52, strokeDashoffset: (2 * Math.PI * 52 * (1 - Math.max(left, 0) / BASELINE_SECONDS)) }}
+          />
+          <text x="60" y="56" className="ring-plus">+</text>
+          <text x="60" y="84" className="ring-num">{Math.max(left, 0)}</text>
+        </svg>
+      </div>
       <p className="hint">{r.frameCount} campioni raccolti</p>
     </main>
   );
@@ -263,13 +286,26 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
   }, [enteredAt]);
 
   const last = r.clauseIndex === doc.clauses.length - 1;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight" && !last) r.goTo(r.clauseIndex + 1, "forward");
+      if (e.key === "ArrowLeft" && r.clauseIndex > 0) r.goTo(r.clauseIndex - 1, "back");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [r, last]);
   return (
     <main className="screen reader">
       <div className="progress">
-        <span>
-          {doc.title} · clausola {clause.index} di {doc.clauses.length}
+        <span>{doc.title}</span>
+        <span className="counter">
+          <strong>{clause.index}</strong> / {doc.clauses.length} · {(elapsed / 1000).toFixed(0)} s
         </span>
-        <span>{(elapsed / 1000).toFixed(0)} s</span>
+      </div>
+      <div className="segments" aria-hidden="true">
+        {doc.clauses.map((c, i) => (
+          <span key={c.id} className={`seg ${i < r.clauseIndex ? "done" : i === r.clauseIndex ? "current" : ""}`} />
+        ))}
       </div>
       <article className="clause">
         {clause.heading && <h2>{clause.heading}</h2>}
@@ -291,6 +327,7 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
           </button>
         )}
       </nav>
+      <p className="hint center">Frecce ← → per muoverti tra le clausole.</p>
       {r.device && (
         <div className="livebox">
           <Sparkline points={r.live} />
@@ -332,18 +369,55 @@ function Results({ r, doc }: { r: R; doc: Document }) {
     <main className="screen">
       <h1>Risultati della sessione</h1>
       <p className="lead">
-        Partecipante <code>{session.participant}</code> · {doc.title} · lettura totale {(totalMs / 1000).toFixed(0)} s ·{" "}
-        {session.frames.length} campioni
+        Partecipante <code>{session.participant}</code> · {doc.title}
         {r.baseline ? ` · baseline su ${r.baseline.sampleCount} campioni` : " · senza fascia"}
-        {hasVerify && ` · verifica ${verifyTotal}/${session.answers.length}`}
-        {hasOperate && ` · prova operativa ${operateTotal}/${session.tasks.length}`}
       </p>
 
-      <div className="legend">
-        <span className="friction verde">verde: nessuna convergenza</span>
-        <span className="friction giallo">giallo: due indizi, o una verifica fallita</span>
-        <span className="friction rosso">rosso: tre indizi, di cui uno da verifica o prova</span>
+      <div className="board">
+        <div className="tile-stat">
+          <span className="stat-label">Lettura</span>
+          <span className="stat-value">{Math.round(totalMs / 1000)}<small> s</small></span>
+          <span className="stat-note">{metrics.filter((m) => m.tooFastToRead).length} clausole troppo veloci</span>
+        </div>
+        {hasVerify && (
+          <div className="tile-stat">
+            <span className="stat-label">Verifica</span>
+            <span className="stat-value">{verifyTotal}<small> / {session.answers.length}</small></span>
+            <span className="stat-note">risposte corrette</span>
+          </div>
+        )}
+        {hasOperate && (
+          <div className="tile-stat">
+            <span className="stat-label">Prova operativa</span>
+            <span className="stat-value">{operateTotal}<small> / {session.tasks.length}</small></span>
+            <span className="stat-note">compiti riusciti</span>
+          </div>
+        )}
+        <div className="tile-stat">
+          <span className="stat-label">Testo</span>
+          <span className="stat-value">{metrics.filter((m) => m.lx.total > LX_ACCESSIBILITY_THRESHOLD).length}<small> / {metrics.length}</small></span>
+          <span className="stat-note">clausole con LX sopra {LX_ACCESSIBILITY_THRESHOLD}</span>
+        </div>
+        <div className="tile-stat">
+          <span className="stat-label">Frizione</span>
+          <span className="stat-value">
+            {friction.filter((f) => f.level === "rosso").length}<small> rosse</small>
+          </span>
+          <span className="stat-note">
+            {friction.filter((f) => f.level === "giallo").length} gialle · {friction.filter((f) => f.level === "verde").length} verdi
+          </span>
+        </div>
       </div>
+
+      <FrictionStrip
+        items={friction.map((f) => {
+          const m = metrics.find((x) => x.clauseId === f.clauseId)!;
+          return { clauseId: f.clauseId, index: m.index, heading: m.heading, level: f.level, count: f.count, reasons: f.reasons };
+        })}
+      />
+
+      <details className="details">
+        <summary>Tabella completa per clausola</summary>
 
       <table className="metrics">
         <thead>
@@ -425,6 +499,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
           ))}
         </tbody>
       </table>
+      </details>
 
       <p className="hint">
         ⚠ = oltre 600 parole al minuto: il tempo esclude la lettura completa. LX = stima euristica dell'LX
