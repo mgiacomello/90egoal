@@ -221,6 +221,20 @@ export function encodeAdc(a: Omit<AdcReading, "timestamp">): Uint8Array {
   return Uint8Array.from(out);
 }
 
+/** Sensor (0xABB2): read=true accende il flusso ottico, read=false lo spegne (flusso dell'app Mendi). */
+export function encodeSensor(read: boolean, address = 0, data = 0): Uint8Array {
+  const out: number[] = [];
+  writeBoolField(out, 1, read);
+  writeInt32Field(out, 2, address);
+  if (data !== 0) {
+    writeVarint(out, BigInt((3 << 3) | 5));
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, data, true);
+    out.push(...b);
+  }
+  return Uint8Array.from(out);
+}
+
 export function encodeCalibration(c: Omit<CalibrationReading, "timestamp">): Uint8Array {
   const out: number[] = [];
   writeFloatField(out, 1, c.offsetLeft);

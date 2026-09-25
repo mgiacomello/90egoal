@@ -9,9 +9,10 @@ import {
   DIAGNOSTICS_CHARACTERISTIC,
   FRAME_CHARACTERISTIC,
   MENDI_NAME_PREFIX,
+  SENSOR_CHARACTERISTIC,
   MENDI_SERVICE_UUID,
 } from "./protocol";
-import { decodeAdc, decodeCalibration, decodeDiagnostics, decodeFrame, encodeCalibration } from "./protobuf";
+import { decodeAdc, decodeCalibration, decodeDiagnostics, decodeFrame, encodeCalibration, encodeSensor } from "./protobuf";
 import type { DeviceInfo, MendiListener, MendiSource } from "./types";
 
 const DEVICE_INFORMATION_SERVICE = "device_information";
@@ -102,6 +103,8 @@ export class WebBluetoothMendi implements MendiSource {
   private device: BluetoothDevice | null = null;
   private server: BluetoothRemoteGATTServer | null = null;
   private calibration: BluetoothRemoteGATTCharacteristic | null = null;
+  private sensor: BluetoothRemoteGATTCharacteristic | null = null;
+  private frames = 0;
   private listeners = new Set<MendiListener>();
 
   get connected(): boolean {
@@ -169,10 +172,26 @@ export class WebBluetoothMendi implements MendiSource {
       const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
       if (!value) return;
       const decoded = decodeFrame(toBytes(value));
-      if (decoded) this.emit({ type: "frame", frame: decoded });
+      if (decoded) {
+        this.frames++;
+        if (this.frames === 1) log("Primo campione ricevuto: la fascia trasmette.");
+        this.emit({ type: "frame", frame: decoded });
+      }
     });
     await frame.startNotifications();
-    log("Notifiche attive: i campioni arrivano.");
+    log("Notifiche attive sul flusso dati.");
+
+    // Su alcune versioni di firmware il flusso ottico parte solo dopo un
+    // messaggio Sensor(read=true) su 0xABB2: è ciò che fa l'app Mendi
+    // (listenForSensorUpdates). Senza, la fascia resta collegata ma muta.
+    try {
+      const sensor = await service.getCharacteristic(SENSOR_CHARACTERISTIC);
+      this.sensor = sensor;
+      await sensor.writeValueWithResponse(encodeSensor(true).slice().buffer as ArrayBuffer);
+      log("Sensore ottico acceso (Sensor read=true).");
+    } catch (e) {
+      log(`Accensione del sensore non riuscita: ${e instanceof Error ? e.message : String(e)}`);
+    }
 
     try {
       const adc = await service.getCharacteristic(ADC_CHARACTERISTIC);
@@ -187,6 +206,7 @@ export class WebBluetoothMendi implements MendiSource {
       // Batteria non disponibile: non è bloccante.
     }
 
+    // Le notifiche della caratteristica Sensor portano le risposte di lettura registri: non servono qui.
     try {
       const cal = await service.getCharacteristic(CALIBRATION_CHARACTERISTIC);
       cal.addEventListener("characteristicvaluechanged", (ev) => {
@@ -214,6 +234,18 @@ export class WebBluetoothMendi implements MendiSource {
     return info;
   }
 
+  /** Riprova ad accendere il sensore ottico (se la baseline non riceve campioni). */
+  async enableSensor(): Promise<boolean> {
+    if (!this.sensor) return false;
+    await this.sensor.writeValueWithResponse(encodeSensor(true).slice().buffer as ArrayBuffer);
+    return true;
+  }
+
+  /** Campioni ricevuti dall'inizio del collegamento. */
+  get frameCount(): number {
+    return this.frames;
+  }
+
   /** Attiva l'autocalibrazione dei LED (equivale al comando `c` della CLI Rust). */
   async enableAutoCalibration(): Promise<void> {
     if (!this.calibration) return;
@@ -225,8 +257,14 @@ export class WebBluetoothMendi implements MendiSource {
   }
 
   async disconnect(): Promise<void> {
+    try {
+      if (this.sensor) await this.sensor.writeValueWithResponse(encodeSensor(false).slice().buffer as ArrayBuffer);
+    } catch {
+      // La fascia potrebbe essere già scollegata.
+    }
     this.device?.gatt?.disconnect();
     this.server = null;
+    this.sensor = null;
   }
 }
 
