@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
-import { isWebBluetoothAvailable } from "../mendi/webbluetooth";
+import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
 import { clausesCsv, download, framesCsv, sessionJson } from "../session/export";
 import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
 import { clauseMetrics } from "../session/metrics";
@@ -74,7 +74,13 @@ function Setup({ r }: { r: R }) {
   const [pasteTitle, setPasteTitle] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [consent, setConsent] = useState(false);
+  const [acceptAll, setAcceptAll] = useState(false);
+  const [diag, setDiag] = useState<BluetoothDiagnosis | null>(null);
   const bluetooth = isWebBluetoothAvailable();
+  useEffect(() => {
+    diagnoseBluetooth().then(setDiag);
+  }, []);
+  const blocked = !!diag && (!diag.api || !diag.secureContext || diag.inIframe);
 
   const doc: Document | null = useMemo(() => {
     if (docId === "__paste__") return pasteText.trim() ? documentFromPastedText(pasteTitle, pasteText) : null;
@@ -119,17 +125,33 @@ function Setup({ r }: { r: R }) {
             <button onClick={r.disconnect}>scollega</button>
           </p>
         ) : (
-          <div className="row">
-            <button className="primary" disabled={!bluetooth || r.connecting} onClick={() => r.connect(false)}>
-              {r.connecting ? "connessione…" : "Collega la fascia (Bluetooth)"}
-            </button>
-            <button disabled={r.connecting} onClick={() => r.connect(true)}>
-              Usa la fascia simulata
-            </button>
-            {!bluetooth && (
-              <span className="hint">Web Bluetooth non disponibile qui: serve Chrome o Edge (desktop o Android).</span>
+          <>
+            <div className="row">
+              <button className="primary" disabled={!bluetooth || blocked || r.connecting} onClick={() => r.connect(false, acceptAll)}>
+                {r.connecting ? "connessione…" : "Collega la fascia (Bluetooth)"}
+              </button>
+              <button disabled={r.connecting} onClick={() => r.connect(true)}>
+                Usa la fascia simulata
+              </button>
+              <label className="check small">
+                <input type="checkbox" checked={acceptAll} onChange={(e) => setAcceptAll(e.target.checked)} /> mostra tutti i dispositivi
+              </label>
+            </div>
+            {diag && (
+              <div className={`diag ${blocked || diag.adapterAvailable === false ? "diag-bad" : "diag-ok"}`}>
+                <strong>Diagnostica Bluetooth.</strong> {diag.verdict}
+                <span className="diag-detail">
+                  API {diag.api ? "sì" : "no"} · https/localhost {diag.secureContext ? "sì" : "no"} · riquadro {diag.inIframe ? "sì" : "no"} · adattatore{" "}
+                  {diag.adapterAvailable === null ? "?" : diag.adapterAvailable ? "acceso" : "spento"}
+                </span>
+              </div>
             )}
-          </div>
+            {r.btLog.length > 0 && (
+              <pre className="btlog" id="btlog">
+                {r.btLog.join("\n")}
+              </pre>
+            )}
+          </>
         )}
         <p className="hint">
           Si può anche leggere senza fascia: resta attivo il solo sensore del tempo. È il diritto di non essere

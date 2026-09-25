@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SimulatedMendi } from "../mendi/simulated";
-import { WebBluetoothMendi } from "../mendi/webbluetooth";
+import { explainBluetoothError, WebBluetoothMendi } from "../mendi/webbluetooth";
 import {
   computeBaseline,
   effortFromFrame,
@@ -30,6 +30,7 @@ export function useRecorder() {
   const [battery, setBattery] = useState<AdcReading | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  const [btLog, setBtLog] = useState<string[]>([]);
   const [document, setDocument] = useState<Document | null>(null);
   const [clauseIndex, setClauseIndex] = useState(0);
   const [live, setLive] = useState<LivePoint[]>([]);
@@ -101,20 +102,26 @@ export function useRecorder() {
   );
 
   const connect = useCallback(
-    async (simulated: boolean) => {
+    async (simulated: boolean, acceptAllDevices = false) => {
       setError(null);
       setConnecting(true);
+      setBtLog([]);
+      const log = (line: string) => setBtLog((prev) => [...prev, `${new Date().toLocaleTimeString("it-IT")} ${line}`]);
       try {
         const src = simulated ? new SimulatedMendi() : new WebBluetoothMendi();
         attach(src);
-        await src.connect();
         if (src instanceof WebBluetoothMendi) {
-          await src.enableAutoCalibration().catch(() => undefined);
+          await src.connect({ acceptAllDevices, log });
+          await src.enableAutoCalibration().catch(() => log("Autocalibrazione non disponibile (non è bloccante)."));
+        } else {
+          await src.connect();
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
+        const name = (e as { name?: string })?.name ?? "";
+        log(`Errore ${name || "sconosciuto"}: ${msg}`);
         // L'utente ha chiuso la finestra di scelta: non è un errore.
-        if (!/cancel/i.test(msg)) setError(msg);
+        if (!(name === "NotFoundError" && /cancel/i.test(msg))) setError(explainBluetoothError(e));
         source.current = null;
       } finally {
         setConnecting(false);
@@ -277,7 +284,7 @@ export function useRecorder() {
   }, []);
 
   return {
-    phase, device, battery, error, connecting, document, clauseIndex, live, frameCount, baseline,
+    phase, device, battery, error, connecting, btLog, document, clauseIndex, live, frameCount, baseline,
     session: session.current,
     connect, disconnect, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
     clearError: () => setError(null),
