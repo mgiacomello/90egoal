@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ClassificaRow, Pronostico, Schedina, Profile } from '@/lib/types'
 import LogoutButton from '@/components/LogoutButton'
+import PushToggle from '@/components/PushToggle'
 import Flag from '@/components/Flag'
 import ShareButton from '@/components/ShareButton'
 import { nomeBreve } from '@/lib/teams'
@@ -99,7 +100,10 @@ export default async function ProfiloPage() {
       )}
 
       {/* Condivisione */}
-      <div className="mb-7"><ShareButton text={shareText} /></div>
+      <div className="mb-5"><ShareButton text={shareText} /></div>
+
+      {/* Notifiche su questo dispositivo */}
+      <div className="mb-7"><PushToggle /></div>
 
       {/* Le mie schedine */}
       <h2 className="font-display font-bold text-lg mb-3">Le tue schedine</h2>

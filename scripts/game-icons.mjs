@@ -83,4 +83,13 @@ writeFileSync(resolve(OUT, 'icon-192.png'), draw(192, { rounded: true }))
 writeFileSync(resolve(OUT, 'icon-512.png'), draw(512, { rounded: true }))
 writeFileSync(resolve(OUT, 'icon-maskable-512.png'), draw(512, { rounded: false }))
 writeFileSync(resolve(OUT, 'apple-touch-icon.png'), draw(180, { rounded: false }))
+// Badge per la barra di stato di Android: solo sagoma, bianco su trasparente.
+writeFileSync(resolve(OUT, 'badge-96.png'), png(96, (x, y) => {
+  const SS = 4
+  let hit = 0
+  for (let sy = 0; sy < SS; sy++) for (let sx = 0; sx < SS; sx++) {
+    if (inGlyph(((x + (sx + 0.5) / SS) / 96) * 100, ((y + (sy + 0.5) / SS) / 96) * 100)) hit++
+  }
+  return [255, 255, 255, Math.round((hit / (SS * SS)) * 255)]
+}))
 console.log('Icone scritte in', OUT)

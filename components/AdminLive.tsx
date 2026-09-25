@@ -7,6 +7,7 @@ import { Risultato, Schedina, MatchDetail } from '@/lib/types'
 import { buildDettaglio, deriveRisultato, matchKey, parseMinute, formatMinute, type GolLive, type StatoPartita } from '@/lib/live'
 import { nomeBreve } from '@/lib/teams'
 import Flag from '@/components/Flag'
+import { inviaPush } from '@/components/AdminPush'
 
 interface Props {
   schedine: Schedina[]
@@ -49,6 +50,8 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [notifiche, setNotifiche] = useState(true)
+  const [esitoPush, setEsitoPush] = useState('')
 
   function scegli(id: number) {
     const s = schedine.find(x => x.id === id)
@@ -60,8 +63,16 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     setError('')
   }
 
-  async function salva(next: Stato) {
-    if (!schedina) return
+  function derivato(st: Stato) {
+    if (!schedina) return null
+    const dettagli = schedina.partite
+      .filter(p => st[matchKey(p)] && (st[matchKey(p)].stato !== 'da_giocare' || st[matchKey(p)].gol.length > 0))
+      .map(p => buildDettaglio(p, st[matchKey(p)].gol, st[matchKey(p)].stato))
+    return deriveRisultato(schedina.partite, dettagli)
+  }
+
+  async function salva(next: Stato): Promise<boolean> {
+    if (!schedina) return false
     setStato(next)
     setSaving(true)
     setError('')
@@ -83,18 +94,25 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     }
     const { error: dbError } = await createClient().from('risultati').upsert(payload, { onConflict: 'schedina_id' })
     setSaving(false)
-    if (dbError) { setError('Non salvato: ' + dbError.message); return }
+    if (dbError) { setError('Non salvato: ' + dbError.message); return false }
     setSavedAt(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Rome' }))
     router.refresh()
+    return true
   }
 
-  function aggiungiGol(key: string, team: string) {
+  async function aggiungiGol(key: string, team: string) {
+    if (!schedina) return
     const m = parseMinute(minuto[key] ?? '')
     if (!m) { setError('Minuto non valido: scrivi 23, oppure 45+2 / 90+3 per il recupero.'); return }
     const st = stato[key]
-    const next = { ...stato, [key]: { gol: [...st.gol, { min: formatMinute(m), team }], stato: st.stato === 'da_giocare' ? 'in_corso' as const : st.stato } }
+    const min = formatMinute(m)
+    const next = { ...stato, [key]: { gol: [...st.gol, { min, team }], stato: st.stato === 'da_giocare' ? 'in_corso' as const : st.stato } }
     setMinuto(v => ({ ...v, [key]: '' }))
-    salva(next)
+    // La notifica parte solo dopo il salvataggio: il server legge il punteggio aggiornato dal database.
+    if (await salva(next) && notifiche) {
+      const p = schedina.partite.find(x => matchKey(x) === key)!
+      setEsitoPush(`${min} ${team}: ` + await inviaPush({ tipo: 'gol', schedina_id: schedina.id, gol: { home: p.home, away: p.away, min, team } }))
+    }
   }
 
   function togliGol(key: string, idx: number) {
@@ -103,18 +121,19 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     salva({ ...stato, [key]: { ...stato[key], gol: stato[key].gol.filter((_, i) => i !== idx) } })
   }
 
-  function cambiaStato(key: string, s: StatoPartita) {
-    salva({ ...stato, [key]: { ...stato[key], stato: s } })
+  async function cambiaStato(key: string, s: StatoPartita) {
+    if (!schedina) return
+    const prima = derivato(stato)?.completa
+    const next = { ...stato, [key]: { ...stato[key], stato: s } }
+    const ok = await salva(next)
+    // Ultima partita finita: la classifica è definitiva, si può dire a ciascuno com'è andata.
+    if (ok && notifiche && !prima && derivato(next)?.completa
+      && window.confirm('Tutte le partite sono finite. Inviare a ogni giocatore punti e posizione finale?')) {
+      setEsitoPush('Fine giornata: ' + await inviaPush({ tipo: 'finale', schedina_id: schedina.id }))
+    }
   }
 
-  const riepilogo = schedina
-    ? deriveRisultato(
-        schedina.partite,
-        schedina.partite
-          .filter(p => stato[matchKey(p)] && (stato[matchKey(p)].stato !== 'da_giocare' || stato[matchKey(p)].gol.length > 0))
-          .map(p => buildDettaglio(p, stato[matchKey(p)].gol, stato[matchKey(p)].stato)),
-      )
-    : null
+  const riepilogo = derivato(stato)
 
   return (
     <div>
@@ -154,6 +173,11 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               {!riepilogo.completa && riepilogo.last_goal_team && <span className="text-[var(--gold)]"> (provvisoria)</span>}
             </div>
             {error && <div className="text-red-300">{error}</div>}
+            <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">
+              <input type="checkbox" checked={notifiche} onChange={e => setNotifiche(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+              📣 Notifica i giocatori a ogni gol
+              {esitoPush && <span className="text-white/80 truncate">· {esitoPush}</span>}
+            </label>
           </div>
 
           <div className="space-y-3">

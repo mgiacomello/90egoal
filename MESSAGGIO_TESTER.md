@@ -23,6 +23,9 @@ Hai già l'account dei Mondiali? Entra con le stesse credenziali.
 - iPhone: Safari → Condividi → "Aggiungi alla schermata Home"
 - Android: Chrome → ⋮ → "Installa app"
 
+🔔 Dal Profilo attiva le notifiche: ti avvisiamo quando esce un tuo minuto.
+(Su iPhone funzionano solo aprendo l'app dall'icona sulla schermata Home.)
+
 ⏰ Pronostici entro il **calcio d'inizio della prima partita** (sabato 17, ore 14:30).
 
 ---
@@ -39,6 +42,8 @@ successiva e ti chiediamo di aiutarci a testarla, in un gruppo ristretto.
 - Ogni schedina ha **10 partite della stessa giornata**.
 - **Live**: durante le partite apri l'app e vedi punteggi, i tuoi minuti che si
   illuminano e la classifica che si muove.
+- **Notifiche**: attivale dal Profilo e ti avvisiamo a ogni gol, o solo quando esce uno
+  dei tuoi minuti. Su iPhone servono l'app aggiunta alla schermata Home e iOS 16.4 o successivo.
 
 **Come si gioca**
 1. Entra su **LINK** (chi ha già l'account usa le stesse credenziali; i nuovi usano il codice **CODICE**).

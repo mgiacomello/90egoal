@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Schedina, Pronostico, ClassificaRow } from '@/lib/types'
 import LiveRefresh from '@/components/LiveRefresh'
 import SchedinaCard from '@/components/SchedinaCard'
+import PushToggle from '@/components/PushToggle'
 import { nomeBreve } from '@/lib/teams'
 
 export default async function SchedinePage() {
@@ -30,6 +31,7 @@ export default async function SchedinePage() {
   return (
     <div className="animate-fade-up">
       <LiveRefresh seconds={60} generatedAt={now.toISOString()} />
+      <PushToggle variant="banner" />
       <div className="mb-8">
         <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Le tue schedine</span>
         <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Compila i pronostici</h1>

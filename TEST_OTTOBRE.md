@@ -8,12 +8,13 @@ dalla mail di Roberto (obiettivi e POA) e dalle schedine di Max del 23 settembre
 - Versione **Fun Game**, niente betting.
 - **Solo PWA mobile**: si installa dal link, niente app native.
 - **Test chiuso**, circa 100 persone: la community dei Mondiali più pochi nuovi.
-- **Live semplice, senza notifiche push**: i dati si aggiornano quando si apre l'app.
+- **Live semplice**: i dati si aggiornano quando si apre l'app.
+- **Notifiche push**: escluse in call, poi aggiunte su decisione di Marco (25/9). Sono un canale
+  in più, che ognuno attiva dal Profilo: il live funziona anche senza.
 - Partner commerciale (DAZN o Lega) deciso dopo il test.
 
-> Nota: negli appunti di Gemini il compito di Marco dice "incluso il sistema di notifiche
-> push". È in contrasto con la decisione concordata e con la mail di Roberto. Si procede
-> **senza push**.
+> Nota: gli appunti di Gemini (compito di Marco) prevedevano le push, la decisione in call e
+> la mail di Roberto no. Marco ha scelto di includerle: vanno comunicate a Max e Roberto.
 
 ## Cosa è pronto nella piattaforma
 
@@ -28,6 +29,7 @@ dalla mail di Roberto (obiettivi e POA) e dalle schedine di Max del 23 settembre
 | Regole | Pagina `/regole` pubblica, con i casi particolari. |
 | PWA | Icona, nome, avvio a schermo intero su `/schedine`, barra di navigazione in basso su telefono. |
 | Test chiuso | Sito escluso dai motori di ricerca. Codice invito facoltativo per le nuove registrazioni. |
+| Notifiche push | Gol in diretta (a scelta: tutti, o solo quando esce un tuo minuto), punti e posizione a fine giornata, promemoria prima della scadenza a chi non ha ancora giocato, messaggio libero dall'admin. Nessun costo esterno: Web Push standard. |
 | Scadenza blindata | Dopo il calcio d'inizio il database rifiuta i pronostici, anche inviati aggirando l'app. Prima lo impediva solo la pagina, e col live visibile sarebbe stato un modo per barare. |
 
 ## Messa online: l'ordine conta
@@ -43,7 +45,12 @@ mostrerebbe le partite nuove senza squadre selezionabili. Quindi:
    ```sql
    update public.profiles set is_admin = true where username = 'nickname_di_max';
    ```
-4. Se si vuole il codice invito:
+4. Notifiche push:
+   - SQL Editor: `supabase/migration_push.sql` → Run.
+   - `/admin` → **Notifiche push** → "Genera le chiavi". Copiare le tre righe in Vercel
+     (Settings → Environment Variables, Production e Preview) e rifare il deploy.
+   - Dal proprio Profilo: "Attiva". Poi in admin: "Prova sul mio telefono".
+5. Se si vuole il codice invito:
    ```sql
    update public.impostazioni set valore = 'GOAL17' where chiave = 'codice_invito';
    ```
@@ -72,7 +79,23 @@ Da `/admin` → **Gestione schedine**:
    Autogol: la squadra che ne beneficia.
 4. A fine partita: **Finita**. Quando sono finite tutte, la classifica è definitiva.
 5. **Una sola persona per schedina**: due persone insieme si sovrascrivono.
-   Un gol sbagliato si toglie toccandolo.
+   Un gol sbagliato si toglie toccandolo (la notifica già partita non si ritira: meglio
+   un secondo di controllo prima del tocco).
+6. Ogni gol inserito parte come notifica. La casella "📣 Notifica i giocatori a ogni gol"
+   la spegne, utile nei test. Quando l'ultima partita va su "Finita", il pannello chiede se
+   mandare a ciascuno punti e posizione.
+7. Il promemoria di scadenza si manda a mano da **Notifiche push**, di solito 2 ore prima.
+
+## Notifiche: cosa sapere
+
+- **iPhone**: solo con l'app aggiunta alla schermata Home e iOS 16.4 o successivo. Da Safari
+  "normale" non arrivano. È il punto da spiegare bene ai tester.
+- **Android**: funzionano da Chrome e dall'app installata.
+- Chi riceve i gol: solo chi ha giocato quella schedina. Chi sceglie "Solo i miei minuti"
+  riceve solo i gol che gli portano punti.
+- Un gol vecchio di 15 minuti non viene più consegnato: se il telefono era spento, non arriva
+  una raffica di gol superati.
+- Dispositivi che revocano il permesso vengono tolti da soli al primo invio.
 
 ## Test interno (massimo 10 persone)
 
@@ -83,7 +106,8 @@ Proposta: sabato 10 o domenica 11 ottobre, prima del 17.
 - Se non ci sono, si fa un **replay**: schedina su una giornata già giocata, scadenza
   qualche ora prima, e Max reinserisce i gol dal tabellino in tempo reale.
 - Cosa guardiamo: tempi di compilazione da telefono, installazione della PWA su iPhone
-  e Android, chiarezza dei punti durante il live, errori di inserimento lato admin.
+  e Android, notifiche che arrivano davvero (e quanto in ritardo), chiarezza dei punti
+  durante il live, errori di inserimento lato admin.
 
 ## Tempistiche proposte
 
@@ -107,8 +131,10 @@ Proposta: sabato 10 o domenica 11 ottobre, prima del 17.
 
 ## Rischi da tenere d'occhio
 
-- **Privacy**: il gioco raccoglie email e tempi di permanenza, ma non ha un'informativa.
-  Per un test con persone esterne serve prima del 17/10.
+- **Privacy**: il gioco raccoglie email, tempi di permanenza e iscrizioni alle notifiche,
+  ma non ha un'informativa. Per un test con persone esterne serve prima del 17/10.
+  Il "messaggio a tutti" va usato per il gioco, non per promozioni: per quelle servirebbe
+  un consenso specifico.
 - **Premi**: finché è gratis e senza premi è un gioco. Un premio può far scattare le regole
   sulle manifestazioni a premio (DPR 430/2001). Una quota di partecipazione insieme a un
   premio in denaro porta nel perimetro dei giochi riservati (concessione ADM).

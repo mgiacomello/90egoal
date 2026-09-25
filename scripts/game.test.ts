@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { romeToUtcIso, utcToRome, firstKickoffIso } from '../lib/time.ts'
 import { parseMinute, formatMinute, buildDettaglio, deriveRisultato, type PartitaLive } from '../lib/live.ts'
 import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '../lib/teams.ts'
+import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
 let failed = 0
@@ -155,6 +156,42 @@ check('elenco come arriva da Word: ore, suffisso di serie attaccato, trattini lu
 check('i nomi con il trattino dentro restano interi', () => {
   const { partite } = parseElencoPartite('Sant-Etienne - Paris-FC')
   assert.deepEqual([partite[0].home, partite[0].away], ['Sant-Etienne', 'Paris-FC'])
+})
+
+/* --- notifiche push --- */
+
+const G = (min: string, base: number, extra = 0): GolPush => ({ schedinaId: 9, home: 'Reggiana', away: 'Torres', score: '1-0', min, base, extra, team: 'Reggiana' })
+const PRON = { minuti: [5, 23, 67], recupero: 'primo' as const }
+
+check('un gol è "tuo" se cade nei tuoi minuti o nel recupero che hai scelto', () => {
+  assert.equal(golPreso(G("23'", 23), PRON), true)
+  assert.equal(golPreso(G("24'", 24), PRON), false)
+  assert.equal(golPreso(G("45+2'", 45, 2), PRON), true)
+  assert.equal(golPreso(G("90+1'", 90, 1), PRON), false)
+})
+check('gol preso: titolo che festeggia, con la partita nel testo', () => {
+  const n = messaggioGol(G("23'", 23), PRON, 'tutti')!
+  assert.equal(n.title, "🎯 Il tuo 23' è uscito!")
+  assert.equal(n.body, 'Reggiana 1-0 Torres · segna Reggiana')
+})
+check('gol non preso: arriva a chi vuole tutti i gol, non a chi vuole solo i suoi', () => {
+  assert.equal(messaggioGol(G("24'", 24), PRON, 'tutti')!.title, "⚽ Gol al 24'")
+  assert.equal(messaggioGol(G("24'", 24), PRON, 'miei'), null)
+})
+check('chi non ha giocato la schedina non riceve i gol', () => {
+  assert.equal(messaggioGol(G("23'", 23), undefined, 'tutti'), null)
+})
+check('recupero scelto: la notifica dice che vale il bonus', () => {
+  const n = messaggioGol(G("45+2'", 45, 2), PRON, 'miei')!
+  assert.match(n.body, /bonus recupero/)
+})
+check('posizioni con i pari merito', () => {
+  const p = posizioni([{ user_id: 'a', totale: 8 }, { user_id: 'b', totale: 10 }, { user_id: 'c', totale: 8 }, { user_id: 'd', totale: 5 }])
+  assert.deepEqual([p.get('b'), p.get('a'), p.get('c'), p.get('d')], [1, 2, 2, 4])
+})
+check('fine giornata: singolare e plurale', () => {
+  assert.match(messaggioFinale(9, 'Giornata del 17 ottobre', 1, 3, 40).body, /1 punto,/)
+  assert.match(messaggioFinale(9, 'Giornata del 17 ottobre', 7, 3, 40).body, /7 punti, sei 3° su 40/)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

@@ -11,6 +11,7 @@ import AdminGamification from '@/components/AdminGamification'
 import AdminTiming from '@/components/AdminTiming'
 import AdminLive from '@/components/AdminLive'
 import AdminSchedine from '@/components/AdminSchedine'
+import AdminPush from '@/components/AdminPush'
 import { Pronostico, Profile, ClassificaRow, ActivitySummary, TimingSummary, SectionTime, Schedina } from '@/lib/types'
 
 export default async function AdminPage() {
@@ -79,6 +80,18 @@ export default async function AdminPage() {
         </summary>
         <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-white/8">
           <AdminSchedine schedine={(schedine as Schedina[]) ?? []} pronosticiBySched={Object.fromEntries(pronosticiBySched)} />
+        </div>
+      </details>
+
+      {/* NOTIFICHE — stato, prova, promemoria, messaggi */}
+      <details className="glass rounded-2xl overflow-hidden group">
+        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors">
+          <span className="font-display font-bold text-lg flex items-center gap-2">🔔 Notifiche push</span>
+          <span className="text-[var(--muted)] text-sm group-open:hidden">Apri ▾</span>
+          <span className="text-[var(--muted)] text-sm hidden group-open:inline">Chiudi ▴</span>
+        </summary>
+        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-white/8">
+          <AdminPush schedine={(schedine as Schedina[]) ?? []} />
         </div>
       </details>
 

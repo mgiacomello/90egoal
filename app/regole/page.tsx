@@ -37,7 +37,11 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Quando vedo i punti?',
-    a: <>Durante le partite: apri l&apos;app e trovi punteggi, minuti già azzeccati e classifica aggiornati. Non arrivano notifiche. La classifica diventa definitiva al fischio finale dell&apos;ultima partita.</>,
+    a: <>Durante le partite: apri l&apos;app e trovi punteggi, minuti già azzeccati e classifica aggiornati. Se attivi le notifiche dal Profilo, ti avvisiamo noi a ogni gol, o solo quando esce un tuo minuto. La classifica diventa definitiva al fischio finale dell&apos;ultima partita.</>,
+  },
+  {
+    q: 'Come attivo le notifiche?',
+    a: <>Dal <strong className="text-white">Profilo</strong>, tocca &quot;Attiva&quot;. Su iPhone funzionano solo se hai aggiunto 90 &amp; Goal alla schermata Home (Safari → Condividi → Aggiungi alla schermata Home) e la apri da lì. Su Android bastano Chrome o l&apos;app installata.</>,
   },
   {
     q: 'Una partita rinviata o sospesa?',

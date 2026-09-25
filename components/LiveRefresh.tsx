@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-// Modalità live senza notifiche push: i dati si aggiornano
+// Modalità live: le notifiche push avvisano chi le ha attivate, e in più i dati si aggiornano
 // - ogni N secondi mentre la pagina è in primo piano;
 // - appena si torna sull'app (riapertura della PWA, cambio scheda, sblocco del telefono);
 // - a richiesta, col pulsante: nella PWA installata su iPhone non esiste il "trascina per aggiornare".
