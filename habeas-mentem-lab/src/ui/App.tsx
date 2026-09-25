@@ -376,14 +376,34 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const stamp = session.id;
   const [responsible, setResponsible] = useState("");
   const [building, setBuilding] = useState(false);
+  const [dossierError, setDossierError] = useState<string | null>(null);
+  const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
+  // Il modulo PDF è un chunk separato: lo scarichiamo appena arriviamo ai
+  // risultati, così se nel frattempo il sito è stato ripubblicato (e i vecchi
+  // chunk non esistono più) ce l'abbiamo già.
+  useEffect(() => {
+    void import("../session/dossier").catch(() => undefined);
+  }, []);
   const makeDossier = async () => {
     setBuilding(true);
+    setDossierError(null);
     try {
       const json = sessionJson(session, doc.clauses, metrics, friction);
-      // jsPDF pesa: lo carichiamo solo quando serve.
       const { buildDossier } = await import("../session/dossier");
       const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible });
-      download(`${stamp}-fascicolo.pdf`, blob);
+      const name = `${stamp}-fascicolo.pdf`;
+      if (dossierUrl) URL.revokeObjectURL(dossierUrl.url);
+      // Il link resta: se il browser blocca il download automatico, un clic diretto funziona sempre.
+      setDossierUrl({ url: URL.createObjectURL(blob), name, kb: Math.round(blob.size / 1024) });
+      download(name, blob);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      const stale = /import|module|fetch|chunk/i.test(msg);
+      setDossierError(
+        stale
+          ? `Il modulo del PDF non si carica (${msg}). Probabilmente il sito è stato aggiornato mentre la pagina era aperta: scarica subito il JSON e i CSV qui sotto, poi ricarica la pagina.`
+          : `Fascicolo non generato: ${msg}. Scarica il JSON qui sotto e mandamelo.`,
+      );
     } finally {
       setBuilding(false);
     }
@@ -552,6 +572,12 @@ function Results({ r, doc }: { r: R; doc: Document }) {
           <button className="primary" disabled={building} onClick={makeDossier}>
             {building ? "Genero il fascicolo…" : "Genera il fascicolo (PDF)"}
           </button>
+          {dossierUrl && (
+            <a className="dossier-link" href={dossierUrl.url} download={dossierUrl.name}>
+              Apri il fascicolo ({dossierUrl.kb} KB)
+            </a>
+          )}
+          {dossierError && <p className="diag diag-bad">{dossierError}</p>}
         </div>
       </section>
 

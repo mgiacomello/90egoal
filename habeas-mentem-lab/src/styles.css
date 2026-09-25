@@ -203,3 +203,5 @@ code { background: var(--bg-deep); padding: 1px 5px; border-radius: 4px; }
   .step-label { display: none; }
   .step { justify-content: center; padding: 8px; }
 }
+
+.dossier-link { display: inline-block; margin-left: 10px; padding: 10px 14px; border-radius: 10px; background: var(--ok-soft); color: #1f5a38; font-weight: 600; text-decoration: none; }
