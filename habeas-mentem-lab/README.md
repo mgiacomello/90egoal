@@ -95,11 +95,17 @@ della sessione:
 - **a porzioni, a scorrimento**: le porzioni avanzano da sole a un ritmo in
   parole al minuto; contano fermate e ritorni.
 
-Il segnale corporeo è attribuito a ogni porzione con un ritardo dichiarato
-di 4 s (`HEMODYNAMIC_LAG_MS`) su una finestra di almeno 2 s: un'attribuzione,
-non una misura della parola, e il fascicolo lo scrive. La vista «Parola per
-parola» colora ogni porzione per tempo per parola (z-score sul logaritmo);
-il CSV delle porzioni e il fascicolo riportano le porzioni più lente.
+Il segnale corporeo non viene «spostato»: viene modellato (`src/session/hrf.ts`).
+Ogni porzione ha un regressore pari alla sua esposizione convoluta con la
+risposta emodinamica canonica (doppia gamma: picco a 6 s, sottoscatto a 16 s,
+30 s di durata); i pesi β si stimano tutti insieme ai minimi quadrati, con
+costante e deriva lineare, escludendo i campioni con movimento. È il modello
+lineare generale dell'analisi fNIRS: le porzioni vicine si sovrappongono nel
+segnale e risolverle insieme le separa. Lo stesso modello dà un β per clausola.
+Resta un'attribuzione modellata, non una misura della parola, e il fascicolo lo
+scrive insieme alla varianza spiegata e all'errore standard di ogni β. Per
+confronto il CSV riporta anche la media su finestra spostata di 4 s. La vista
+«Parola per parola» colora ogni porzione per tempo per parola oppure per β.
 Facoltativa la registrazione vocale (lettura ad alta voce): resta nel
 browser, si scarica in `.webm`, e il CSV dà l'offset di ogni porzione
 dall'inizio dell'audio per un allineamento forzato fuori dal browser.

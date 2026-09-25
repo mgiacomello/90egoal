@@ -11,7 +11,8 @@ import { AggregateScreen } from "./AggregateScreen";
 import { Stepper } from "./Stepper";
 import { FrictionStrip } from "./FrictionStrip";
 import { DEFAULT_READING, type ReadingOptions } from "./useRecorder";
-import { autoDurationMs, READING_MODES, segmentMetrics, type SegmentMetrics } from "../session/segments";
+import { analyzeSegments, autoDurationMs, READING_MODES, type SegmentMetrics } from "../session/segments";
+import { HRF_DESCRIPTION } from "../session/hrf";
 import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
@@ -465,7 +466,8 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const metrics = useMemo(() => clauseMetrics(session, doc.clauses), [session, doc]);
   const friction = useMemo(() => frictionMap(metrics), [metrics]);
   const frictionById = new Map(friction.map((f) => [f.clauseId, f]));
-  const segmentRows = useMemo(() => segmentMetrics(session, doc.clauses), [session, doc]);
+  const segmentAnalysis = useMemo(() => analyzeSegments(session, doc.clauses), [session, doc]);
+  const segmentRows = segmentAnalysis.rows;
   const hasVerify = doc.questions.length > 0;
   const hasOperate = doc.tasks.length > 0;
   const verifyTotal = session.answers.filter((a) => a.correct).length;
@@ -489,7 +491,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
     try {
       const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
       const { buildDossier } = await import("../session/dossier");
-      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows });
+      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows, modelR2: segmentAnalysis.modelR2 });
       const name = `${stamp}-fascicolo.pdf`;
       if (dossierUrl) URL.revokeObjectURL(dossierUrl.url);
       // Il link resta: se il browser blocca il download automatico, un clic diretto funziona sempre.
@@ -559,7 +561,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         })}
       />
 
-      {segmentRows.length > 0 && <WordView rows={segmentRows} clauses={doc.clauses} hasBody={!!r.baseline} />}
+      {segmentRows.length > 0 && <WordView rows={segmentRows} clauses={doc.clauses} hasBody={!!r.baseline} r2={segmentAnalysis.modelR2} />}
 
       {r.audio && (
         <p className="hint">
@@ -712,23 +714,34 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   );
 }
 
-/** Parola per parola: ogni porzione colorata per tempo per parola; il corpo, se c'è, in una riga sotto. */
-function WordView({ rows, clauses, hasBody }: { rows: SegmentMetrics[]; clauses: Document["clauses"]; hasBody: boolean }) {
+/** Parola per parola: ogni porzione colorata per tempo per parola, oppure per sforzo attribuito con il modello HRF. */
+function WordView({ rows, clauses, hasBody, r2 }: { rows: SegmentMetrics[]; clauses: Document["clauses"]; hasBody: boolean; r2: number | null }) {
   const [open, setOpen] = useState<string | null>(null);
+  const [by, setBy] = useState<"tempo" | "corpo">("tempo");
   const byClause = new Map<string, SegmentMetrics[]>();
   for (const r of rows) byClause.set(r.clauseId, [...(byClause.get(r.clauseId) ?? []), r]);
   const read = rows.filter((r) => r.msPerWord !== null);
   const median = read.length ? [...read].sort((a, b) => a.msPerWord! - b.msPerWord!)[Math.floor(read.length / 2)].msPerWord! : null;
+  const canBody = hasBody && rows.some((r) => r.model);
+  const heatOf = (sg: SegmentMetrics) => (sg.msPerWord === null ? "x" : by === "tempo" ? sg.heat : sg.model?.z == null ? "x" : sg.model.heat);
+  const labels = by === "tempo" ? ["veloce", "nella norma", "lento", "molto lento", "fermo"] : ["sotto la media", "nella media", "sopra", "alto", "molto alto"];
   return (
     <section className="card wordview">
       <h2>Parola per parola</h2>
+      {canBody && (
+        <div className="row">
+          <button className={by === "tempo" ? "primary" : ""} onClick={() => setBy("tempo")}>Tempo</button>
+          <button className={by === "corpo" ? "primary" : ""} onClick={() => setBy("corpo")}>Corpo (modello HRF)</button>
+        </div>
+      )}
       <p className="hint">
-        Il colore è il tempo per parola di ogni porzione rispetto alla sessione (mediana {median ? Math.round(median) : "—"} ms/parola):
-        più scuro, più lento. Tocca una porzione per i numeri. {hasBody && "Il segnale corporeo è attribuito con 4 s di ritardo: un'attribuzione, non una misura della parola."}
+        {by === "tempo"
+          ? `Il colore è il tempo per parola di ogni porzione rispetto alla sessione (mediana ${median ? Math.round(median) : "—"} ms/parola): più scuro, più lento. Tocca una porzione per i numeri.`
+          : `${HRF_DESCRIPTION}${r2 != null ? ` Varianza spiegata: ${(r2 * 100).toFixed(0)}%.` : ""} Il colore è il peso β di ogni porzione rispetto alla sessione.`}
       </p>
       <div className="legend">
         {[0, 1, 2, 3, 4].map((h) => (
-          <span key={h} className={`heat h${h}`}>{["veloce", "nella norma", "lento", "molto lento", "fermo"][h]}</span>
+          <span key={h} className={`heat h${h}`}>{labels[h]}</span>
         ))}
       </div>
       {clauses.map((c) => {
@@ -741,7 +754,7 @@ function WordView({ rows, clauses, hasBody }: { rows: SegmentMetrics[]; clauses:
               {segs.map((sg) => (
                 <span
                   key={sg.segmentId}
-                  className={`portion heat h${sg.msPerWord === null ? "x" : sg.heat} ${open === sg.segmentId ? "open" : ""}`}
+                  className={`portion heat h${heatOf(sg)} ${open === sg.segmentId ? "open" : ""}`}
                   onClick={() => setOpen(open === sg.segmentId ? null : sg.segmentId)}
                   title={sg.msPerWord === null ? "non letta" : `${Math.round(sg.msPerWord)} ms/parola · ${(sg.dwellMs / 1000).toFixed(1)} s · ritorni ${sg.returns}${sg.pauses ? ` · fermate ${sg.pauses}` : ""}`}
                 >
@@ -751,7 +764,8 @@ function WordView({ rows, clauses, hasBody }: { rows: SegmentMetrics[]; clauses:
                       {sg.msPerWord === null ? "non letta" : `${Math.round(sg.msPerWord)} ms/parola · ${(sg.dwellMs / 1000).toFixed(1)} s`}
                       {sg.returns > 0 && ` · ${sg.returns} ritorni`}
                       {sg.pauses > 0 && ` · ${sg.pauses} fermate`}
-                      {hasBody && sg.effort.sampleCount > 0 && ` · sforzo ${sg.effort.mean >= 0 ? "+" : ""}${sg.effort.mean.toFixed(4)} (${sg.effort.sampleCount} campioni)`}
+                      {sg.model && ` · β ${sg.model.beta >= 0 ? "+" : ""}${sg.model.beta.toFixed(4)} ± ${sg.model.se.toFixed(4)}`}
+                      {hasBody && sg.effort.sampleCount > 0 && ` · finestra +4 s: ${sg.effort.mean >= 0 ? "+" : ""}${sg.effort.mean.toFixed(4)}`}
                     </span>
                   )}
                 </span>

@@ -4,6 +4,7 @@
 
 import { summarize, type EffortStats } from "../mendi/signal";
 import { lxScore, type LxScore } from "./lx";
+import { fitHrfGlm } from "./hrf";
 import type { Clause, Session } from "./model";
 
 export interface ClauseMetrics {
@@ -24,6 +25,8 @@ export interface ClauseMetrics {
   /** true se il tempo è così breve da escludere la lettura completa. */
   tooFastToRead: boolean;
   effort: EffortStats;
+  /** Sforzo attribuito alla clausola con il modello della risposta emodinamica (GLM), null senza fascia. */
+  effortModel: { beta: number; se: number } | null;
   /** Terzo indizio, il testo stesso: stima euristica dell'LX Complexity Score. */
   lx: LxScore;
   /** Verifica: domande di comprensione su questa clausola. */
@@ -60,6 +63,23 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
     close(last);
   }
 
+  // Attribuzione modellata per clausola: un regressore per clausola (tutte le visite).
+  const visitsByClause: { id: string; from: number; to: number }[] = [];
+  {
+    let cur: { clauseId: string; since: number } | null = null;
+    for (const ev of session.events) {
+      if (ev.type === "clause_enter") {
+        if (cur) visitsByClause.push({ id: cur.clauseId, from: cur.since, to: ev.timestamp });
+        cur = { clauseId: ev.clauseId, since: ev.timestamp };
+      } else if ((ev.type === "clause_leave" || ev.type === "reading_end") && cur) {
+        visitsByClause.push({ id: cur.clauseId, from: cur.since, to: ev.timestamp });
+        cur = null;
+      }
+    }
+  }
+  const readingEffort = session.frames.filter((f) => f.phase === "reading" && f.effort).map((f) => f.effort!);
+  const glm = readingEffort.length > 0 && visitsByClause.length > 0 ? fitHrfGlm(readingEffort, visitsByClause) : null;
+
   const byClause = new Map<string, ReturnType<typeof summarize>>();
   for (const c of clauses) {
     const samples = session.frames
@@ -88,6 +108,7 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
       // A più di 600 wpm nessuna presunzione di lettura sopravvive all'aritmetica.
       tooFastToRead: ms > 0 && (c.wordCount / ms) * 60_000 > 600,
       effort: byClause.get(c.id)!,
+      effortModel: glm && glm.beta.has(c.id) ? { beta: glm.beta.get(c.id)!, se: glm.se.get(c.id)! } : null,
       lx: lxScore(c.text),
       verification: {
         asked: answers.length,
