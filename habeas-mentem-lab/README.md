@@ -69,6 +69,15 @@ open source [`mendi`](https://crates.io/crates/mendi) (Rust, MIT):
 - schema `proto3` in `src/mendi/protobuf.ts`, decoder scritto a mano
   (solo varint, fixed32, float), coperto dai test.
 
+Accensione, verificata su firmware 1.0.4 / hardware r2.2a: il flusso ottico
+non parte da solo. Dentro la fascia c'è un front-end TI AFE4404, raggiungibile
+registro per registro dalla caratteristica Sensor `…abb2`; il firmware lo
+configura all'avvio ma lascia spento il timer di campionamento (registro
+`0x1E`, bit TIMEREN). Il client scrive `0x1E = 0x000100` dopo la calibrazione
+e i frame arrivano entro un secondo; allo scollegamento lo rimette a zero.
+Il tasto «sonda di accensione» fotografa i 64 registri e prova le varianti,
+scrivendo tutto nel log: è ciò che ha permesso di trovare la sequenza.
+
 Un aggiornamento del firmware Mendi può cambiare il protocollo senza
 preavviso. È il rischio accettato per un prototipo interno.
 
