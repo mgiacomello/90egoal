@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
 import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
-import { clausesCsv, download, framesCsv, sessionJson } from "../session/export";
+import { clausesCsv, download, framesCsv, segmentsCsv, sessionJson } from "../session/export";
 import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
 import { clauseMetrics } from "../session/metrics";
 import type { Document } from "../session/model";
@@ -10,6 +10,8 @@ import { Operate, Verify } from "./VerifyOperate";
 import { AggregateScreen } from "./AggregateScreen";
 import { Stepper } from "./Stepper";
 import { FrictionStrip } from "./FrictionStrip";
+import { DEFAULT_READING, type ReadingOptions } from "./useRecorder";
+import { autoDurationMs, READING_MODES, segmentMetrics, type SegmentMetrics } from "../session/segments";
 import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
@@ -87,6 +89,7 @@ function Setup({ r }: { r: R }) {
   const [pasteTitle, setPasteTitle] = useState("");
   const [pasteText, setPasteText] = useState("");
   const [consent, setConsent] = useState(false);
+  const [reading, setReadingOpts] = useState<ReadingOptions>(DEFAULT_READING);
   const [acceptAll, setAcceptAll] = useState(false);
   const [diag, setDiag] = useState<BluetoothDiagnosis | null>(null);
   const bluetooth = isWebBluetoothAvailable();
@@ -221,7 +224,35 @@ function Setup({ r }: { r: R }) {
       </section>
 
       <section className="card">
-        <h2>3. Consenso del partecipante</h2>
+        <h2>3. Come presentare il testo</h2>
+        <div className="modes">
+          {READING_MODES.map((m) => (
+            <label key={m.id} className={`mode ${reading.mode === m.id ? "on" : ""}`}>
+              <input type="radio" name="mode" checked={reading.mode === m.id} onChange={() => setReadingOpts({ ...reading, mode: m.id })} />
+              <span className="mode-label">{m.label}</span>
+              <span className="mode-note">{m.note}</span>
+            </label>
+          ))}
+        </div>
+        {reading.mode === "scorrimento" && (
+          <label className="check small">
+            Ritmo: {reading.wordsPerMinute} parole al minuto
+            <input type="range" min={100} max={300} step={10} value={reading.wordsPerMinute} onChange={(e) => setReadingOpts({ ...reading, wordsPerMinute: Number(e.target.value) })} />
+          </label>
+        )}
+        <label className="check small">
+          <input type="checkbox" checked={reading.recordVoice} onChange={(e) => setReadingOpts({ ...reading, recordVoice: e.target.checked })} /> registra la voce (lettura ad alta voce)
+        </label>
+        <p className="hint">
+          La fascia non vede la singola parola: la sua risposta arriva 4–8 secondi dopo. Ciò che si misura parola per parola
+          è il tempo, e solo se il testo compare a porzioni. Il segnale corporeo viene attribuito a ogni porzione con un
+          ritardo dichiarato di 4 secondi. La registrazione vocale resta nel browser e si scarica con la sessione; leggere ad
+          alta voce muove la mascella e produce artefatti di movimento, che il tracciato segnala.
+        </p>
+      </section>
+
+      <section className="card">
+        <h2>4. Consenso del partecipante</h2>
         <p className="hint">La costituzione della misurazione, applicata a questa sessione.</p>
         <ul className="consent">
           <li>
@@ -256,7 +287,7 @@ function Setup({ r }: { r: R }) {
       </section>
 
       <div className="actions">
-        <button className="primary big" disabled={!doc || !consent} onClick={() => doc && r.start(doc)}>
+        <button className="primary big" disabled={!doc || !consent} onClick={() => doc && r.start(doc, reading)}>
           {r.device ? `Inizia (baseline ${BASELINE_SECONDS} s, poi lettura)` : "Inizia la lettura senza fascia"}
         </button>
       </div>
@@ -299,6 +330,10 @@ function BaselineScreen({ r }: { r: R }) {
 
 function Reader({ r, doc }: { r: R; doc: Document }) {
   const clause = doc.clauses[r.clauseIndex];
+  const segmented = r.reading.mode !== "clausola";
+  const auto = r.reading.mode === "scorrimento";
+  const segs = useMemo(() => r.segments.filter((x) => x.clauseId === clause.id), [r.segments, clause.id]);
+  const current = segs[r.segmentIndex] ?? null;
   const [enteredAt, setEnteredAt] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   useEffect(() => {
@@ -310,20 +345,59 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
   }, [enteredAt]);
 
   const last = r.clauseIndex === doc.clauses.length - 1;
+  const lastSegment = !segmented || (last && current !== null && current.index === segs.length - 1);
+
+  // Avanti: porzione o clausola, secondo il modo.
+  const forward = () => {
+    if (!segmented) {
+      if (!last) r.goTo(r.clauseIndex + 1, "forward");
+      return;
+    }
+    if (!r.stepSegment("forward")) r.finishReading();
+  };
+  const back = () => {
+    if (!segmented) {
+      if (r.clauseIndex > 0) r.goTo(r.clauseIndex - 1, "back");
+      return;
+    }
+    r.stepSegment("back");
+  };
+
+  // Scorrimento: ogni porzione resta il tempo che le spetta al ritmo scelto; in pausa il tempo si ferma.
+  useEffect(() => {
+    if (!auto || !current || r.paused) return;
+    const ms = autoDurationMs(current.wordCount, r.reading.wordsPerMinute);
+    const t = setTimeout(() => {
+      if (!r.stepSegment("auto")) r.finishReading();
+    }, ms);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auto, current?.id, r.paused]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight" && !last) r.goTo(r.clauseIndex + 1, "forward");
-      if (e.key === "ArrowLeft" && r.clauseIndex > 0) r.goTo(r.clauseIndex - 1, "back");
+      if (e.key === "ArrowRight" || (e.key === " " && segmented && !auto)) {
+        e.preventDefault();
+        forward();
+      }
+      if (e.key === "ArrowLeft") back();
+      if (e.key === " " && auto) {
+        e.preventDefault();
+        r.togglePause();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [r, last]);
+  });
+
   return (
     <main className="screen reader">
       <div className="progress">
         <span>{doc.title}</span>
         <span className="counter">
-          <strong>{clause.index}</strong> / {doc.clauses.length} · {(elapsed / 1000).toFixed(0)} s
+          <strong>{clause.index}</strong> / {doc.clauses.length}
+          {segmented && current && ` · porzione ${current.index + 1}/${segs.length}`} · {(elapsed / 1000).toFixed(0)} s
+          {r.reading.recordVoice && <span className="rec" title="registrazione vocale in corso"> ● REC</span>}
         </span>
       </div>
       <div className="segments" aria-hidden="true">
@@ -331,27 +405,51 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
           <span key={c.id} className={`seg ${i < r.clauseIndex ? "done" : i === r.clauseIndex ? "current" : ""}`} />
         ))}
       </div>
-      <article className="clause">
+      <article className={`clause ${segmented ? "segmented" : ""}`}>
         {clause.heading && <h2>{clause.heading}</h2>}
-        {clause.text.split("\n").map((p, i) => (
-          <p key={i}>{p}</p>
-        ))}
+        {segmented ? (
+          <p className="portions">
+            {segs.map((sg) => (
+              <span
+                key={sg.id}
+                className={`portion ${sg.index < r.segmentIndex ? "read" : sg.index === r.segmentIndex ? "now" : "next"}`}
+              >
+                {sg.text}{" "}
+              </span>
+            ))}
+          </p>
+        ) : (
+          clause.text.split("\n").map((p, i) => <p key={i}>{p}</p>)
+        )}
       </article>
       <nav className="actions">
-        <button disabled={r.clauseIndex === 0} onClick={() => r.goTo(r.clauseIndex - 1, "back")}>
+        <button disabled={r.clauseIndex === 0 && (!segmented || r.segmentIndex === 0)} onClick={back}>
           ← Torna indietro
         </button>
-        {last ? (
+        {auto && (
+          <button onClick={r.togglePause} className={r.paused ? "primary" : ""}>
+            {r.paused ? "Riprendi ▶" : "Fermati ⏸"}
+          </button>
+        )}
+        {lastSegment ? (
           <button className="primary" onClick={r.finishReading}>
             Ho finito
           </button>
         ) : (
-          <button className="primary" onClick={() => r.goTo(r.clauseIndex + 1, "forward")}>
-            Avanti →
-          </button>
+          !auto && (
+            <button className="primary" onClick={forward}>
+              Avanti →
+            </button>
+          )
         )}
       </nav>
-      <p className="hint center">Frecce ← → per muoverti tra le clausole.</p>
+      <p className="hint center">
+        {auto
+          ? "Le porzioni avanzano da sole. Spazio o «Fermati» per fermare il tempo; ← per tornare indietro. Fermate e ritorni sono segnali."
+          : segmented
+            ? "Spazio o → per la porzione successiva; ← per tornare indietro."
+            : "Frecce ← → per muoverti tra le clausole."}
+      </p>
       {r.device && (
         <div className="livebox">
           <Sparkline points={r.live} />
@@ -367,6 +465,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const metrics = useMemo(() => clauseMetrics(session, doc.clauses), [session, doc]);
   const friction = useMemo(() => frictionMap(metrics), [metrics]);
   const frictionById = new Map(friction.map((f) => [f.clauseId, f]));
+  const segmentRows = useMemo(() => segmentMetrics(session, doc.clauses), [session, doc]);
   const hasVerify = doc.questions.length > 0;
   const hasOperate = doc.tasks.length > 0;
   const verifyTotal = session.answers.filter((a) => a.correct).length;
@@ -388,9 +487,9 @@ function Results({ r, doc }: { r: R; doc: Document }) {
     setBuilding(true);
     setDossierError(null);
     try {
-      const json = sessionJson(session, doc.clauses, metrics, friction);
+      const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
       const { buildDossier } = await import("../session/dossier");
-      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible });
+      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows });
       const name = `${stamp}-fascicolo.pdf`;
       if (dossierUrl) URL.revokeObjectURL(dossierUrl.url);
       // Il link resta: se il browser blocca il download automatico, un clic diretto funziona sempre.
@@ -459,6 +558,17 @@ function Results({ r, doc }: { r: R; doc: Document }) {
           return { clauseId: f.clauseId, index: m.index, heading: m.heading, level: f.level, count: f.count, reasons: f.reasons };
         })}
       />
+
+      {segmentRows.length > 0 && <WordView rows={segmentRows} clauses={doc.clauses} hasBody={!!r.baseline} />}
+
+      {r.audio && (
+        <p className="hint">
+          Registrazione vocale: {Math.round(r.audio.blob.size / 1024)} KB, iniziata {new Date(r.audio.startedAt).toLocaleTimeString("it-IT")}.{" "}
+          <button onClick={() => download(`${stamp}-voce.webm`, r.audio!.blob)}>scarica l'audio</button>{" "}
+          L'allineamento parola per parola dell'audio va fatto fuori dal browser (allineamento forzato); il CSV delle porzioni
+          dà i tempi da confrontare.
+        </p>
+      )}
 
       <details className="details">
         <summary>Tabella completa per clausola</summary>
@@ -588,11 +698,68 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         <button onClick={() => download(`${stamp}-frames.csv`, framesCsv(session), "text/csv")} disabled={session.frames.length === 0}>
           Scarica CSV dei campioni grezzi
         </button>
-        <button onClick={() => download(`${stamp}.json`, sessionJson(session, doc.clauses, metrics, friction), "application/json")}>
+        {segmentRows.length > 0 && (
+          <button onClick={() => download(`${stamp}-porzioni.csv`, segmentsCsv(session, segmentRows), "text/csv")}>
+            Scarica le porzioni (CSV)
+          </button>
+        )}
+        <button onClick={() => download(`${stamp}.json`, sessionJson(session, doc.clauses, metrics, friction, segmentRows), "application/json")}>
           Scarica JSON della sessione
         </button>
         <button onClick={r.reset}>Nuova sessione</button>
       </div>
     </main>
+  );
+}
+
+/** Parola per parola: ogni porzione colorata per tempo per parola; il corpo, se c'è, in una riga sotto. */
+function WordView({ rows, clauses, hasBody }: { rows: SegmentMetrics[]; clauses: Document["clauses"]; hasBody: boolean }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const byClause = new Map<string, SegmentMetrics[]>();
+  for (const r of rows) byClause.set(r.clauseId, [...(byClause.get(r.clauseId) ?? []), r]);
+  const read = rows.filter((r) => r.msPerWord !== null);
+  const median = read.length ? [...read].sort((a, b) => a.msPerWord! - b.msPerWord!)[Math.floor(read.length / 2)].msPerWord! : null;
+  return (
+    <section className="card wordview">
+      <h2>Parola per parola</h2>
+      <p className="hint">
+        Il colore è il tempo per parola di ogni porzione rispetto alla sessione (mediana {median ? Math.round(median) : "—"} ms/parola):
+        più scuro, più lento. Tocca una porzione per i numeri. {hasBody && "Il segnale corporeo è attribuito con 4 s di ritardo: un'attribuzione, non una misura della parola."}
+      </p>
+      <div className="legend">
+        {[0, 1, 2, 3, 4].map((h) => (
+          <span key={h} className={`heat h${h}`}>{["veloce", "nella norma", "lento", "molto lento", "fermo"][h]}</span>
+        ))}
+      </div>
+      {clauses.map((c) => {
+        const segs = byClause.get(c.id) ?? [];
+        if (segs.length === 0) return null;
+        return (
+          <div key={c.id} className="wordclause">
+            <span className="clause-num">{c.index}</span>
+            <p>
+              {segs.map((sg) => (
+                <span
+                  key={sg.segmentId}
+                  className={`portion heat h${sg.msPerWord === null ? "x" : sg.heat} ${open === sg.segmentId ? "open" : ""}`}
+                  onClick={() => setOpen(open === sg.segmentId ? null : sg.segmentId)}
+                  title={sg.msPerWord === null ? "non letta" : `${Math.round(sg.msPerWord)} ms/parola · ${(sg.dwellMs / 1000).toFixed(1)} s · ritorni ${sg.returns}${sg.pauses ? ` · fermate ${sg.pauses}` : ""}`}
+                >
+                  {sg.text}{" "}
+                  {open === sg.segmentId && (
+                    <span className="portion-detail">
+                      {sg.msPerWord === null ? "non letta" : `${Math.round(sg.msPerWord)} ms/parola · ${(sg.dwellMs / 1000).toFixed(1)} s`}
+                      {sg.returns > 0 && ` · ${sg.returns} ritorni`}
+                      {sg.pauses > 0 && ` · ${sg.pauses} fermate`}
+                      {hasBody && sg.effort.sampleCount > 0 && ` · sforzo ${sg.effort.mean >= 0 ? "+" : ""}${sg.effort.mean.toFixed(4)} (${sg.effort.sampleCount} campioni)`}
+                    </span>
+                  )}
+                </span>
+              ))}
+            </p>
+          </div>
+        );
+      })}
+    </section>
   );
 }
