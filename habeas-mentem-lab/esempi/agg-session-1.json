@@ -1,0 +1,843 @@
+{
+  "schema": "habeas-mentem-lab/session/v1",
+  "exportedAt": "2026-09-25T12:32:17.218Z",
+  "session": {
+    "id": "hm-20260925T123135-687h",
+    "participant": "calipso-faro-593",
+    "documentId": "informativa-neurotech",
+    "documentTitle": "Informativa privacy — dispositivo di neurofeedback (modello)",
+    "device": {
+      "name": "Mendi-SIM",
+      "simulated": true,
+      "firmwareVersion": "SIM-1.0.0"
+    },
+    "createdAt": 1790339495970,
+    "consent": {
+      "accepted": true,
+      "timestamp": 1790339495970
+    },
+    "events": [
+      {
+        "type": "baseline_start",
+        "timestamp": 1790339495970
+      },
+      {
+        "type": "baseline_end",
+        "timestamp": 1790339525974
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339525974,
+        "clauseId": "c1",
+        "direction": "start"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339527535,
+        "clauseId": "c1"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339527535,
+        "clauseId": "c2",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339529084,
+        "clauseId": "c2"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339529084,
+        "clauseId": "c3",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339530884,
+        "clauseId": "c3"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339530884,
+        "clauseId": "c4",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339531018,
+        "clauseId": "c4"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339531018,
+        "clauseId": "c5",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339531801,
+        "clauseId": "c5"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339531801,
+        "clauseId": "c6",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339532451,
+        "clauseId": "c6"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339532451,
+        "clauseId": "c7",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339533734,
+        "clauseId": "c7"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339533734,
+        "clauseId": "c8",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339534285,
+        "clauseId": "c8"
+      },
+      {
+        "type": "clause_enter",
+        "timestamp": 1790339534285,
+        "clauseId": "c9",
+        "direction": "forward"
+      },
+      {
+        "type": "clause_leave",
+        "timestamp": 1790339534684,
+        "clauseId": "c9"
+      },
+      {
+        "type": "reading_end",
+        "timestamp": 1790339534684
+      },
+      {
+        "type": "verify_start",
+        "timestamp": 1790339534684
+      },
+      {
+        "type": "verify_end",
+        "timestamp": 1790339535918
+      },
+      {
+        "type": "operate_start",
+        "timestamp": 1790339535918
+      },
+      {
+        "type": "operate_end",
+        "timestamp": 1790339537150
+      }
+    ],
+    "answers": [
+      {
+        "questionId": "q1",
+        "clauseId": "c5",
+        "chosenIndex": 1,
+        "correct": true,
+        "timestamp": 1790339534968,
+        "ms": 281
+      },
+      {
+        "questionId": "q2",
+        "clauseId": "c7",
+        "chosenIndex": 0,
+        "correct": false,
+        "timestamp": 1790339535434,
+        "ms": 464
+      },
+      {
+        "questionId": "q3",
+        "clauseId": "c3",
+        "chosenIndex": 2,
+        "correct": true,
+        "timestamp": 1790339535918,
+        "ms": 482
+      }
+    ],
+    "tasks": [
+      {
+        "taskId": "t1",
+        "clauseId": "c7",
+        "chosenClauseId": "c7",
+        "correct": true,
+        "timestamp": 1790339536484,
+        "ms": 563,
+        "opened": 1
+      },
+      {
+        "taskId": "t2",
+        "clauseId": "c6",
+        "chosenClauseId": "c5",
+        "correct": false,
+        "timestamp": 1790339537150,
+        "ms": 663,
+        "opened": 1
+      }
+    ]
+  },
+  "clauses": [
+    {
+      "id": "c1",
+      "index": 1,
+      "heading": "1. Titolare del trattamento",
+      "text": "La presente informativa è resa ai sensi degli articoli 13 e 14 del Regolamento (UE) 2016/679 (\"GDPR\") da NeuroSense Technologies S.r.l., con sede legale in Via dei Sensori 12, 20100 Milano, P. IVA 00000000000, in qualità di Titolare del trattamento dei dati personali raccolti tramite il dispositivo di neurofeedback \"NeuroBand\" e la relativa applicazione mobile (congiuntamente, i \"Servizi\").",
+      "wordCount": 58
+    },
+    {
+      "id": "c2",
+      "index": 2,
+      "heading": "2. Categorie di dati trattati",
+      "text": "Nell'ambito dell'erogazione dei Servizi, il Titolare tratta le seguenti categorie di dati personali: (a) dati identificativi e di contatto forniti in fase di registrazione; (b) dati tecnici relativi al dispositivo, al sistema operativo, all'indirizzo IP e agli identificativi pubblicitari; (c) segnali fisiologici acquisiti dai sensori ottici del dispositivo, ivi inclusi i valori di assorbimento nel vicino infrarosso e nel rosso relativi all'emodinamica della corteccia prefrontale, i dati inerziali (accelerometro e giroscopio) e la temperatura cutanea; (d) dati derivati, ossia le elaborazioni, i punteggi, le classificazioni e le inferenze prodotte dagli algoritmi proprietari del Titolare a partire dai segnali di cui alla lettera (c), incluse le stime relative allo stato attentivo, al livello di attivazione e all'andamento delle sessioni di allenamento.",
+      "wordCount": 120
+    },
+    {
+      "id": "c3",
+      "index": 3,
+      "heading": "3. Finalità e basi giuridiche",
+      "text": "I dati sono trattati per le seguenti finalità: (i) erogazione dei Servizi e adempimento del contratto, ai sensi dell'art. 6, par. 1, lett. b) GDPR; (ii) miglioramento, sviluppo e addestramento degli algoritmi di elaborazione del segnale e dei modelli di apprendimento automatico, ivi incluso mediante l'utilizzo dei dati di cui al punto 2, lettere (c) e (d), in forma pseudonimizzata, sulla base del legittimo interesse del Titolare ai sensi dell'art. 6, par. 1, lett. f) GDPR; (iii) ricerca scientifica, in collaborazione con enti accademici e partner industriali selezionati, previo consenso esplicito dell'interessato ai sensi degli artt. 6, par. 1, lett. a) e 9, par. 2, lett. a) GDPR; (iv) comunicazioni promozionali relative a prodotti e servizi del Titolare e di terzi, previo consenso; (v) adempimento di obblighi di legge.",
+      "wordCount": 129
+    },
+    {
+      "id": "c4",
+      "index": 4,
+      "heading": "4. Natura dei dati fisiologici",
+      "text": "L'interessato prende atto che i segnali di cui al punto 2, lettera (c), possono costituire dati relativi alla salute ai sensi dell'art. 4, n. 15, GDPR e sono pertanto trattati nel rispetto dell'art. 9 GDPR. Il trattamento dei dati derivati di cui alla lettera (d) per le finalità di cui al punto 3, sub (ii), avviene previa applicazione di tecniche di pseudonimizzazione che, nella valutazione del Titolare, riducono il rischio di reidentificazione a un livello accettabile, fermo restando che il Titolare non garantisce l'irreversibilità di tali tecniche in presenza di informazioni aggiuntive detenute da terzi.",
+      "wordCount": 95
+    },
+    {
+      "id": "c5",
+      "index": 5,
+      "heading": "5. Conservazione",
+      "text": "I dati identificativi sono conservati per la durata del rapporto contrattuale e per i dieci anni successivi alla sua cessazione. I segnali fisiologici grezzi sono conservati per un periodo di ventiquattro mesi dalla raccolta; decorso tale termine, sono cancellati ovvero resi anonimi. I dati derivati e i modelli addestrati sui medesimi, in quanto non più riconducibili all'interessato secondo la valutazione del Titolare, sono conservati senza limiti di tempo.",
+      "wordCount": 68
+    },
+    {
+      "id": "c6",
+      "index": 6,
+      "heading": "6. Destinatari e trasferimenti",
+      "text": "I dati possono essere comunicati a: fornitori di servizi cloud, con server ubicati nell'Unione europea e negli Stati Uniti d'America; partner di ricerca; fornitori di servizi di analisi e advertising; autorità pubbliche ove richiesto dalla legge. I trasferimenti verso Paesi terzi avvengono sulla base delle clausole contrattuali standard adottate dalla Commissione europea o, ove applicabile, di decisioni di adeguatezza. L'elenco aggiornato dei responsabili del trattamento è disponibile su richiesta.",
+      "wordCount": 69
+    },
+    {
+      "id": "c7",
+      "index": 7,
+      "heading": "7. Diritti dell'interessato",
+      "text": "L'interessato ha il diritto di ottenere l'accesso ai dati, la rettifica, la cancellazione, la limitazione del trattamento, la portabilità, nonché di opporsi al trattamento e di revocare il consenso in qualsiasi momento, senza pregiudicare la liceità del trattamento basato sul consenso prestato prima della revoca. La revoca del consenso alle finalità di cui al punto 3, sub (iii), non comporta la cancellazione dei modelli già addestrati né dei risultati di ricerca già prodotti. Le richieste vanno inviate a privacy@neurosense.example. È fatto salvo il diritto di proporre reclamo al Garante per la protezione dei dati personali.",
+      "wordCount": 95
+    },
+    {
+      "id": "c8",
+      "index": 8,
+      "heading": "8. Processo decisionale automatizzato",
+      "text": "I Servizi utilizzano processi decisionali automatizzati per adattare la difficoltà delle sessioni di allenamento e per generare i punteggi visualizzati nell'applicazione. Tali processi non producono effetti giuridici né incidono in modo analogo significativamente sull'interessato ai sensi dell'art. 22 GDPR. L'interessato può richiedere informazioni sulla logica utilizzata scrivendo all'indirizzo di cui al punto 7.",
+      "wordCount": 53
+    },
+    {
+      "id": "c9",
+      "index": 9,
+      "heading": "9. Modifiche",
+      "text": "Il Titolare si riserva di modificare la presente informativa. Le modifiche sono comunicate mediante pubblicazione nell'applicazione e hanno efficacia dalla data di pubblicazione. L'uso continuato dei Servizi successivamente alla pubblicazione costituisce presa d'atto delle modifiche.",
+      "wordCount": 35
+    }
+  ],
+  "metrics": [
+    {
+      "clauseId": "c1",
+      "index": 1,
+      "heading": "1. Titolare del trattamento",
+      "wordCount": 58,
+      "dwellMs": 1561,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 2229.340166559897,
+      "plausibleReadMs": 13920,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": -0.0009564343317026516,
+        "peak": 0.00034421478607838394,
+        "sampleCount": 39,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 93,
+        "semantic": 12,
+        "structural": 87,
+        "conceptual": 28,
+        "total": 54,
+        "details": {
+          "sentences": 1,
+          "avgSentenceLength": 58,
+          "subordinatesPerSentence": 0,
+          "passiveRatio": 0,
+          "technicalTermsPer600": 10,
+          "undefinedShare": 0,
+          "technicalTerms": 1,
+          "undefinedTerms": 0,
+          "citations": 1,
+          "parentheticals": 3
+        }
+      },
+      "verification": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c2",
+      "index": 2,
+      "heading": "2. Categorie di dati trattati",
+      "wordCount": 120,
+      "dwellMs": 1549,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 4648.160103292446,
+      "plausibleReadMs": 28800,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": 0.0006554548857687184,
+        "peak": 0.0017951348403553121,
+        "sampleCount": 39,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 100,
+        "semantic": 58,
+        "structural": 100,
+        "conceptual": 0,
+        "total": 70,
+        "details": {
+          "sentences": 1,
+          "avgSentenceLength": 120,
+          "subordinatesPerSentence": 1,
+          "passiveRatio": 0,
+          "technicalTermsPer600": 45,
+          "undefinedShare": 0.11,
+          "technicalTerms": 9,
+          "undefinedTerms": 1,
+          "citations": 0,
+          "parentheticals": 6
+        }
+      },
+      "verification": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c3",
+      "index": 3,
+      "heading": "3. Finalità e basi giuridiche",
+      "wordCount": 129,
+      "dwellMs": 1800,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 4300,
+      "plausibleReadMs": 30960,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": -0.00022840289961873942,
+        "peak": 0.0011972937648158225,
+        "sampleCount": 45,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 100,
+        "semantic": 41,
+        "structural": 100,
+        "conceptual": 37,
+        "total": 70,
+        "details": {
+          "sentences": 1,
+          "avgSentenceLength": 129,
+          "subordinatesPerSentence": 3,
+          "passiveRatio": 1,
+          "technicalTermsPer600": 28,
+          "undefinedShare": 0.17,
+          "technicalTerms": 6,
+          "undefinedTerms": 1,
+          "citations": 3,
+          "parentheticals": 7
+        }
+      },
+      "verification": {
+        "asked": 1,
+        "correct": 1,
+        "meanMs": 482
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c4",
+      "index": 4,
+      "heading": "4. Natura dei dati fisiologici",
+      "wordCount": 95,
+      "dwellMs": 134,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 42537.31343283582,
+      "plausibleReadMs": 22800,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": -0.0014881903980995196,
+        "peak": -0.0014144618650331316,
+        "sampleCount": 3,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 78,
+        "semantic": 39,
+        "structural": 100,
+        "conceptual": 34,
+        "total": 61,
+        "details": {
+          "sentences": 2,
+          "avgSentenceLength": 47.5,
+          "subordinatesPerSentence": 2.5,
+          "passiveRatio": 0,
+          "technicalTermsPer600": 19,
+          "undefinedShare": 0.33,
+          "technicalTerms": 3,
+          "undefinedTerms": 1,
+          "citations": 2,
+          "parentheticals": 3
+        }
+      },
+      "verification": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c5",
+      "index": 5,
+      "heading": "5. Conservazione",
+      "wordCount": 68,
+      "dwellMs": 783,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 5210.727969348659,
+      "plausibleReadMs": 16320.000000000002,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": -0.0007979328271854084,
+        "peak": 0.00005929947708642279,
+        "sampleCount": 19,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 31,
+        "semantic": 81,
+        "structural": 21,
+        "conceptual": 0,
+        "total": 42,
+        "details": {
+          "sentences": 3,
+          "avgSentenceLength": 22.7,
+          "subordinatesPerSentence": 0.3,
+          "passiveRatio": 1,
+          "technicalTermsPer600": 26,
+          "undefinedShare": 1,
+          "technicalTerms": 3,
+          "undefinedTerms": 3,
+          "citations": 0,
+          "parentheticals": 0
+        }
+      },
+      "verification": {
+        "asked": 1,
+        "correct": 1,
+        "meanMs": 281
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 1
+      }
+    },
+    {
+      "clauseId": "c6",
+      "index": 6,
+      "heading": "6. Destinatari e trasferimenti",
+      "wordCount": 69,
+      "dwellMs": 650,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 6369.2307692307695,
+      "plausibleReadMs": 16560,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": 0.000489604866826658,
+        "peak": 0.0014747015641613827,
+        "sampleCount": 17,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 30,
+        "semantic": 70,
+        "structural": 0,
+        "conceptual": 0,
+        "total": 35,
+        "details": {
+          "sentences": 3,
+          "avgSentenceLength": 23,
+          "subordinatesPerSentence": 0.7,
+          "passiveRatio": 0.67,
+          "technicalTermsPer600": 17,
+          "undefinedShare": 1,
+          "technicalTerms": 2,
+          "undefinedTerms": 2,
+          "citations": 0,
+          "parentheticals": 0
+        }
+      },
+      "verification": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null
+      },
+      "operational": {
+        "asked": 1,
+        "correct": 0,
+        "meanMs": 663,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c7",
+      "index": 7,
+      "heading": "7. Diritti dell'interessato",
+      "wordCount": 95,
+      "dwellMs": 1283,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 4442.712392829306,
+      "plausibleReadMs": 22800,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": 0.0009549814862568971,
+        "peak": 0.00149938088628033,
+        "sampleCount": 32,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 28,
+        "semantic": 95,
+        "structural": 59,
+        "conceptual": 0,
+        "total": 52,
+        "details": {
+          "sentences": 4,
+          "avgSentenceLength": 23.8,
+          "subordinatesPerSentence": 0.8,
+          "passiveRatio": 0,
+          "technicalTermsPer600": 38,
+          "undefinedShare": 1,
+          "technicalTerms": 6,
+          "undefinedTerms": 6,
+          "citations": 0,
+          "parentheticals": 1
+        }
+      },
+      "verification": {
+        "asked": 1,
+        "correct": 0,
+        "meanMs": 464
+      },
+      "operational": {
+        "asked": 1,
+        "correct": 1,
+        "meanMs": 563,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c8",
+      "index": 8,
+      "heading": "8. Processo decisionale automatizzato",
+      "wordCount": 53,
+      "dwellMs": 551,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 5771.324863883848,
+      "plausibleReadMs": 12720,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": -0.00033070258285119623,
+        "peak": 0.00019466002046500657,
+        "sampleCount": 14,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 15,
+        "semantic": 63,
+        "structural": 79,
+        "conceptual": 30,
+        "total": 44,
+        "details": {
+          "sentences": 3,
+          "avgSentenceLength": 17.7,
+          "subordinatesPerSentence": 0,
+          "passiveRatio": 0,
+          "technicalTermsPer600": 11,
+          "undefinedShare": 1,
+          "technicalTerms": 1,
+          "undefinedTerms": 1,
+          "citations": 1,
+          "parentheticals": 0
+        }
+      },
+      "verification": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 0
+      }
+    },
+    {
+      "clauseId": "c9",
+      "index": 9,
+      "heading": "9. Modifiche",
+      "wordCount": 35,
+      "dwellMs": 399,
+      "visits": 1,
+      "returns": 0,
+      "wordsPerMinute": 5263.157894736842,
+      "plausibleReadMs": 8400,
+      "tooFastToRead": true,
+      "effort": {
+        "mean": -0.0009972731478583813,
+        "peak": -0.0004969018096210856,
+        "sampleCount": 10,
+        "motionArtifactRatio": 0
+      },
+      "lx": {
+        "syntactic": 5,
+        "semantic": 0,
+        "structural": 0,
+        "conceptual": 0,
+        "total": 2,
+        "details": {
+          "sentences": 3,
+          "avgSentenceLength": 11.7,
+          "subordinatesPerSentence": 0,
+          "passiveRatio": 0.33,
+          "technicalTermsPer600": 0,
+          "undefinedShare": 0,
+          "technicalTerms": 0,
+          "undefinedTerms": 0,
+          "citations": 0,
+          "parentheticals": 0
+        }
+      },
+      "verification": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null
+      },
+      "operational": {
+        "asked": 0,
+        "correct": 0,
+        "meanMs": null,
+        "timesChosenWrongly": 0
+      }
+    }
+  ],
+  "friction": [
+    {
+      "clauseId": "c1",
+      "level": "giallo",
+      "indicators": {
+        "time": true,
+        "body": false,
+        "text": true,
+        "verify": false,
+        "operate": false
+      },
+      "count": 2,
+      "reasons": [
+        "tempo incompatibile con la lettura",
+        "LX 54 sopra la soglia"
+      ]
+    },
+    {
+      "clauseId": "c2",
+      "level": "giallo",
+      "indicators": {
+        "time": true,
+        "body": true,
+        "text": true,
+        "verify": false,
+        "operate": false
+      },
+      "count": 3,
+      "reasons": [
+        "tempo incompatibile con la lettura",
+        "sforzo nel terzo più alto della sessione",
+        "LX 70 sopra la soglia"
+      ]
+    },
+    {
+      "clauseId": "c3",
+      "level": "giallo",
+      "indicators": {
+        "time": true,
+        "body": false,
+        "text": true,
+        "verify": false,
+        "operate": false
+      },
+      "count": 2,
+      "reasons": [
+        "tempo incompatibile con la lettura",
+        "LX 70 sopra la soglia"
+      ]
+    },
+    {
+      "clauseId": "c4",
+      "level": "giallo",
+      "indicators": {
+        "time": true,
+        "body": false,
+        "text": true,
+        "verify": false,
+        "operate": false
+      },
+      "count": 2,
+      "reasons": [
+        "tempo incompatibile con la lettura",
+        "LX 61 sopra la soglia"
+      ]
+    },
+    {
+      "clauseId": "c5",
+      "level": "verde",
+      "indicators": {
+        "time": true,
+        "body": false,
+        "text": false,
+        "verify": false,
+        "operate": false
+      },
+      "count": 1,
+      "reasons": [
+        "tempo incompatibile con la lettura"
+      ]
+    },
+    {
+      "clauseId": "c6",
+      "level": "rosso",
+      "indicators": {
+        "time": true,
+        "body": true,
+        "text": false,
+        "verify": false,
+        "operate": true
+      },
+      "count": 3,
+      "reasons": [
+        "tempo incompatibile con la lettura",
+        "sforzo nel terzo più alto della sessione",
+        "prova operativa: 0/1 riuscite"
+      ]
+    },
+    {
+      "clauseId": "c7",
+      "level": "rosso",
+      "indicators": {
+        "time": true,
+        "body": true,
+        "text": true,
+        "verify": true,
+        "operate": false
+      },
+      "count": 4,
+      "reasons": [
+        "tempo incompatibile con la lettura",
+        "sforzo nel terzo più alto della sessione",
+        "LX 52 sopra la soglia",
+        "verifica: 0/1 corrette"
+      ]
+    },
+    {
+      "clauseId": "c8",
+      "level": "verde",
+      "indicators": {
+        "time": true,
+        "body": false,
+        "text": false,
+        "verify": false,
+        "operate": false
+      },
+      "count": 1,
+      "reasons": [
+        "tempo incompatibile con la lettura"
+      ]
+    },
+    {
+      "clauseId": "c9",
+      "level": "verde",
+      "indicators": {
+        "time": true,
+        "body": false,
+        "text": false,
+        "verify": false,
+        "operate": false
+      },
+      "count": 1,
+      "reasons": [
+        "tempo incompatibile con la lettura"
+      ]
+    }
+  ],
+  "frameCount": 1029,
+  "note": "L'indice di sforzo è un proxy relativo alla baseline della stessa sessione. L'LX score è una stima euristica di superficie, non il modello NLC calibrato. Nessuno dei due misura la comprensione. Vanno letti solo in convergenza con gli altri sensori."
+}
