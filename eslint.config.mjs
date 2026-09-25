@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // brain è un progetto a sé: ha il suo eslint.config.mjs.
     "brain/**",
+    // habeas-mentem-lab, idem.
+    "habeas-mentem-lab/**",
   ]),
 ]);
 

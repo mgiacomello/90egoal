@@ -47,3 +47,7 @@ next-env.d.ts
 # brain è un progetto a sé, con le sue dipendenze
 /brain/node_modules
 /brain/.next/
+
+# habeas-mentem-lab, idem (Vite: la build finisce in dist)
+/habeas-mentem-lab/node_modules
+/habeas-mentem-lab/dist
