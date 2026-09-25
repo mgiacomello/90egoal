@@ -112,6 +112,8 @@ export class WebBluetoothMendi implements MendiSource {
   private notified = 0;
   private otherNotifications = 0;
   private polling: ReturnType<typeof setInterval> | null = null;
+  /** Vero durante una readValue: Chrome emette lo stesso evento anche per le letture. */
+  private readingFrame = false;
   private pendingRegister: Map<number, (r: SensorResponse) => void> = new Map();
   private listeners = new Set<MendiListener>();
   private log: (line: string) => void = () => undefined;
@@ -209,6 +211,7 @@ export class WebBluetoothMendi implements MendiSource {
     const frame = await service.getCharacteristic(FRAME_CHARACTERISTIC);
     this.frameChar = frame;
     frame.addEventListener("characteristicvaluechanged", (ev) => {
+      if (this.readingFrame) return; // è la nostra lettura diretta, non una notifica
       const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
       if (!value) return;
       const bytes = toBytes(value);
@@ -364,12 +367,15 @@ export class WebBluetoothMendi implements MendiSource {
   /** Legge il Frame una volta (0xABB1 è leggibile su firmware 1.0.4). */
   async readFrameOnce(): Promise<Frame | null> {
     if (!this.frameChar?.properties.read) return null;
+    this.readingFrame = true;
     try {
       const bytes = toBytes(await this.frameChar.readValue());
       return bytes.length > 0 ? decodeFrame(bytes) : null;
     } catch (e) {
       this.log(`Lettura diretta ABB1 fallita: ${errText(e)}`);
       return null;
+    } finally {
+      this.readingFrame = false;
     }
   }
 
@@ -421,6 +427,11 @@ export class WebBluetoothMendi implements MendiSource {
   /** Scrive un registro del sensore ottico (Sensor read=false). */
   async writeRegister(address: number, data: number): Promise<boolean> {
     return this.write(this.sensor, encodeSensor(false, address, data), `scrivo registro 0x${address.toString(16).padStart(2, "0")} = 0x${data.toString(16).padStart(6, "0")}`);
+  }
+
+  /** Scrive byte grezzi su Sensor (ABB2) o Calibration (ABB6): per i tentativi della sonda. */
+  async writeRaw(target: "sensor" | "calibration", payload: Uint8Array, label: string): Promise<boolean> {
+    return this.write(target === "sensor" ? this.sensor : this.calibration, payload, label);
   }
 
   /** Scrive un messaggio Calibration con offset espliciti. */
