@@ -4,6 +4,8 @@ import { useState } from "react";
 import { AGGREGATE_THRESHOLDS, aggregateSessions, AggregateError, parseSessionExport, type Aggregate, type SessionExport } from "../session/aggregate";
 import { download } from "../session/export";
 import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
+import { BOOK_R, calibrate, describeWeights } from "../session/calibrate";
+import { FrictionStrip } from "./FrictionStrip";
 
 export function AggregateScreen({ onBack }: { onBack: () => void }) {
   const [files, setFiles] = useState<{ name: string; data: SessionExport }[]>([]);
@@ -57,9 +59,10 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
     if (!aggregate) return;
     setBuilding(true);
     try {
-      const json = JSON.stringify({ schema: "habeas-mentem-lab/aggregate/v1", exportedAt: new Date().toISOString(), aggregate }, null, 2);
+      const calibration = calibrate(aggregate);
+      const json = JSON.stringify({ schema: "habeas-mentem-lab/aggregate/v1", exportedAt: new Date().toISOString(), aggregate, calibration: { ...calibration, points: undefined } }, null, 2);
       const { buildAggregateDossier } = await import("../session/dossier");
-      const blob = await buildAggregateDossier({ aggregate, aggregateJson: json, responsible });
+      const blob = await buildAggregateDossier({ aggregate, aggregateJson: json, responsible, calibration });
       download(`${aggregate.documentId}-aggregato-${aggregate.sessions}-lettori.pdf`, blob);
     } finally {
       setBuilding(false);
@@ -68,6 +71,8 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
 
   const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
   const T = AGGREGATE_THRESHOLDS;
+  const cal = aggregate ? calibrate(aggregate) : null;
+  const fmtR = (r: number | null) => (r === null ? "—" : r.toFixed(2));
 
   return (
     <main className="screen">
@@ -108,11 +113,15 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
             <strong>{aggregate.sessions} lettori</strong> · {aggregate.documentTitle} · {aggregate.sessionsWithSignal} con segnale
             {aggregate.simulatedSessions > 0 && ` · ${aggregate.simulatedSessions} con fascia simulata`}
           </p>
-          <div className="legend">
-            <span className="friction verde">verde</span>
-            <span className="friction giallo">giallo: due indizi, o verifica/prova sotto soglia</span>
-            <span className="friction rosso">rosso: tre indizi, di cui uno da verifica o prova</span>
-          </div>
+          <FrictionStrip
+            title="Dove i lettori si perdono"
+            items={aggregate.clauses.map((c) => ({
+              clauseId: c.clauseId, index: c.index, heading: c.heading, level: c.friction.level,
+              count: c.friction.count, reasons: c.friction.reasons, lostShare: c.lostShare,
+            }))}
+          />
+          <details className="details">
+            <summary>Tabella completa per clausola</summary>
           <div className="table-wrap">
             <table className="metrics">
               <thead>
@@ -165,12 +174,54 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
               </tbody>
             </table>
           </div>
+          </details>
           <p className="hint">
             Persi = quota di lettori per cui la clausola era gialla o rossa nella propria sessione. Il tempo conta come
             indizio se almeno il {Math.round(T.timeShare * 100)}% dei lettori è stato troppo veloce o è tornato indietro;
             verifica e prova contano con almeno {T.minAnswers} risposte e sotto il {Math.round(T.verifyAccuracy * 100)}%; il
             corpo con almeno {T.minSignalReaders} lettori con segnale.
           </p>
+
+          {cal && (
+            <section className="card calibration">
+              <h2>Ricalibrazione dell'LX sui dati (tool 4)</h2>
+              {!cal.eligible ? (
+                <p className="hint">{cal.reason} Con i pesi attuali la correlazione tra LX e comprensione è r = {fmtR(cal.defaultR)}.</p>
+              ) : (
+                <>
+                  <div className="board">
+                    <div className="tile-stat">
+                      <span className="stat-label">r con i pesi attuali</span>
+                      <span className="stat-value">{fmtR(cal.defaultR)}</span>
+                      <span className="stat-note">{describeWeights(cal.defaultWeights)}</span>
+                    </div>
+                    <div className="tile-stat">
+                      <span className="stat-label">r ricalibrato</span>
+                      <span className="stat-value">{fmtR(cal.r)}</span>
+                      <span className="stat-note">{describeWeights(cal.weights)}</span>
+                    </div>
+                    <div className="tile-stat">
+                      <span className="stat-label">Nel libro</span>
+                      <span className="stat-value">{BOOK_R.calibration.toFixed(2)}</span>
+                      <span className="stat-note">calibrazione; {BOOK_R.validation.toFixed(2)} in validazione</span>
+                    </div>
+                    <div className="tile-stat">
+                      <span className="stat-label">Soglia osservata</span>
+                      <span className="stat-value">{cal.threshold ?? "—"}</span>
+                      <span className="stat-note">
+                        {cal.threshold ? `sopra, la comprensione media cala di ${Math.round((cal.thresholdDrop ?? 0) * 100)} punti` : "nessun taglio netto"} · libro: {LX_ACCESSIBILITY_THRESHOLD}
+                      </span>
+                    </div>
+                  </div>
+                  <ul className="consent small-list">
+                    {cal.caveats.map((c, i) => (
+                      <li key={i}>{c}</li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          )}
 
           <section className="card dossier">
             <h2>Il fascicolo aggregato</h2>

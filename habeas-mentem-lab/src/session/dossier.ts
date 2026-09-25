@@ -19,6 +19,7 @@ import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
 import type { Document, Session } from "./model";
 import { AGGREGATE_THRESHOLDS, type Aggregate } from "./aggregate";
+import { BOOK_R, describeWeights, type Calibration } from "./calibrate";
 
 export interface DossierInput {
   session: Session;
@@ -293,6 +294,7 @@ export interface AggregateDossierInput {
   /** JSON dell'aggregato (per l'impronta). */
   aggregateJson: string;
   responsible?: string;
+  calibration?: Calibration;
 }
 
 export function aggregateSummary(a: Aggregate): string[] {
@@ -384,7 +386,28 @@ export async function buildAggregateDossier(input: AggregateDossierInput): Promi
     8.5,
   );
 
-  heading("4. La costituzione della misurazione, applicata");
+  if (input.calibration) {
+    const c = input.calibration;
+    const fr = (r: number | null) => (r === null ? "—" : r.toFixed(2));
+    heading("4. Ricalibrazione dell'LX sui dati");
+    if (!c.eligible) {
+      paragraph(`${c.reason} Con i pesi attuali (${describeWeights(c.defaultWeights)}) la correlazione tra LX e comprensione è r = ${fr(c.defaultR)}.`, 8.5, 3);
+    } else {
+      bullets(
+        [
+          `Pesi attuali: ${describeWeights(c.defaultWeights)} → r = ${fr(c.defaultR)}.`,
+          `Pesi ricalibrati su ${c.clauses} clausole e ${c.sessions} lettori: ${describeWeights(c.weights)} → r = ${fr(c.r)}. Nel libro: r = ${BOOK_R.calibration} in calibrazione, ${BOOK_R.validation} in validazione.`,
+          c.threshold
+            ? `Soglia osservata: ${c.threshold}/100 (sopra, la comprensione media cala di ${Math.round((c.thresholdDrop ?? 0) * 100)} punti); soglia del libro: ${LX_ACCESSIBILITY_THRESHOLD}.`
+            : "Nessuna soglia netta osservabile con questi dati.",
+          ...c.caveats,
+        ],
+        8.5,
+      );
+    }
+  }
+
+  heading(`${input.calibration ? 5 : 4}. La costituzione della misurazione, applicata`);
   bullets(CONSTITUTION, 8.5);
 
   await w.closing(pdf, input.aggregateJson, input.responsible, paragraph, heading);
