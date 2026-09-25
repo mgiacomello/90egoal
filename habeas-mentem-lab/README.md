@@ -81,6 +81,29 @@ scrivendo tutto nel log: è ciò che ha permesso di trovare la sequenza.
 Un aggiornamento del firmware Mendi può cambiare il protocollo senza
 preavviso. È il rischio accettato per un prototipo interno.
 
+## Parola per parola
+
+La fascia non vede la singola parola: la risposta emodinamica arriva 4-8 s
+dopo lo stimolo. Ciò che si misura davvero parola per parola è il tempo, e
+solo se il testo compare a porzioni. Tre modi di presentazione, scelti prima
+della sessione:
+
+- **clausola intera**: il tempo si misura per clausola (modo originale);
+- **a porzioni, al ritmo del lettore**: poche parole alla volta (2-5, spezzate
+  alla punteggiatura e prima dei connettivi), si avanza con spazio o freccia:
+  tempo per parola, ritorni;
+- **a porzioni, a scorrimento**: le porzioni avanzano da sole a un ritmo in
+  parole al minuto; contano fermate e ritorni.
+
+Il segnale corporeo è attribuito a ogni porzione con un ritardo dichiarato
+di 4 s (`HEMODYNAMIC_LAG_MS`) su una finestra di almeno 2 s: un'attribuzione,
+non una misura della parola, e il fascicolo lo scrive. La vista «Parola per
+parola» colora ogni porzione per tempo per parola (z-score sul logaritmo);
+il CSV delle porzioni e il fascicolo riportano le porzioni più lente.
+Facoltativa la registrazione vocale (lettura ad alta voce): resta nel
+browser, si scarica in `.webm`, e il CSV dà l'offset di ogni porzione
+dall'inizio dell'audio per un allineamento forzato fuori dal browser.
+
 ## L'indice di sforzo, e i suoi limiti
 
 `src/mendi/signal.ts`, dichiarato per intero:

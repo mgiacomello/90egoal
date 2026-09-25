@@ -205,3 +205,33 @@ code { background: var(--bg-deep); padding: 1px 5px; border-radius: 4px; }
 }
 
 .dossier-link { display: inline-block; margin-left: 10px; padding: 10px 14px; border-radius: 10px; background: var(--ok-soft); color: #1f5a38; font-weight: 600; text-decoration: none; }
+
+/* Modi di lettura */
+.modes { display: grid; gap: 8px; margin-bottom: 10px; }
+.mode { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.mode.on { border-color: var(--accent); background: var(--accent-soft); }
+.mode input { width: auto; grid-row: span 2; }
+.mode-label { font-weight: 600; }
+.mode-note { font-size: 13px; color: var(--muted); }
+.check.small input[type="range"] { width: 200px; margin-left: 10px; }
+.rec { color: #b3261e; font-weight: 700; }
+
+/* Lettura a porzioni */
+.clause.segmented .portions { max-width: 68ch; }
+.portion.read { color: var(--muted); opacity: 0.55; }
+.portion.now { color: var(--ink); background: var(--accent-soft); border-radius: 4px; box-shadow: 0 0 0 3px var(--accent-soft); }
+.portion.next { color: transparent; text-shadow: 0 0 10px rgba(0, 0, 0, 0.18); user-select: none; }
+
+/* Parola per parola */
+.wordview .legend { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 12px; font-size: 12px; }
+.wordclause { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; margin: 8px 0; }
+.wordclause p { margin: 0; font-family: "DejaVu Serif", Georgia, serif; font-size: 16px; line-height: 1.9; }
+.heat { border-radius: 4px; padding: 1px 3px; cursor: pointer; }
+.heat.h0 { background: #f1f4f2; }
+.heat.h1 { background: #fdf3d9; }
+.heat.h2 { background: #f9d9a6; }
+.heat.h3 { background: #ef9f6a; }
+.heat.h4 { background: #c9563a; color: #fff; }
+.heat.hx { background: transparent; color: var(--muted); text-decoration: line-through; }
+.heat.open { outline: 2px solid var(--accent); }
+.portion-detail { display: inline-block; font-family: "DejaVu Sans", system-ui, sans-serif; font-size: 12px; background: var(--ink); color: #fff; border-radius: 6px; padding: 2px 8px; margin-left: 4px; }

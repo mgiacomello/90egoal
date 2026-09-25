@@ -20,6 +20,7 @@ import type { ClauseMetrics } from "./metrics";
 import type { Document, Session } from "./model";
 import { AGGREGATE_THRESHOLDS, type Aggregate } from "./aggregate";
 import { BOOK_R, describeWeights, type Calibration } from "./calibrate";
+import { slowestSegments, type SegmentMetrics } from "./segments";
 
 export interface DossierInput {
   session: Session;
@@ -30,6 +31,8 @@ export interface DossierInput {
   sessionJson: string;
   /** Nome di chi risponde del documento ("il nome sul cartello"). Facoltativo. */
   responsible?: string;
+  /** Metriche parola per parola (solo nei modi a porzioni). */
+  segments?: SegmentMetrics[];
 }
 
 /** SHA-256 esadecimale, con WebCrypto; in ambienti senza crypto ritorna null. */
@@ -180,6 +183,13 @@ function writer(pdf: jsPDF) {
   return { state, heading, paragraph, bullets, title, afterTable, frictionColor, closing };
 }
 
+function readingModeLabel(session: Session): string {
+  const r = session.reading;
+  if (!r || r.mode === "clausola") return "clausola intera";
+  if (r.mode === "porzioni") return "a porzioni, al ritmo del lettore";
+  return `a porzioni, a scorrimento (${r.wordsPerMinute ?? "?"} parole al minuto)`;
+}
+
 export async function buildDossier(input: DossierInput): Promise<Blob> {
   const { session, doc, metrics, friction } = input;
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
@@ -277,10 +287,42 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     }
   }
 
-  heading("4. Metodo dichiarato");
+  const segs = input.segments ?? [];
+  if (segs.length > 0) {
+    heading("4. Parola per parola");
+    const median = (() => {
+      const xs = segs.filter((r) => r.msPerWord !== null).map((r) => r.msPerWord!).sort((a, b) => a - b);
+      return xs.length ? xs[Math.floor(xs.length / 2)] : null;
+    })();
+    paragraph(
+      `Presentazione ${readingModeLabel(session)}${session.reading?.voiceRecorded ? ", con registrazione vocale" : ""}. ` +
+        `${segs.length} porzioni; tempo per parola mediano ${median ? Math.round(median) : "—"} ms. ` +
+        "Le porzioni più lente della sessione, con il tempo per parola, i ritorni e le fermate. " +
+        "Il segnale corporeo, dove presente, è attribuito con 4 s di ritardo emodinamico: è un'attribuzione, non una misura della parola.",
+      8.5,
+      3,
+    );
+    const hasBodySeg = segs.some((r) => r.effort.sampleCount > 0);
+    const head = ["Cl.", "Porzione", "Parole", "ms/parola", "Rit.", "Ferm."];
+    if (hasBodySeg) head.push("Sforzo (ritardato)");
+    autoTable(pdf, {
+      startY: w.state.y,
+      head: [head],
+      body: slowestSegments(segs, 12).map((r) => {
+        const row: (string | number)[] = [r.clauseIndex, r.text, r.wordCount, Math.round(r.msPerWord!), r.returns, r.pauses];
+        if (hasBodySeg) row.push(r.effort.sampleCount ? r.effort.mean.toFixed(4) : "—");
+        return row;
+      }),
+      ...TABLE_STYLE,
+      columnStyles: { 1: { cellWidth: 80 } },
+    });
+    w.afterTable();
+  }
+
+  heading(segs.length > 0 ? "5. Metodo dichiarato" : "4. Metodo dichiarato");
   bullets(METHOD, 8.5);
 
-  heading("5. La costituzione della misurazione, applicata");
+  heading(segs.length > 0 ? "6. La costituzione della misurazione, applicata" : "5. La costituzione della misurazione, applicata");
   bullets(CONSTITUTION, 8.5);
 
   await w.closing(pdf, input.sessionJson, input.responsible, paragraph, heading);

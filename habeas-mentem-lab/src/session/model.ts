@@ -70,6 +70,12 @@ export type NavigationEvent =
   | { type: "baseline_end"; timestamp: number }
   | { type: "clause_enter"; timestamp: number; clauseId: string; direction: "forward" | "back" | "start" }
   | { type: "clause_leave"; timestamp: number; clauseId: string }
+  | { type: "segment_enter"; timestamp: number; clauseId: string; segmentId: string; direction: "forward" | "back" | "start" | "auto" }
+  | { type: "segment_leave"; timestamp: number; segmentId: string }
+  | { type: "segment_pause"; timestamp: number; segmentId: string }
+  | { type: "segment_resume"; timestamp: number; segmentId: string }
+  | { type: "audio_start"; timestamp: number }
+  | { type: "audio_end"; timestamp: number }
   | { type: "reading_end"; timestamp: number }
   | { type: "verify_start"; timestamp: number }
   | { type: "verify_end"; timestamp: number }
@@ -81,6 +87,8 @@ export interface AnnotatedFrame {
   frame: Frame;
   /** null durante baseline o fuori dalla lettura. */
   clauseId: string | null;
+  /** Porzione visibile (solo nei modi a porzioni). */
+  segmentId?: string | null;
   phase: "baseline" | "reading" | "verify" | "operate" | "idle";
   effort: EffortSample | null;
 }
@@ -94,6 +102,8 @@ export interface Session {
   device: { name: string; simulated: boolean; firmwareVersion: string | null } | null;
   createdAt: number;
   consent: { accepted: boolean; timestamp: number | null };
+  /** Come è stato presentato il testo. */
+  reading?: { mode: "clausola" | "porzioni" | "scorrimento"; wordsPerMinute: number | null; voiceRecorded: boolean };
   events: NavigationEvent[];
   frames: AnnotatedFrame[];
   answers: AnswerRecord[];
