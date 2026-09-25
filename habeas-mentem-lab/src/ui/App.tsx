@@ -283,6 +283,20 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const maxAbs = Math.max(...metrics.map((m) => Math.abs(m.effort.mean)), 1e-6);
   const totalMs = metrics.reduce((s, m) => s + m.dwellMs, 0);
   const stamp = session.id;
+  const [responsible, setResponsible] = useState("");
+  const [building, setBuilding] = useState(false);
+  const makeDossier = async () => {
+    setBuilding(true);
+    try {
+      const json = sessionJson(session, doc.clauses, metrics, friction);
+      // jsPDF pesa: lo carichiamo solo quando serve.
+      const { buildDossier } = await import("../session/dossier");
+      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible });
+      download(`${stamp}-fascicolo.pdf`, blob);
+    } finally {
+      setBuilding(false);
+    }
+  };
 
   return (
     <main className="screen">
@@ -392,8 +406,28 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         diagnosi ai documenti.
       </p>
 
+      <section className="card dossier">
+        <h2>Il fascicolo</h2>
+        <p className="hint">
+          Misure, dichiarazioni e test in un PDF con la data: la prova da esibire al posto del click. Contiene la
+          sintesi, la mappa della frizione, risposte e compiti, il metodo dichiarato, la costituzione applicata e
+          l'impronta SHA-256 del JSON di sessione, così che ogni numero sia ricalcolabile.
+        </p>
+        <div className="row">
+          <input
+            id="responsible"
+            placeholder="Chi risponde di questo documento (il nome sul cartello)"
+            value={responsible}
+            onChange={(e) => setResponsible(e.target.value)}
+          />
+          <button className="primary" disabled={building} onClick={makeDossier}>
+            {building ? "Genero il fascicolo…" : "Genera il fascicolo (PDF)"}
+          </button>
+        </div>
+      </section>
+
       <div className="actions">
-        <button className="primary" onClick={() => download(`${stamp}-clausole.csv`, clausesCsv(session, metrics, friction), "text/csv")}>
+        <button onClick={() => download(`${stamp}-clausole.csv`, clausesCsv(session, metrics, friction), "text/csv")}>
           Scarica CSV per clausola
         </button>
         <button onClick={() => download(`${stamp}-frames.csv`, framesCsv(session), "text/csv")} disabled={session.frames.length === 0}>

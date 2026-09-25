@@ -106,3 +106,8 @@ code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
 .metrics td.ok { color: var(--ok); }
 .metrics td.ko { color: var(--warn); font-weight: 600; }
 .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 10px 0; }
+
+/* Fascicolo */
+.dossier { margin-top: 20px; }
+.dossier .row { margin-top: 10px; }
+.dossier input { flex: 1; min-width: 260px; }

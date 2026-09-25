@@ -12,6 +12,8 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
