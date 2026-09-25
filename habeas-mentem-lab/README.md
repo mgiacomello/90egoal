@@ -131,7 +131,7 @@ tests/           vitest
 3. ~~Mappa della frizione~~ — fatto (prima versione; le soglie sono dichiarate nel codice).
 4. **LX Score Analyzer** — le quattro dimensioni (complessità linguistica, densità
    concettuale, struttura informativa, distanza semantica) e la ricalibrazione dei pesi sui dati raccolti.
-5. **Fascicolo di comprensione** — il PDF che sostituisce il click come prova.
+5. ~~Fascicolo di comprensibilità~~ — fatto: `src/session/dossier.ts` genera nel browser (jsPDF) il PDF con sintesi, mappa della frizione, risposte e compiti, metodo dichiarato, costituzione applicata, nome di chi risponde del documento e impronta SHA-256 del JSON di sessione.
 
 I documenti modello in `src/documents/` sono scritti per il laboratorio sul
 calco delle informative reali; non appartengono ad aziende esistenti.
