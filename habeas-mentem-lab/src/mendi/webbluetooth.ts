@@ -16,6 +16,8 @@ import { decodeAdc, decodeCalibration, decodeDiagnostics, decodeFrame, decodeSen
 import type { DeviceInfo, Frame, MendiListener, MendiSource } from "./types";
 
 const DEVICE_INFORMATION_SERVICE = "device_information";
+/** AFE4404 CONTROL1: bit 8 TIMEREN, bit 0-3 NUMAV. */
+export const AFE_CONTROL1 = 0x1e;
 const FIRMWARE_REVISION = "firmware_revision_string";
 const HARDWARE_REVISION = "hardware_revision_string";
 
@@ -113,7 +115,9 @@ export class WebBluetoothMendi implements MendiSource {
   private otherNotifications = 0;
   private polling: ReturnType<typeof setInterval> | null = null;
   /** Vero durante una readValue: Chrome emette lo stesso evento anche per le letture. */
-  private readingFrame = false;
+  private readingFrame = 0;
+  /** Vero mentre la sonda gira: il watchdog non deve interferire. */
+  probing = false;
   private pendingRegister: Map<number, (r: SensorResponse) => void> = new Map();
   private listeners = new Set<MendiListener>();
   private log: (line: string) => void = () => undefined;
@@ -211,7 +215,7 @@ export class WebBluetoothMendi implements MendiSource {
     const frame = await service.getCharacteristic(FRAME_CHARACTERISTIC);
     this.frameChar = frame;
     frame.addEventListener("characteristicvaluechanged", (ev) => {
-      if (this.readingFrame) return; // è la nostra lettura diretta, non una notifica
+      if (this.readingFrame > 0) return; // è la nostra lettura diretta, non una notifica
       const value = (ev.target as BluetoothRemoteGATTCharacteristic).value;
       if (!value) return;
       const bytes = toBytes(value);
@@ -340,10 +344,33 @@ export class WebBluetoothMendi implements MendiSource {
     }
   }
 
-  /** Sequenza di accensione: autocalibrazione LED, poi sensore ottico. */
+  /**
+   * Sequenza di accensione: autocalibrazione LED, poi timer dell'AFE4404.
+   *
+   * Sul firmware 1.0.4 il front-end ottico (TI AFE4404) ha i registri di
+   * temporizzazione programmati ma il timer (registro 0x1E, bit 8 TIMEREN)
+   * spento: senza timer niente LED e niente frame. Lo accendiamo noi,
+   * conservando il numero di medie (bit 0-3) che troviamo.
+   */
   async wakeUp(): Promise<void> {
     await this.enableAutoCalibration();
+    await this.startAfeTimer();
     await this.enableSensor();
+  }
+
+  /** Accende il timer dell'AFE4404 (0x1E TIMEREN). Ritorna il valore riletto, o null. */
+  async startAfeTimer(numAv?: number): Promise<number | null> {
+    const current = await this.readRegister(AFE_CONTROL1);
+    const avg = numAv ?? ((current?.data ?? 0) & 0x0f);
+    const value = 0x100 | avg;
+    if (current && current.data === value) {
+      this.log(`Timer AFE già acceso (0x1E = 0x${value.toString(16).padStart(6, "0")}).`);
+      return value;
+    }
+    await this.writeRegister(AFE_CONTROL1, value);
+    const back = await this.readRegister(AFE_CONTROL1);
+    this.log(back ? `Timer AFE: 0x1E riletto = 0x${back.data.toString(16).padStart(6, "0")}` : "Timer AFE: nessuna risposta alla rilettura di 0x1E");
+    return back?.data ?? null;
   }
 
   /** Accende (o riaccende) il sensore ottico: Sensor(read=true) su 0xABB2. */
@@ -367,7 +394,7 @@ export class WebBluetoothMendi implements MendiSource {
   /** Legge il Frame una volta (0xABB1 è leggibile su firmware 1.0.4). */
   async readFrameOnce(): Promise<Frame | null> {
     if (!this.frameChar?.properties.read) return null;
-    this.readingFrame = true;
+    this.readingFrame++;
     try {
       const bytes = toBytes(await this.frameChar.readValue());
       return bytes.length > 0 ? decodeFrame(bytes) : null;
@@ -375,7 +402,8 @@ export class WebBluetoothMendi implements MendiSource {
       this.log(`Lettura diretta ABB1 fallita: ${errText(e)}`);
       return null;
     } finally {
-      this.readingFrame = false;
+      // Lasciamo passare l'eventuale evento tardivo della lettura prima di riabilitare il conteggio.
+      setTimeout(() => this.readingFrame--, 150);
     }
   }
 
@@ -447,7 +475,7 @@ export class WebBluetoothMendi implements MendiSource {
 
   /** Tentativi alternativi quando la fascia resta muta, uno per volta. */
   async nudge(step: number): Promise<void> {
-    if (!this.service) return;
+    if (!this.service || this.probing) return;
     if (this.notified > 0) return;
     if (step === 1) {
       this.log("Nessun campione dopo 4 s: riprovo Sensor(read=true).");
@@ -505,7 +533,11 @@ export class WebBluetoothMendi implements MendiSource {
     this.clearWatchdog();
     this.stopPolling();
     try {
-      if (this.sensor) await this.sensor.writeValueWithResponse(encodeSensor(false).slice().buffer as ArrayBuffer);
+      if (this.sensor && this.connected) {
+        // Spegniamo il timer dell'AFE (LED spenti) e poi il sensore.
+        await this.sensor.writeValueWithResponse(encodeSensor(false, AFE_CONTROL1, 0).slice().buffer as ArrayBuffer);
+        await this.sensor.writeValueWithResponse(encodeSensor(false).slice().buffer as ArrayBuffer);
+      }
     } catch {
       // La fascia potrebbe essere già scollegata.
     }
