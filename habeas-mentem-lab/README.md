@@ -1,13 +1,18 @@
 # Habeas Mentem Lab
 
 Prototipo interno, non commerciale, del programma di misurazione descritto in
-*Habeas Mentem* (M. Giacomello, 2026) e in *Progettare la comprensione del
-diritto* (cap. 7). Primo strumento: **LX Reader**, la lettura di un documento
+*Habeas Mentem* (M. Giacomello, master v37, settembre 2026) e in *Progettare la
+comprensione del diritto. Legal Experience e complessità cognitiva nelle
+interfacce cervello-computer*, in *Mente e Tecnologia – BCI* (Springer, 2026,
+pp. 135-158). Primo strumento: **LX Reader**, la lettura di un documento
 giuridico una clausola alla volta con la fascia **Mendi** (fNIRS) collegata.
 
-> La comprensione si misura, la mente non si legge.
-> Nessun sensore dimostra da solo la comprensione: la conoscenza nasce dalla
-> convergenza delle evidenze.
+> Habeas Mentem è il diritto di ogni persona a comprendere, giudicare e
+> decidere in condizioni che non siano state progettate contro di lei.
+>
+> La comprensione si misura, la mente non si legge. Nessun sensore dimostra
+> da solo la comprensione: la conoscenza nasce dalla convergenza delle
+> evidenze. Si misurano i documenti, mai le persone.
 
 ## Che cosa fa oggi (tool 1)
 
@@ -15,7 +20,8 @@ giuridico una clausola alla volta con la fascia **Mendi** (fNIRS) collegata.
 |---|---|---|
 | **Tempo** | ✅ | ms su ogni clausola, visite, ritorni indietro, parole/minuto, flag "troppo veloce per averla letta" (> 600 wpm) |
 | **Corpo** | ✅ | frame Mendi a ~25 Hz (IR, rosso, ambiente per canale sinistro/destro/polso, IMU, temperatura), annotati con la clausola visibile; indice di sforzo relativo alla baseline; quota di artefatti da movimento |
-| Sguardo | — | eye-tracking: non in questo tool |
+| **Testo** | ✅ | stima euristica dell'LX Complexity Score per clausola: la lingua, l'affollamento, l'ordine, la distanza semantica |
+| Sguardo | — | tracciamento dello sguardo: non in questo tool |
 | Verifica | ⏭ tool 2 | domande di comprensione |
 | Prova operativa | ⏭ tool 2 | compiti pratici sul documento |
 
@@ -70,12 +76,32 @@ Il modulo non produce un giudizio di comprensione, non inferisce emozioni,
 non classifica il partecipante. Segnala dove il segnale si sposta rispetto
 al riposo: un indizio da leggere in convergenza con gli altri sensori.
 
-## Privacy by design nel prototipo
+## L'LX Complexity Score, stimato
 
-- Nessun dato identificativo: la sessione ha uno pseudonimo casuale.
-- Nessuna rete: i dati vivono nella pagina finché non vengono scaricati.
-- Diritto di non essere misurati: si legge anche senza fascia.
-- Consenso esplicito prima di iniziare, con l'elenco di ciò che si registra.
+`src/session/lx.ts`. Il libro Springer (pp. 145-147) nomina e misura due
+componenti principali, **densità sintattica** e **distanza semantica**, su
+scala 0-100 con soglia sperimentale di accessibilità a **45**; *Habeas
+Mentem* (cap. *La cartografia della comprensione*) descrive le quattro
+strade: la lingua, l'affollamento, l'ordine, la distanza semantica. Le
+formule sono calibrate sui valori del corpus BCI riportati nel libro (41
+parole per frase contro obiettivo 22, 3,8 subordinate per periodo, 68% di
+passive; 34 termini tecnici ogni 600 parole, 56% senza definizione), così
+che quei valori restituiscano 72 e 68 come nel libro. È una stima di
+superficie calcolata nel browser, non il modello NLC calibrato su EEG/fNIRS
+(pannello di 100 lettori, r = −0,71 in calibrazione e −0,68 in validazione).
+Il punteggio non giudica le persone: fa la diagnosi ai documenti.
+
+## La costituzione della misurazione, applicata
+
+I sei articoli del capitolo *La costituzione della misurazione* (v37), tradotti
+nel prototipo:
+
+1. **Una sola finalità** — migliorare la comprensibilità del documento; nessun uso secondario.
+2. **Si misurano i documenti, mai le persone** — nessun esito individuale, nessun giudizio sul lettore.
+3. **Il sensore meno invasivo, i dati minimi** — pseudonimo casuale, nessuna rete, dati solo nella pagina; strumenti neurofisiologici solo in laboratorio, con consenso pieno.
+4. **Il metodo è pubblico** — formule e soglie nel codice, punteggi ricalcolabili dai CSV esportati.
+5. **Nessuno è obbligato a essere misurato** — si legge anche senza fascia; si può chiudere in ogni momento.
+6. **Chi misura accetta di essere misurato** — test automatici, e questo README dichiara cosa lo strumento non sa fare.
 
 Con partecipanti esterni i segnali ottici sono con ogni probabilità dati
 relativi alla salute (art. 9 GDPR): servono informativa, consenso esplicito

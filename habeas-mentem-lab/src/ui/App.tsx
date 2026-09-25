@@ -45,7 +45,7 @@ export function App() {
 
       <footer className="foot">
         Prototipo interno, non commerciale. I dati restano in questo browser finché non li scarichi.
-        L'indice di sforzo è un proxy: la comprensione si misura, la mente non si legge.
+        Si misurano i documenti, mai le persone. La comprensione si misura, la mente non si legge.
       </footer>
     </div>
   );
@@ -71,9 +71,10 @@ function Setup({ r }: { r: R }) {
         <p className="eyebrow">Neuro Legal Cortex · Habeas Mentem Lab</p>
         <h1>Misurare dove il diritto smette di raggiungere chi lo legge</h1>
         <p className="lead">
-          Meno dell'1% delle persone legge i documenti giuridici; più del 90% li accetta comunque. La trasparenza
-          di oggi è formale, non reale. Comprendere non è un problema giuridico: è un problema cognitivo. Questo
-          laboratorio osserva la lettura con tre indizi indipendenti e non li fonde mai in un giudizio.
+          Habeas Mentem è il diritto di ogni persona a comprendere, giudicare e decidere in condizioni che non siano
+          state progettate contro di lei. Meno dell'1% delle persone legge i documenti giuridici; più del 90% li
+          accetta comunque. Questo laboratorio osserva la lettura con tre indizi indipendenti e non li fonde mai in
+          un giudizio: nessun sensore dimostra da solo la comprensione.
         </p>
         <div className="sensors">
           <div className="sensor">
@@ -82,11 +83,11 @@ function Setup({ r }: { r: R }) {
           </div>
           <div className="sensor">
             <span className="sensor-name">Corpo</span>
-            <span>fascia Mendi (fNIRS): indice di sforzo rispetto alla baseline</span>
+            <span>fascia Mendi (fNIRS): variazioni compatibili con il carico cognitivo. Un indizio, nient'altro</span>
           </div>
           <div className="sensor">
             <span className="sensor-name">Testo</span>
-            <span>LX Complexity Score: densità sintattica, distanza semantica e struttura del testo</span>
+            <span>LX Complexity Score: la lingua, l'affollamento, l'ordine, la distanza semantica</span>
           </div>
         </div>
       </section>
@@ -146,12 +147,33 @@ function Setup({ r }: { r: R }) {
 
       <section className="card">
         <h2>3. Consenso del partecipante</h2>
+        <p className="hint">La costituzione della misurazione, applicata a questa sessione.</p>
         <ul className="consent">
-          <li>Registriamo: tempo per clausola, navigazione avanti/indietro e, con la fascia, i segnali ottici e di movimento.</li>
-          <li>Non registriamo nome, e-mail o altri dati identificativi: la sessione ha uno pseudonimo casuale.</li>
-          <li>Nulla viene inviato a un server. I dati esistono solo in questa pagina finché non vengono scaricati.</li>
-          <li>Il segnale della fascia produce un indice di sforzo relativo. Non dice se hai capito, non legge pensieri o emozioni.</li>
-          <li>Puoi interrompere in ogni momento chiudendo la pagina: i dati non scaricati sono persi.</li>
+          <li>
+            <strong>Una sola finalità.</strong> Misuriamo per migliorare la comprensibilità del documento. Nessun uso
+            ulteriore: i dati non servono a profilare, selezionare o influenzare chi legge.
+          </li>
+          <li>
+            <strong>Si misurano i documenti, mai le persone.</strong> Se una clausola perde chi la legge, il difetto è
+            della clausola. Nessun esito dice qualcosa sulla tua capacità.
+          </li>
+          <li>
+            <strong>Il minimo necessario.</strong> Registriamo tempo per clausola, navigazione avanti e indietro e, con la
+            fascia, i segnali ottici e di movimento. Nessun nome, nessuna e-mail: la sessione ha uno pseudonimo casuale.
+            Nulla va a un server; i dati esistono solo in questa pagina finché non vengono scaricati.
+          </li>
+          <li>
+            <strong>Il metodo è pubblico.</strong> Indicatori, formule e soglie sono nel codice del laboratorio; ogni
+            punteggio si può ricalcolare dai dati esportati.
+          </li>
+          <li>
+            <strong>Nessuno è obbligato a essere misurato.</strong> La partecipazione è volontaria e revocabile: puoi
+            leggere senza fascia o chiudere la pagina in ogni momento, senza alcuna conseguenza.
+          </li>
+          <li>
+            <strong>Il segnale della fascia è un indizio, nient'altro.</strong> Dice che in un passaggio lo sforzo è
+            cresciuto. Non dice se hai capito, non legge pensieri né emozioni.
+          </li>
         </ul>
         <label className="check">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> Ho letto e accetto di partecipare a questa sessione.
@@ -286,7 +308,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
               <td>
                 <span
                   className={`lx ${m.lx.total > LX_ACCESSIBILITY_THRESHOLD ? "lx-high" : "lx-ok"}`}
-                  title={`Densità sintattica ${m.lx.syntactic} · Distanza semantica ${m.lx.semantic} · Struttura ${m.lx.structural} · Concetti ${m.lx.conceptual}\n${m.lx.details.avgSentenceLength} parole/frase (obiettivo 22), ${m.lx.details.subordinatesPerSentence} subordinate/periodo, passive ${Math.round(m.lx.details.passiveRatio * 100)}%\n${m.lx.details.technicalTermsPer600} termini tecnici ogni 600 parole, ${Math.round(m.lx.details.undefinedShare * 100)}% senza definizione, ${m.lx.details.citations} rinvii normativi`}
+                  title={`Lingua ${m.lx.syntactic} · Affollamento ${m.lx.conceptual} · Ordine ${m.lx.structural} · Distanza semantica ${m.lx.semantic}\n${m.lx.details.avgSentenceLength} parole/frase (obiettivo 22), ${m.lx.details.subordinatesPerSentence} subordinate/periodo, passive ${Math.round(m.lx.details.passiveRatio * 100)}%\n${m.lx.details.technicalTermsPer600} termini tecnici ogni 600 parole, ${Math.round(m.lx.details.undefinedShare * 100)}% senza definizione, ${m.lx.details.citations} rinvii normativi`}
                 >
                   {m.lx.total}
                 </span>
@@ -315,7 +337,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         Complexity Score (0-100; sopra {LX_ACCESSIBILITY_THRESHOLD} la soglia sperimentale di accessibilità; passa
         il mouse per le quattro dimensioni). Lo sforzo è la variazione media del proxy HbO rispetto alla baseline,
         in unità arbitrarie: confrontabile solo tra clausole della stessa sessione. Nessuna colonna, da sola, dice
-        se la clausola è stata compresa.
+        se la clausola è stata compresa. Il punteggio non giudica le persone: fa la diagnosi ai documenti.
       </p>
 
       <div className="actions">
