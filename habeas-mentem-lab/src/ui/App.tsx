@@ -86,7 +86,7 @@ function Setup({ r }: { r: R }) {
           </div>
           <div className="sensor">
             <span className="sensor-name">Testo</span>
-            <span>LX Complexity Score: linguistica, concetti, struttura, semantica</span>
+            <span>LX Complexity Score: densità sintattica, distanza semantica e struttura del testo</span>
           </div>
         </div>
       </section>
@@ -286,7 +286,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
               <td>
                 <span
                   className={`lx ${m.lx.total > LX_ACCESSIBILITY_THRESHOLD ? "lx-high" : "lx-ok"}`}
-                  title={`Linguistica ${m.lx.linguistic} · Concetti ${m.lx.conceptual} · Struttura ${m.lx.structural} · Semantica ${m.lx.semantic}\n${m.lx.details.avgSentenceLength} parole/frase, ${m.lx.details.technicalTerms} termini tecnici (${m.lx.details.undefinedTerms} non definiti), ${m.lx.details.citations} rinvii`}
+                  title={`Densità sintattica ${m.lx.syntactic} · Distanza semantica ${m.lx.semantic} · Struttura ${m.lx.structural} · Concetti ${m.lx.conceptual}\n${m.lx.details.avgSentenceLength} parole/frase (obiettivo 22), ${m.lx.details.subordinatesPerSentence} subordinate/periodo, passive ${Math.round(m.lx.details.passiveRatio * 100)}%\n${m.lx.details.technicalTermsPer600} termini tecnici ogni 600 parole, ${Math.round(m.lx.details.undefinedShare * 100)}% senza definizione, ${m.lx.details.citations} rinvii normativi`}
                 >
                   {m.lx.total}
                 </span>
