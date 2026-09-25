@@ -435,7 +435,7 @@ export class WebBluetoothMendi implements MendiSource {
   }
 
   /** Legge un registro del sensore ottico (risposta via notifica su ABB2). */
-  async readRegister(address: number, timeoutMs = 600): Promise<SensorResponse | null> {
+  async readRegister(address: number, timeoutMs = 1500): Promise<SensorResponse | null> {
     if (!this.sensor) return null;
     const answer = new Promise<SensorResponse | null>((resolve) => {
       const t = setTimeout(() => {
