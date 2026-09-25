@@ -6,6 +6,8 @@ import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
 import { clauseMetrics } from "../session/metrics";
 import type { Document } from "../session/model";
 import { Sparkline } from "./Sparkline";
+import { Operate, Verify } from "./VerifyOperate";
+import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
 const BASELINE_SECONDS = 30;
@@ -41,6 +43,12 @@ export function App() {
       {r.phase === "setup" && <Setup r={r} />}
       {r.phase === "baseline" && <BaselineScreen r={r} />}
       {r.phase === "reading" && r.document && <Reader r={r} doc={r.document} />}
+      {r.phase === "verify" && r.document && (
+        <Verify doc={r.document} onAnswer={r.answerQuestion} onDone={r.finishVerify} />
+      )}
+      {r.phase === "operate" && r.document && (
+        <Operate doc={r.document} onComplete={r.completeTask} onDone={r.finishOperate} />
+      )}
       {r.phase === "results" && r.document && r.session && <Results r={r} doc={r.document} />}
 
       <footer className="foot">
@@ -266,6 +274,12 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
 function Results({ r, doc }: { r: R; doc: Document }) {
   const session = r.session!;
   const metrics = useMemo(() => clauseMetrics(session, doc.clauses), [session, doc]);
+  const friction = useMemo(() => frictionMap(metrics), [metrics]);
+  const frictionById = new Map(friction.map((f) => [f.clauseId, f]));
+  const hasVerify = doc.questions.length > 0;
+  const hasOperate = doc.tasks.length > 0;
+  const verifyTotal = session.answers.filter((a) => a.correct).length;
+  const operateTotal = session.tasks.filter((t) => t.correct).length;
   const maxAbs = Math.max(...metrics.map((m) => Math.abs(m.effort.mean)), 1e-6);
   const totalMs = metrics.reduce((s, m) => s + m.dwellMs, 0);
   const stamp = session.id;
@@ -277,18 +291,29 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         Partecipante <code>{session.participant}</code> · {doc.title} · lettura totale {(totalMs / 1000).toFixed(0)} s ·{" "}
         {session.frames.length} campioni
         {r.baseline ? ` · baseline su ${r.baseline.sampleCount} campioni` : " · senza fascia"}
+        {hasVerify && ` · verifica ${verifyTotal}/${session.answers.length}`}
+        {hasOperate && ` · prova operativa ${operateTotal}/${session.tasks.length}`}
       </p>
+
+      <div className="legend">
+        <span className="friction verde">verde: nessuna convergenza</span>
+        <span className="friction giallo">giallo: due indizi, o una verifica fallita</span>
+        <span className="friction rosso">rosso: tre indizi, di cui uno da verifica o prova</span>
+      </div>
 
       <table className="metrics">
         <thead>
           <tr>
             <th>#</th>
             <th>Clausola</th>
+            <th>Frizione</th>
             <th>Parole</th>
             <th>Tempo</th>
             <th>wpm</th>
             <th>Ritorni</th>
             <th>LX</th>
+            {hasVerify && <th>Verifica</th>}
+            {hasOperate && <th>Prova</th>}
             {r.baseline && <th>Sforzo medio (Δ baseline)</th>}
             {r.baseline && <th>Artefatti</th>}
           </tr>
@@ -298,6 +323,17 @@ function Results({ r, doc }: { r: R; doc: Document }) {
             <tr key={m.clauseId} className={m.tooFastToRead ? "too-fast" : ""}>
               <td>{m.index}</td>
               <td>{m.heading ?? doc.clauses[m.index - 1].text.slice(0, 60) + "…"}</td>
+              <td>
+                {(() => {
+                  const f = frictionById.get(m.clauseId)!;
+                  return (
+                    <span className={`friction ${f.level}`} title={f.reasons.length ? f.reasons.join("\n") : "nessun indizio"}>
+                      {f.level}
+                      {f.count > 0 && <span className="hint">({f.count})</span>}
+                    </span>
+                  );
+                })()}
+              </td>
               <td>{m.wordCount}</td>
               <td>{(m.dwellMs / 1000).toFixed(1)} s</td>
               <td>
@@ -313,6 +349,20 @@ function Results({ r, doc }: { r: R; doc: Document }) {
                   {m.lx.total}
                 </span>
               </td>
+              {hasVerify && (
+                <td className={m.verification.asked ? (m.verification.correct === m.verification.asked ? "ok" : "ko") : ""}>
+                  {m.verification.asked ? `${m.verification.correct}/${m.verification.asked}` : "—"}
+                </td>
+              )}
+              {hasOperate && (
+                <td
+                  className={m.operational.asked ? (m.operational.correct === m.operational.asked ? "ok" : "ko") : ""}
+                  title={m.operational.timesChosenWrongly ? `scelta per errore ${m.operational.timesChosenWrongly} volte al posto di un'altra` : undefined}
+                >
+                  {m.operational.asked ? `${m.operational.correct}/${m.operational.asked}` : "—"}
+                  {m.operational.timesChosenWrongly > 0 && <span className="flag"> ✕{m.operational.timesChosenWrongly}</span>}
+                </td>
+              )}
               {r.baseline && (
                 <td>
                   <div className="bar-cell">
@@ -337,17 +387,19 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         Complexity Score (0-100; sopra {LX_ACCESSIBILITY_THRESHOLD} la soglia sperimentale di accessibilità; passa
         il mouse per le quattro dimensioni). Lo sforzo è la variazione media del proxy HbO rispetto alla baseline,
         in unità arbitrarie: confrontabile solo tra clausole della stessa sessione. Nessuna colonna, da sola, dice
-        se la clausola è stata compresa. Il punteggio non giudica le persone: fa la diagnosi ai documenti.
+        se la clausola è stata compresa. La colonna Frizione applica la regola della convergenza: ogni sensore
+        conta al massimo un indizio, il corpo da solo non colora mai. Il punteggio non giudica le persone: fa la
+        diagnosi ai documenti.
       </p>
 
       <div className="actions">
-        <button className="primary" onClick={() => download(`${stamp}-clausole.csv`, clausesCsv(session, metrics), "text/csv")}>
+        <button className="primary" onClick={() => download(`${stamp}-clausole.csv`, clausesCsv(session, metrics, friction), "text/csv")}>
           Scarica CSV per clausola
         </button>
         <button onClick={() => download(`${stamp}-frames.csv`, framesCsv(session), "text/csv")} disabled={session.frames.length === 0}>
           Scarica CSV dei campioni grezzi
         </button>
-        <button onClick={() => download(`${stamp}.json`, sessionJson(session, doc.clauses, metrics), "application/json")}>
+        <button onClick={() => download(`${stamp}.json`, sessionJson(session, doc.clauses, metrics, friction), "application/json")}>
           Scarica JSON della sessione
         </button>
         <button onClick={r.reset}>Nuova sessione</button>

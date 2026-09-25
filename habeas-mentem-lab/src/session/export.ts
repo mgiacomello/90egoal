@@ -1,6 +1,7 @@
 // Esportazione: tutto resta nel browser finché l'utente non scarica.
 
 import type { ClauseMetrics } from "./metrics";
+import type { Friction } from "./friction";
 import type { Clause, Session } from "./model";
 
 function csvEscape(v: unknown): string {
@@ -40,7 +41,8 @@ export function framesCsv(session: Session): string {
 }
 
 /** Un record per clausola: la tabella da cui partirà la mappa della frizione. */
-export function clausesCsv(session: Session, metrics: ClauseMetrics[]): string {
+export function clausesCsv(session: Session, metrics: ClauseMetrics[], friction: Friction[] = []): string {
+  const byId = new Map(friction.map((f) => [f.clauseId, f]));
   return toCsv(
     metrics.map((m) => ({
       session: session.id,
@@ -64,11 +66,19 @@ export function clausesCsv(session: Session, metrics: ClauseMetrics[]): string {
       lx_semantic: m.lx.semantic,
       lx_structural: m.lx.structural,
       lx_conceptual: m.lx.conceptual,
+      verify_asked: m.verification.asked,
+      verify_correct: m.verification.correct,
+      operate_asked: m.operational.asked,
+      operate_correct: m.operational.correct,
+      operate_chosen_wrongly: m.operational.timesChosenWrongly,
+      friction: byId.get(m.clauseId)?.level ?? "",
+      friction_indicators: byId.get(m.clauseId)?.count ?? "",
+      friction_reasons: byId.get(m.clauseId)?.reasons.join("; ") ?? "",
     })),
   );
 }
 
-export function sessionJson(session: Session, clauses: Clause[], metrics: ClauseMetrics[]): string {
+export function sessionJson(session: Session, clauses: Clause[], metrics: ClauseMetrics[], friction: Friction[] = []): string {
   return JSON.stringify(
     {
       schema: "habeas-mentem-lab/session/v1",
@@ -76,6 +86,7 @@ export function sessionJson(session: Session, clauses: Clause[], metrics: Clause
       session: { ...session, frames: undefined },
       clauses,
       metrics,
+      friction,
       frameCount: session.frames.length,
       note:
         "L'indice di sforzo è un proxy relativo alla baseline della stessa sessione. " +

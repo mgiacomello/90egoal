@@ -14,9 +14,9 @@ import {
   type EffortSample,
 } from "../mendi/signal";
 import type { AdcReading, DeviceInfo, Frame, MendiSource } from "../mendi/types";
-import { newPseudonym, newSessionId, type Document, type NavigationEvent, type Session } from "../session/model";
+import { newPseudonym, newSessionId, type Document, type NavigationEvent, type Question, type Session, type Task } from "../session/model";
 
-export type Phase = "setup" | "baseline" | "reading" | "results";
+export type Phase = "setup" | "baseline" | "reading" | "verify" | "operate" | "results";
 
 export interface LivePoint {
   timestamp: number;
@@ -63,6 +63,11 @@ export function useRecorder() {
     } else if (p === "reading" && baselineRef.current) {
       effort = effortFromFrame(frame, baselineRef.current);
       s?.frames.push({ frame, clauseId: clauseRef.current, phase: "reading", effort });
+    } else if ((p === "verify" || p === "operate") && baselineRef.current) {
+      // Registriamo anche durante verifica e prova operativa, senza clausola:
+      // il segnale qui non entra nelle metriche per clausola.
+      effort = effortFromFrame(frame, baselineRef.current);
+      s?.frames.push({ frame, clauseId: null, phase: p, effort });
     } else {
       return; // fuori dalle fasi utili non registriamo nulla
     }
@@ -141,6 +146,8 @@ export function useRecorder() {
       consent: { accepted: true, timestamp: now },
       events: [],
       frames: [],
+      answers: [],
+      tasks: [],
     };
     setDocument(doc);
     baselineFrames.current = [];
@@ -199,11 +206,62 @@ export function useRecorder() {
     [document],
   );
 
+  /** Dopo la lettura: verifica se il documento ha domande, altrimenti prova operativa, altrimenti risultati. */
   const finishReading = useCallback(() => {
     const now = Date.now();
     if (clauseRef.current) pushEvent({ type: "clause_leave", timestamp: now, clauseId: clauseRef.current });
     pushEvent({ type: "reading_end", timestamp: now });
     clauseRef.current = null;
+    if (document && document.questions.length > 0) {
+      pushEvent({ type: "verify_start", timestamp: now });
+      setPhase("verify");
+    } else if (document && document.tasks.length > 0) {
+      pushEvent({ type: "operate_start", timestamp: now });
+      setPhase("operate");
+    } else {
+      setPhase("results");
+    }
+  }, [document]);
+
+  const answerQuestion = useCallback(
+    (question: Question, chosenIndex: number, ms: number) => {
+      session.current?.answers.push({
+        questionId: question.id,
+        clauseId: question.clauseId,
+        chosenIndex,
+        correct: chosenIndex === question.correctIndex,
+        timestamp: Date.now(),
+        ms,
+      });
+    },
+    [],
+  );
+
+  const finishVerify = useCallback(() => {
+    const now = Date.now();
+    pushEvent({ type: "verify_end", timestamp: now });
+    if (document && document.tasks.length > 0) {
+      pushEvent({ type: "operate_start", timestamp: now });
+      setPhase("operate");
+    } else {
+      setPhase("results");
+    }
+  }, [document]);
+
+  const completeTask = useCallback((task: Task, chosenClauseId: string, ms: number, opened: number) => {
+    session.current?.tasks.push({
+      taskId: task.id,
+      clauseId: task.clauseId,
+      chosenClauseId,
+      correct: chosenClauseId === task.clauseId,
+      timestamp: Date.now(),
+      ms,
+      opened,
+    });
+  }, []);
+
+  const finishOperate = useCallback(() => {
+    pushEvent({ type: "operate_end", timestamp: Date.now() });
     setPhase("results");
   }, []);
 
@@ -221,7 +279,7 @@ export function useRecorder() {
   return {
     phase, device, battery, error, connecting, document, clauseIndex, live, frameCount, baseline,
     session: session.current,
-    connect, disconnect, start, finishBaseline, goTo, finishReading, reset,
+    connect, disconnect, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
     clearError: () => setError(null),
   };
 }

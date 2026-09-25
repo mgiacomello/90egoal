@@ -39,6 +39,8 @@ describe("metriche per clausola", () => {
     device: null,
     createdAt: 0,
     consent: { accepted: true, timestamp: 0 },
+    answers: [],
+    tasks: [],
     events: [
       { type: "clause_enter", timestamp: 0, clauseId: c1.id, direction: "start" },
       { type: "clause_leave", timestamp: 500, clauseId: c1.id },
@@ -81,6 +83,8 @@ describe("metriche per clausola", () => {
         { type: "reading_end", timestamp: 500 },
       ],
       frames: [],
+      answers: [],
+      tasks: [],
     };
     const m = clauseMetrics(quick, doc.clauses);
     expect(m[1].tooFastToRead).toBe(true);

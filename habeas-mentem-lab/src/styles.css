@@ -54,7 +54,7 @@ select, input, textarea { font: inherit; width: 100%; padding: 8px 10px; border:
 .actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 20px 0; justify-content: center; }
 .fixation { font-size: 120px; line-height: 1; margin: 40px 0 20px; color: var(--accent); }
 .countdown { font-size: 40px; font-variant-numeric: tabular-nums; }
-.reader .progress { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
+.progress { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-bottom: 14px; font-variant-numeric: tabular-nums; }
 .clause { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 32px 36px; font-family: "DejaVu Serif", Georgia, serif; font-size: 19px; line-height: 1.7; min-height: 260px; }
 .clause h2 { font-family: "DejaVu Sans", system-ui, sans-serif; font-size: 15px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
 .clause p { margin: 0 0 1em; }
@@ -81,3 +81,28 @@ code { background: var(--line); padding: 1px 5px; border-radius: 4px; }
   .screen { padding: 16px; }
   .clause { padding: 20px; font-size: 17px; }
 }
+
+/* Verifica e prova operativa */
+.quiz { font-family: "DejaVu Sans", system-ui, sans-serif; font-size: 16px; }
+.quiz .prompt { font-family: "DejaVu Serif", Georgia, serif; font-size: 20px; line-height: 1.5; margin: 0 0 16px; }
+.options { display: grid; gap: 8px; }
+.option { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; cursor: pointer; line-height: 1.4; }
+.option.chosen { border-color: var(--accent); background: #eef3f7; }
+.option input { margin-top: 3px; }
+.clause-list { display: grid; gap: 6px; }
+.clause-item { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.clause-item.open { border-color: var(--accent); }
+.clause-toggle { width: 100%; text-align: left; display: flex; gap: 10px; align-items: center; border: 0; border-radius: 0; padding: 10px 12px; background: var(--card); font-size: 14px; }
+.clause-item.open .clause-toggle { background: #eef3f7; }
+.clause-num { display: inline-block; min-width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 11px; background: var(--line); font-size: 12px; font-weight: 700; }
+.clause-body { padding: 12px 14px 14px 44px; font-family: "DejaVu Serif", Georgia, serif; font-size: 15px; line-height: 1.6; border-top: 1px solid var(--line); }
+
+/* Mappa della frizione */
+.friction { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: help; }
+.friction::before { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--line); }
+.friction.verde::before { background: #2e7d4f; }
+.friction.giallo::before { background: #d9a400; }
+.friction.rosso::before { background: #b3261e; }
+.metrics td.ok { color: var(--ok); }
+.metrics td.ko { color: var(--warn); font-weight: 600; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--muted); margin: 10px 0; }

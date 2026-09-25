@@ -16,12 +16,53 @@ export interface Clause {
   wordCount: number;
 }
 
+/** Domanda di comprensione a risposta chiusa, legata a una clausola (sensore "verifica"). */
+export interface Question {
+  id: string;
+  clauseId: string;
+  prompt: string;
+  options: string[];
+  correctIndex: number;
+}
+
+/** Compito pratico: trovare la clausola che serve (sensore "prova operativa"). */
+export interface Task {
+  id: string;
+  /** La clausola giusta da ritrovare. */
+  clauseId: string;
+  prompt: string;
+}
+
 export interface Document {
   id: string;
   title: string;
   /** Provenienza: "modello" (scritto per il lab) o "incollato" (fornito dall'utente). */
   source: "modello" | "incollato";
   clauses: Clause[];
+  /** Vuoti per i testi incollati: verifica e prova operativa vengono saltate. */
+  questions: Question[];
+  tasks: Task[];
+}
+
+export interface AnswerRecord {
+  questionId: string;
+  clauseId: string;
+  chosenIndex: number;
+  correct: boolean;
+  timestamp: number;
+  /** Tempo impiegato a rispondere (ms). */
+  ms: number;
+}
+
+export interface TaskRecord {
+  taskId: string;
+  clauseId: string;
+  chosenClauseId: string;
+  correct: boolean;
+  timestamp: number;
+  ms: number;
+  /** Quante clausole ha aperto prima di scegliere. */
+  opened: number;
 }
 
 export type NavigationEvent =
@@ -30,13 +71,17 @@ export type NavigationEvent =
   | { type: "clause_enter"; timestamp: number; clauseId: string; direction: "forward" | "back" | "start" }
   | { type: "clause_leave"; timestamp: number; clauseId: string }
   | { type: "reading_end"; timestamp: number }
+  | { type: "verify_start"; timestamp: number }
+  | { type: "verify_end"; timestamp: number }
+  | { type: "operate_start"; timestamp: number }
+  | { type: "operate_end"; timestamp: number }
   | { type: "note"; timestamp: number; text: string };
 
 export interface AnnotatedFrame {
   frame: Frame;
   /** null durante baseline o fuori dalla lettura. */
   clauseId: string | null;
-  phase: "baseline" | "reading" | "idle";
+  phase: "baseline" | "reading" | "verify" | "operate" | "idle";
   effort: EffortSample | null;
 }
 
@@ -51,6 +96,8 @@ export interface Session {
   consent: { accepted: boolean; timestamp: number | null };
   events: NavigationEvent[];
   frames: AnnotatedFrame[];
+  answers: AnswerRecord[];
+  tasks: TaskRecord[];
 }
 
 export function newSessionId(): string {

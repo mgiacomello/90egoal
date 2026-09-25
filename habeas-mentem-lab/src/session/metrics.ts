@@ -1,8 +1,6 @@
-// Metriche per clausola: i primi due "occhi del diritto", tempo e corpo.
-//
-// La mappa della frizione (verde/giallo/rosso) arriverà con i sensori di
-// verifica e prova operativa. Qui produciamo soltanto le grandezze grezze,
-// separate per sensore, senza fonderle in un giudizio.
+// Metriche per clausola, un blocco per sensore: tempo, corpo, testo,
+// verifica, prova operativa. Qui le grandezze restano separate; la
+// convergenza è in friction.ts.
 
 import { summarize, type EffortStats } from "../mendi/signal";
 import { lxScore, type LxScore } from "./lx";
@@ -28,6 +26,10 @@ export interface ClauseMetrics {
   effort: EffortStats;
   /** Terzo indizio, il testo stesso: stima euristica dell'LX Complexity Score. */
   lx: LxScore;
+  /** Verifica: domande di comprensione su questa clausola. */
+  verification: { asked: number; correct: number; meanMs: number | null };
+  /** Prova operativa: compiti che dovevano portare a questa clausola. */
+  operational: { asked: number; correct: number; meanMs: number | null; timesChosenWrongly: number };
 }
 
 export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetrics[] {
@@ -66,8 +68,12 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
     byClause.set(c.id, summarize(samples));
   }
 
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+
   return clauses.map((c) => {
     const ms = dwell.get(c.id) ?? 0;
+    const answers = session.answers.filter((a) => a.clauseId === c.id);
+    const tasks = session.tasks.filter((t) => t.clauseId === c.id);
     const plausibleReadMs = (c.wordCount / 250) * 60_000;
     return {
       clauseId: c.id,
@@ -83,6 +89,18 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
       tooFastToRead: ms > 0 && (c.wordCount / ms) * 60_000 > 600,
       effort: byClause.get(c.id)!,
       lx: lxScore(c.text),
+      verification: {
+        asked: answers.length,
+        correct: answers.filter((a) => a.correct).length,
+        meanMs: mean(answers.map((a) => a.ms)),
+      },
+      operational: {
+        asked: tasks.length,
+        correct: tasks.filter((t) => t.correct).length,
+        meanMs: mean(tasks.map((t) => t.ms)),
+        // Quante volte questa clausola è stata scelta al posto di quella giusta.
+        timesChosenWrongly: session.tasks.filter((t) => !t.correct && t.chosenClauseId === c.id).length,
+      },
     };
   });
 }

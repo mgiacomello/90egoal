@@ -21,9 +21,17 @@ giuridico una clausola alla volta con la fascia **Mendi** (fNIRS) collegata.
 | **Tempo** | ✅ | ms su ogni clausola, visite, ritorni indietro, parole/minuto, flag "troppo veloce per averla letta" (> 600 wpm) |
 | **Corpo** | ✅ | frame Mendi a ~25 Hz (IR, rosso, ambiente per canale sinistro/destro/polso, IMU, temperatura), annotati con la clausola visibile; indice di sforzo relativo alla baseline; quota di artefatti da movimento |
 | **Testo** | ✅ | stima euristica dell'LX Complexity Score per clausola: la lingua, l'affollamento, l'ordine, la distanza semantica |
+| **Verifica** | ✅ | tre domande a risposta chiusa dopo la lettura, senza rileggere; tempo di risposta |
+| **Prova operativa** | ✅ | due compiti pratici («vuoi revocare il consenso: trova la clausola»), con il documento riapribile; clausole aperte, tempo, scelta |
 | Sguardo | — | tracciamento dello sguardo: non in questo tool |
-| Verifica | ⏭ tool 2 | domande di comprensione |
-| Prova operativa | ⏭ tool 2 | compiti pratici sul documento |
+
+**Mappa della frizione** (`src/session/friction.ts`): verde, giallo, rosso per
+clausola, per convergenza. Ogni sensore alza al massimo un indizio: tempo
+(troppo veloce o ritorni ripetuti), corpo (sforzo nel terzo più alto della
+sessione), testo (LX sopra 45), verifica (domanda sbagliata), prova operativa
+(compito fallito). Rosso con almeno tre indizi di cui uno da verifica o prova;
+giallo con due indizi, o con una sola verifica o prova fallita; verde
+altrimenti. Il corpo da solo non colora mai.
 
 Uscita: CSV per clausola, CSV dei campioni grezzi, JSON della sessione.
 Tutto resta nel browser finché non viene scaricato. Nessun server.
@@ -119,8 +127,8 @@ tests/           vitest
 
 ## Roadmap (dal libro)
 
-2. **Test e prova operativa** — domande di comprensione e compiti pratici dopo la lettura.
-3. **Mappa della frizione** — verde/giallo/rosso per clausola, solo dove più sensori convergono.
+2. ~~Test e prova operativa~~ — fatto.
+3. ~~Mappa della frizione~~ — fatto (prima versione; le soglie sono dichiarate nel codice).
 4. **LX Score Analyzer** — le quattro dimensioni (complessità linguistica, densità
    concettuale, struttura informativa, distanza semantica) e la ricalibrazione dei pesi sui dati raccolti.
 5. **Fascicolo di comprensione** — il PDF che sostituisce il click come prova.
