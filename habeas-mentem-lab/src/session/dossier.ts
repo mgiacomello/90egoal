@@ -20,7 +20,8 @@ import type { ClauseMetrics } from "./metrics";
 import type { Document, Session } from "./model";
 import { AGGREGATE_THRESHOLDS, type Aggregate } from "./aggregate";
 import { BOOK_R, describeWeights, type Calibration } from "./calibrate";
-import { slowestSegments, type SegmentMetrics } from "./segments";
+import { highestEffortSegments, slowestSegments, type SegmentMetrics } from "./segments";
+import { HRF_DESCRIPTION } from "./hrf";
 
 export interface DossierInput {
   session: Session;
@@ -33,6 +34,8 @@ export interface DossierInput {
   responsible?: string;
   /** Metriche parola per parola (solo nei modi a porzioni). */
   segments?: SegmentMetrics[];
+  /** Varianza spiegata dal modello HRF sulle porzioni. */
+  modelR2?: number | null;
 }
 
 /** SHA-256 esadecimale, con WebCrypto; in ambienti senza crypto ritorna null. */
@@ -297,26 +300,37 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     paragraph(
       `Presentazione ${readingModeLabel(session)}${session.reading?.voiceRecorded ? ", con registrazione vocale" : ""}. ` +
         `${segs.length} porzioni; tempo per parola mediano ${median ? Math.round(median) : "—"} ms. ` +
-        "Le porzioni più lente della sessione, con il tempo per parola, i ritorni e le fermate. " +
-        "Il segnale corporeo, dove presente, è attribuito con 4 s di ritardo emodinamico: è un'attribuzione, non una misura della parola.",
+        "Le porzioni più lente della sessione, con il tempo per parola, i ritorni e le fermate.",
       8.5,
       3,
     );
-    const hasBodySeg = segs.some((r) => r.effort.sampleCount > 0);
+    const hasBodySeg = segs.some((r) => r.model);
     const head = ["Cl.", "Porzione", "Parole", "ms/parola", "Rit.", "Ferm."];
-    if (hasBodySeg) head.push("Sforzo (ritardato)");
+    if (hasBodySeg) head.push("β sforzo (HRF)");
     autoTable(pdf, {
       startY: w.state.y,
       head: [head],
       body: slowestSegments(segs, 12).map((r) => {
         const row: (string | number)[] = [r.clauseIndex, r.text, r.wordCount, Math.round(r.msPerWord!), r.returns, r.pauses];
-        if (hasBodySeg) row.push(r.effort.sampleCount ? r.effort.mean.toFixed(4) : "—");
+        if (hasBodySeg) row.push(r.model ? `${r.model.beta.toFixed(4)} ± ${r.model.se.toFixed(4)}` : "—");
         return row;
       }),
       ...TABLE_STYLE,
       columnStyles: { 1: { cellWidth: 80 } },
     });
     w.afterTable();
+    if (hasBodySeg) {
+      paragraph(HRF_DESCRIPTION + (input.modelR2 != null ? ` Varianza spiegata dal modello: ${(input.modelR2 * 100).toFixed(0)}%.` : ""), 8, 3);
+      paragraph("Le porzioni con lo sforzo attribuito più alto (β), con l'errore standard: un β non distinguibile da zero entro due errori standard non è un indizio.", 8.5, 3);
+      autoTable(pdf, {
+        startY: w.state.y,
+        head: [["Cl.", "Porzione", "ms/parola", "β sforzo (HRF)", "± e.s.", "Rit."]],
+        body: highestEffortSegments(segs, 12).map((r) => [r.clauseIndex, r.text, Math.round(r.msPerWord!), r.model!.beta.toFixed(4), r.model!.se.toFixed(4), r.returns]),
+        ...TABLE_STYLE,
+        columnStyles: { 1: { cellWidth: 80 } },
+      });
+      w.afterTable();
+    }
   }
 
   heading(segs.length > 0 ? "5. Metodo dichiarato" : "4. Metodo dichiarato");

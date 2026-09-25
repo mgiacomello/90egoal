@@ -11,6 +11,7 @@
 // della parola, e il fascicolo lo dice.
 
 import { summarize, type EffortStats } from "../mendi/signal";
+import { fitHrfGlm, type GlmResult } from "./hrf";
 import type { Clause, Session } from "./model";
 
 /** Ritardo con cui la risposta emodinamica segue lo stimolo (ms). */
@@ -96,8 +97,10 @@ export interface SegmentMetrics {
   returns: number;
   /** Fermate esplicite (modo a scorrimento). */
   pauses: number;
-  /** Segnale corporeo attribuito con ritardo emodinamico (finestra [inizio+lag, fine+lag], min 2 s). */
+  /** Segnale corporeo attribuito con la finestra ritardata (metodo semplice, per confronto). */
   effort: EffortStats;
+  /** Sforzo attribuito con il modello della risposta emodinamica (GLM): peso β ed errore standard. */
+  model: { beta: number; se: number; z: number | null; heat: 0 | 1 | 2 | 3 | 4 } | null;
   /** Scarto standardizzato del tempo per parola rispetto alla sessione (z). */
   z: number | null;
   /** Livello di calore 0-4 per la vista parola per parola. */
@@ -131,10 +134,20 @@ export function segmentVisits(session: Session): Visit[] {
   return visits;
 }
 
+export interface SegmentAnalysis {
+  rows: SegmentMetrics[];
+  /** Bontà del modello HRF sul segnale della sessione (0-1), null senza fascia. */
+  modelR2: number | null;
+}
+
 export function segmentMetrics(session: Session, clauses: Clause[]): SegmentMetrics[] {
+  return analyzeSegments(session, clauses).rows;
+}
+
+export function analyzeSegments(session: Session, clauses: Clause[]): SegmentAnalysis {
   const segments = segmentsFor(clauses);
   const visits = segmentVisits(session);
-  if (visits.length === 0) return [];
+  if (visits.length === 0) return { rows: [], modelR2: null };
   const clauseIndex = new Map(clauses.map((c) => [c.id, c.index]));
 
   const returns = new Map<string, number>();
@@ -145,6 +158,10 @@ export function segmentMetrics(session: Session, clauses: Clause[]): SegmentMetr
   }
 
   const readingFrames = session.frames.filter((f) => f.phase === "reading" && f.effort);
+  // Attribuzione modellata: un regressore per porzione, tutte le visite insieme.
+  const glm: GlmResult | null = readingFrames.length > 0
+    ? fitHrfGlm(readingFrames.map((f) => f.effort!), visits.map((v) => ({ id: v.segmentId, from: v.from, to: v.to })))
+    : null;
   const rows = segments.map((s) => {
     const mine = visits.filter((v) => v.segmentId === s.id);
     const dwellMs = mine.reduce((sum, v) => sum + (v.to - v.from), 0);
@@ -166,6 +183,7 @@ export function segmentMetrics(session: Session, clauses: Clause[]): SegmentMetr
       returns: returns.get(s.id) ?? 0,
       pauses: pauses.get(s.id) ?? 0,
       effort: summarize(samples),
+      model: (glm && glm.beta.has(s.id) ? { beta: glm.beta.get(s.id)!, se: glm.se.get(s.id)!, z: null, heat: 0 } : null) as SegmentMetrics["model"],
       z: null as number | null,
       heat: 0 as 0 | 1 | 2 | 3 | 4,
     };
@@ -179,10 +197,33 @@ export function segmentMetrics(session: Session, clauses: Clause[]): SegmentMetr
     for (const r of rows) {
       if (r.msPerWord === null) continue;
       r.z = (Math.log(r.msPerWord) - mean) / sd;
-      r.heat = r.z >= 1.5 ? 4 : r.z >= 0.75 ? 3 : r.z >= 0.25 ? 2 : r.z >= -0.25 ? 1 : 0;
+      r.heat = heatOf(r.z);
     }
   }
-  return rows;
+  // Calore del corpo: z dei pesi β rispetto alla sessione (solo porzioni lette).
+  const betas = rows.filter((r) => r.model && r.msPerWord !== null).map((r) => r.model!.beta);
+  if (betas.length >= 2) {
+    const mean = betas.reduce((a, b) => a + b, 0) / betas.length;
+    const sd = Math.sqrt(betas.reduce((a, b) => a + (b - mean) ** 2, 0) / betas.length) || 1;
+    for (const r of rows) {
+      if (!r.model || r.msPerWord === null) continue;
+      r.model.z = (r.model.beta - mean) / sd;
+      r.model.heat = heatOf(r.model.z);
+    }
+  }
+  return { rows, modelR2: glm?.r2 ?? null };
+}
+
+function heatOf(z: number): 0 | 1 | 2 | 3 | 4 {
+  return z >= 1.5 ? 4 : z >= 0.75 ? 3 : z >= 0.25 ? 2 : z >= -0.25 ? 1 : 0;
+}
+
+/** Le porzioni con lo sforzo modellato più alto. */
+export function highestEffortSegments(rows: SegmentMetrics[], n = 10): SegmentMetrics[] {
+  return rows
+    .filter((r) => r.model && r.msPerWord !== null)
+    .sort((a, b) => b.model!.beta - a.model!.beta)
+    .slice(0, n);
 }
 
 /** Le porzioni più lente della sessione, per il fascicolo. */
