@@ -1,12 +1,14 @@
 // Stima euristica dell'LX Complexity Score per clausola.
 //
-// Fonte: M. Giacomello, "Progettare la comprensione del diritto", in
-// Mente e Tecnologia – BCI (Springer, 2026), pp. 145-147. Il punteggio
+// Fonti: M. Giacomello, "Progettare la comprensione del diritto", in
+// Mente e Tecnologia – BCI (Springer, 2026), pp. 145-147, e Habeas Mentem
+// (master v37), capitolo "La cartografia della comprensione". Il punteggio
 // opera su scala 0/100 (valori crescenti = più frizione) e scompone la
-// frizione in quattro componenti; il libro ne nomina e misura due,
-// "densità sintattica" e "distanza semantica", e fissa la soglia
-// sperimentale di accessibilità a 45/100. Le altre due componenti qui
-// prendono i nomi di lavoro "struttura informativa" e "densità concettuale".
+// frizione in quattro strade: la lingua (densità sintattica), l'affollamento
+// (quanti concetti giuridici il testo pretende di tenere in mente insieme),
+// l'ordine (dove stanno le cose e quando arrivano) e la distanza semantica
+// (termini tecnici travestiti da italiano di tutti i giorni). La soglia
+// sperimentale di accessibilità è 45/100.
 //
 // Le formule sono calibrate sui valori del corpus BCI riportati nel libro:
 // 41 parole per frase (obiettivo 22), 3,8 subordinate per periodo, 68% di
@@ -20,9 +22,9 @@ export interface LxScore {
   syntactic: number;
   /** Lessico tecnico non glossato rispetto al vocabolario dell'adulto non specialista. */
   semantic: number;
-  /** Incisi, parentesi, elenchi annidati, rinvii interni (nome di lavoro). */
+  /** L'ordine: incisi, parentesi, rinvii interni che spostano le cose altrove. */
   structural: number;
-  /** Rinvii normativi e concetti giuridici per 100 parole (nome di lavoro). */
+  /** L'affollamento: rinvii normativi e concetti giuridici per 100 parole. */
   conceptual: number;
   /** Media pesata: le due componenti principali del libro pesano di più. */
   total: number;
@@ -123,9 +125,9 @@ export function lxScore(text: string): LxScore {
   // Distanza semantica: 40 punti dalla densità di termini tecnici, 28 dalla
   // quota non definita → 68 sui valori del corpus.
   const semantic = clamp((technicalTermsPer600 / CORPUS.termsPer600) * 40 + (undefinedShare / CORPUS.undefinedShare) * 28);
-  // Struttura informativa: incisi e rinvii interni per 100 parole.
+  // L'ordine: incisi e rinvii interni per 100 parole.
   const structural = clamp(((parentheticals + internalRefs) / wordCount) * 100 * 14 + (avgSentenceLength > 35 ? 15 : 0));
-  // Densità concettuale: rinvii normativi per 100 parole.
+  // L'affollamento: rinvii normativi per 100 parole.
   const conceptual = clamp((citations / wordCount) * 100 * 16);
 
   const total = clamp(syntactic * 0.35 + semantic * 0.35 + structural * 0.15 + conceptual * 0.15);
