@@ -1,122 +1,138 @@
-// Sonda di accensione: prova, un passo alla volta, i modi plausibili per
-// avviare il sensore ottico della fascia, e scrive nel log che cosa cambia.
+// Sonda di accensione per il front-end ottico della fascia (TI AFE4404).
 //
 // Che cosa sappiamo (firmware 1.0.4, hardware r2.2a): IMU, temperatura e
 // batteria arrivano; i canali ottici valgono zero e il Frame non viene
-// notificato. Il registro del sensore ha indirizzo a 8 bit e dato a 24 bit,
-// la firma di un front-end ottico della famiglia TI AFE44xx. I passi qui
-// sotto seguono quell'ipotesi; ogni scrittura è volatile: spegnere e
-// riaccendere la fascia riporta tutto com'era.
+// notificato. I registri letti (0x23 = 0x020200 con oscillatore acceso,
+// 0x31 = 0x20, 0x2A = offset DAC) sono quelli di un AFE4404 con le
+// temporizzazioni programmate ma il timer (0x1E) spento. La sonda prima
+// fotografa tutti i registri, poi accende il timer in varianti diverse e
+// misura dopo ognuna. Ogni scrittura è volatile: spegnere e riaccendere la
+// fascia riporta tutto com'era.
 
 import type { WebBluetoothMendi } from "./webbluetooth";
-import { describeOptics, hasOptics } from "./webbluetooth";
+import { AFE_CONTROL1, describeOptics, hasOptics } from "./webbluetooth";
 
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const h6 = (n: number) => `0x${n.toString(16).padStart(6, "0")}`;
+const h2 = (n: number) => `0x${n.toString(16).padStart(2, "0")}`;
 
-/** Registri da leggere per riconoscere il chip (AFE4404: 0x23 controllo, 0x22 correnti LED, 0x1E timer). */
-const REGISTERS_TO_READ = [0x00, 0x01, 0x1e, 0x22, 0x23, 0x29, 0x2a, 0x2e, 0x31, 0xff];
+/** Registri dei risultati ADC dell'AFE4404: LED2, ALED2, LED1, ALED1, poi LED2-ALED2, LED1-ALED1, LED3 (0x3A-0x3F). */
+const ADC_REGISTERS = [0x2c, 0x2d, 0x2e, 0x2f, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f];
 
 interface Step {
   title: string;
   run: (dev: WebBluetoothMendi) => Promise<void>;
 }
 
-// Calibration con TUTTI i campi presenti, anche a zero: alcuni firmware
-// (nanopb con has_*) distinguono «campo assente» da «campo a zero».
-const CALIBRATION_EXPLICIT = Uint8Array.from([
-  0x0d, 0, 0, 0, 0, // offset_l = 0.0
-  0x15, 0, 0, 0, 0, // offset_r = 0.0
-  0x1d, 0, 0, 0, 0, // offset_p = 0.0
-  0x20, 0x01, // enable = true
-  0x28, 0x00, // low_power_mode = false
-]);
-// Sensor con tutti i campi: read=true, address=0, data=0.
-const SENSOR_EXPLICIT = Uint8Array.from([0x08, 0x01, 0x10, 0x00, 0x1d, 0, 0, 0, 0]);
-// Sensor «scrittura» con tutti i campi a zero: read=false, address=0, data=0.
-const SENSOR_WRITE_ZERO = Uint8Array.from([0x08, 0x00, 0x10, 0x00, 0x1d, 0, 0, 0, 0]);
-
 const STEPS: Step[] = [
   {
-    title: "calibrazione con tutti i campi espliciti (offset 0, auto sì, risparmio no)",
-    run: (d) => d.writeRaw("calibration", CALIBRATION_EXPLICIT, "Calibration esplicita").then(() => undefined),
+    title: "timer AFE acceso, senza medie (0x1E = 0x000100)",
+    run: (d) => d.startAfeTimer(0).then(() => undefined),
   },
   {
-    title: "Sensor con tutti i campi espliciti (read=true, registro 0, dato 0)",
-    run: (d) => d.writeRaw("sensor", SENSOR_EXPLICIT, "Sensor esplicito").then(() => undefined),
+    title: "timer AFE acceso con 4 medie, come nel riferimento TI (0x1E = 0x000103)",
+    run: (d) => d.startAfeTimer(3).then(() => undefined),
   },
   {
-    title: "Sensor scrittura con campi a zero (read=false)",
-    run: (d) => d.writeRaw("sensor", SENSOR_WRITE_ZERO, "Sensor read=false esplicito").then(() => undefined),
+    title: "correnti LED moderate (0x22 = 0x030C30, ~38 mA per LED) con timer acceso",
+    run: async (d) => {
+      await d.writeRegister(0x22, 0x030c30);
+      await d.startAfeTimer(3);
+    },
   },
   {
-    title: "calibrazione con correnti LED esplicite (20 mA) e autocalibrazione",
-    run: (d) => d.writeCalibration(20, 20, 20, true, false).then(() => undefined),
+    title: "controllo AFE del riferimento TI (0x23 = 0x124218) con timer acceso",
+    run: async (d) => {
+      await d.writeRegister(0x23, 0x124218);
+      await d.startAfeTimer(3);
+    },
   },
   {
-    title: "calibrazione con correnti esplicite, senza autocalibrazione",
-    run: (d) => d.writeCalibration(20, 20, 20, false, false).then(() => undefined),
+    title: "calibrazione con correnti LED esplicite (20 mA) e timer acceso",
+    run: async (d) => {
+      await d.writeCalibration(20, 20, 20, true, false);
+      await d.startAfeTimer(3);
+    },
   },
   {
-    title: "AFE4404: accensione del front-end (registro 0x23 = 0x124218)",
-    run: (d) => d.writeRegister(0x23, 0x124218).then(() => undefined),
-  },
-  {
-    title: "AFE4404: timer interno acceso (registro 0x1E = 0x000103)",
-    run: (d) => d.writeRegister(0x1e, 0x000103).then(() => undefined),
-  },
-  {
-    title: "AFE4404: correnti LED (registro 0x22 = 0x030C30, ~38 mA)",
-    run: (d) => d.writeRegister(0x22, 0x030c30).then(() => undefined),
-  },
-  {
-    title: "Sensor(read=true) dopo la configurazione",
+    title: "Sensor(read=true) dopo tutto",
     run: (d) => d.enableSensor().then(() => undefined),
   },
 ];
 
+async function dumpRegisters(dev: WebBluetoothMendi, from: number, to: number, log: (l: string) => void): Promise<Map<number, number>> {
+  const values = new Map<number, number>();
+  let line: string[] = [];
+  for (let addr = from; addr <= to; addr++) {
+    if (!dev.connected) break;
+    const r = await dev.readRegister(addr, 400);
+    if (r) values.set(addr, r.data);
+    line.push(`${h2(addr)}=${r ? h6(r.data) : "------"}`);
+    if (line.length === 4) {
+      log("  " + line.join("  "));
+      line = [];
+    }
+  }
+  if (line.length) log("  " + line.join("  "));
+  return values;
+}
+
+async function readAdc(dev: WebBluetoothMendi, log: (l: string) => void): Promise<boolean> {
+  const parts: string[] = [];
+  let nonZero = false;
+  for (const addr of ADC_REGISTERS) {
+    const r = await dev.readRegister(addr, 400);
+    if (r && r.data !== 0) nonZero = true;
+    parts.push(`${h2(addr)}=${r ? h6(r.data) : "------"}`);
+  }
+  log("  ADC: " + parts.join(" "));
+  return nonZero;
+}
+
 /** Esegue la sonda e ritorna true se, alla fine, il sensore ottico risponde. */
 export async function runProbe(dev: WebBluetoothMendi, log: (line: string) => void): Promise<boolean> {
-  log("── Sonda di accensione: guarda i LED sulla fronte durante la prova ──");
-  const before = await dev.readFrameOnce();
-  if (before) log(`Prima: ${describeOptics(before)}`);
+  dev.probing = true;
+  try {
+    log("── Sonda di accensione: guarda i LED sulla fronte durante la prova ──");
+    const before = await dev.readFrameOnce();
+    if (before) log(`Prima: ${describeOptics(before)}`);
 
-  log("Leggo i registri del sensore ottico…");
-  for (const addr of REGISTERS_TO_READ) {
-    if (!dev.connected) return false;
-    const r = await dev.readRegister(addr);
-    log(r ? `  registro 0x${addr.toString(16).padStart(2, "0")} = 0x${r.data.toString(16).padStart(6, "0")}` : `  registro 0x${addr.toString(16).padStart(2, "0")}: nessuna risposta`);
-  }
+    log("Fotografia dei registri dell'AFE (0x00-0x3F)…");
+    const regs = await dumpRegisters(dev, 0x00, 0x3f, log);
+    const timing = [...regs.entries()].filter(([a, v]) => a >= 0x01 && a <= 0x1d && v !== 0).length;
+    log(`Registri di temporizzazione non nulli: ${timing}/29 · 0x1E (timer) = ${regs.has(AFE_CONTROL1) ? h6(regs.get(AFE_CONTROL1)!) : "?"} · 0x23 = ${regs.has(0x23) ? h6(regs.get(0x23)!) : "?"}`);
 
-  for (const [i, step] of STEPS.entries()) {
-    if (!dev.connected) {
-      log("La fascia si è scollegata durante la sonda.");
-      return false;
+    for (const [i, step] of STEPS.entries()) {
+      if (!dev.connected) {
+        log("La fascia si è scollegata durante la sonda.");
+        return false;
+      }
+      log(`Passo ${i + 1}/${STEPS.length}: ${step.title}`);
+      const notifiedBefore = dev.notifiedCount;
+      try {
+        await step.run(dev);
+      } catch (e) {
+        log(`  errore: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      await wait(2000);
+      const adc = await readAdc(dev, log);
+      const f = await dev.readFrameOnce();
+      const gained = dev.notifiedCount - notifiedBefore;
+      if (f) log(`  dopo: ${describeOptics(f)} · notifiche in 2 s: ${gained}`);
+      if (gained > 0) {
+        log(`Il flusso per notifica è partito al passo ${i + 1}.`);
+        return true;
+      }
+      if (f && hasOptics(f)) {
+        log(`Il sensore ottico risponde al passo ${i + 1} (senza notifiche): passo alla lettura in polling.`);
+        dev.startPolling();
+        return true;
+      }
+      if (adc) log("  L'ADC dell'AFE converte, ma il firmware non riporta i valori nel Frame.");
     }
-    log(`Passo ${i + 1}/${STEPS.length}: ${step.title}`);
-    const notifiedBefore = dev.notifiedCount;
-    try {
-      await step.run(dev);
-    } catch (e) {
-      log(`  errore: ${e instanceof Error ? e.message : String(e)}`);
-    }
-    await wait(2500);
-    const f = await dev.readFrameOnce();
-    const gained = dev.notifiedCount - notifiedBefore;
-    if (f) log(`  dopo: ${describeOptics(f)} · notifiche in 2,5 s: ${gained}`);
-    if (gained > 0) {
-      log(`Il flusso per notifica è partito al passo ${i + 1}.`);
-      return true;
-    }
-    if (f && hasOptics(f)) {
-      log(`Il sensore ottico risponde al passo ${i + 1} (senza notifiche): passo alla lettura in polling.`);
-      dev.startPolling();
-      return true;
-    }
+    log("Sonda finita: il sensore ottico non si è acceso. Copia questo log e mandamelo.");
+    return false;
+  } finally {
+    dev.probing = false;
   }
-  for (const addr of [0x1e, 0x22, 0x23]) {
-    const r = await dev.readRegister(addr);
-    log(r ? `  rilettura 0x${addr.toString(16)} = 0x${r.data.toString(16).padStart(6, "0")}` : `  rilettura 0x${addr.toString(16)}: nessuna risposta`);
-  }
-  log("Sonda finita: il sensore ottico non si è acceso. Copia questo log e mandamelo.");
-  return false;
 }
