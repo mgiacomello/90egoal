@@ -2,8 +2,9 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Schedina, Risultato, Partita } from '@/lib/types'
+import { Schedina, Risultato } from '@/lib/types'
 import TeamPicker from '@/components/TeamPicker'
+import { nomeBreve } from '@/lib/teams'
 
 interface Props {
   schedine: Schedina[]
@@ -84,14 +85,14 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
           <p className="text-[var(--muted)] mt-2">Inserisci i risultati reali per calcolare automaticamente le classifiche.</p>
         </div>
       )}
-      {embedded && <p className="text-[var(--muted)] text-sm mb-6">Seleziona una schedina e inserisci i minuti dei gol reali: la classifica si calcola da sola.</p>}
+      {embedded && <p className="text-[var(--muted)] text-sm mb-6">Solo per correggere il riepilogo a mano. Di norma si usa il pannello <strong className="text-white">Live</strong>: se poi si aggiunge un gol da lì, questo riepilogo viene ricalcolato e sovrascritto.</p>}
 
       {/* Selezione schedina */}
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
         {schedine.map(s => (
           <button key={s.id} onClick={() => selectSchedina(s.id)}
             className={`glass glass-hover text-left p-5 rounded-2xl transition-all ${selected === s.id ? 'glow-accent' : ''}`}>
-            <div className="font-display font-bold">{s.nome.replace(' — Mondiali FIFA 2026', '')}</div>
+            <div className="font-display font-bold">{nomeBreve(s.nome)}</div>
             <div className="text-xs text-[var(--muted)] mt-1.5 flex items-center gap-3">
               <span>{pronosticiBySched[s.id] ?? 0} pronostici</span>
               {risultatiMap[s.id] && <span className="text-[var(--accent-soft)]">✓ Risultati inseriti</span>}
@@ -102,7 +103,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
 
       {schedina && (
         <div className="glass rounded-2xl p-6 space-y-6">
-          <h2 className="font-display font-bold text-lg">Risultati: {schedina.nome.replace(' — Mondiali FIFA 2026', '')}</h2>
+          <h2 className="font-display font-bold text-lg">Risultati: {nomeBreve(schedina.nome)}</h2>
 
           {/* Minuti gol */}
           <div>
@@ -128,7 +129,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
           </div>
 
           {/* Supplementari — solo eliminazione */}
-          {schedina.fase !== 'gironi' && (
+          {schedina.fase === 'eliminazione' && (
             <div>
               <label className="block text-sm font-medium text-[var(--muted)] mb-2">⏱️ Almeno una partita è andata ai supplementari?</label>
               <div className="flex gap-2 flex-wrap">

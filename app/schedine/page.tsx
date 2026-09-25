@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Schedina, Pronostico } from '@/lib/types'
+import { Schedina, Pronostico, ClassificaRow } from '@/lib/types'
 import LiveRefresh from '@/components/LiveRefresh'
 import SchedinaCard from '@/components/SchedinaCard'
+import { nomeBreve } from '@/lib/teams'
 
 export default async function SchedinePage() {
   const supabase = await createClient()
@@ -12,6 +13,9 @@ export default async function SchedinePage() {
   const { data: schedine } = await supabase.from('schedine').select('*').order('id')
   const { data: mieiPronostici } = await supabase.from('pronostici').select('*').eq('user_id', user.id)
   const { data: risultati } = await supabase.from('risultati').select('*')
+  // I miei punti schedina per schedina: si aggiornano anche durante il live.
+  const { data: mieiPunti } = await supabase.from('classifica').select('schedina_id, totale').eq('user_id', user.id)
+  const puntiMap = new Map(((mieiPunti ?? []) as Pick<ClassificaRow, 'schedina_id' | 'totale'>[]).map(r => [r.schedina_id, r.totale]))
 
   const pronosticoMap = new Map<number, Pronostico>()
   mieiPronostici?.forEach(p => pronosticoMap.set(p.schedina_id, p))
@@ -19,12 +23,13 @@ export default async function SchedinePage() {
 
   const now = new Date()
   const tutte = (schedine as Schedina[] | null) ?? []
-  const attive = tutte.filter(s => s.attiva !== false)
+  // La prossima a scadere in cima.
+  const attive = tutte.filter(s => s.attiva !== false).sort((a, b) => a.deadline.localeCompare(b.deadline))
   const archiviate = tutte.filter(s => s.attiva === false)
 
   return (
     <div className="animate-fade-up">
-      <LiveRefresh seconds={60} />
+      <LiveRefresh seconds={60} generatedAt={now.toISOString()} />
       <div className="mb-8">
         <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Le tue schedine</span>
         <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Compila i pronostici</h1>
@@ -34,12 +39,12 @@ export default async function SchedinePage() {
       {attive.length === 0 ? (
         <div className="glass rounded-2xl py-16 text-center">
           <div className="text-5xl mb-4">⚔️</div>
-          <p className="text-[var(--muted)]">Nessuna schedina attiva al momento.<br />Le prossime arriveranno con la fase a eliminazione diretta.</p>
+          <p className="text-[var(--muted)]">Nessuna schedina attiva al momento.<br />Le prossime arriveranno a breve.</p>
         </div>
       ) : (
         <div className="space-y-5 stagger">
           {attive.map(s => (
-            <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} />
+            <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} />
           ))}
         </div>
       )}
@@ -54,15 +59,15 @@ export default async function SchedinePage() {
               <details key={s.id} className="glass rounded-xl overflow-hidden group">
                 <summary className="cursor-pointer list-none flex items-center justify-between gap-3 px-4 py-3 select-none">
                   <div className="min-w-0">
-                    <div className="font-display font-semibold text-sm truncate">{s.nome.replace(' — Mondiali FIFA 2026', '')}</div>
+                    <div className="font-display font-semibold text-sm truncate">{nomeBreve(s.nome)}</div>
                     <div className="text-xs text-[var(--muted)]">
-                      {s.fase === 'gironi' ? 'Gironi' : 'Eliminazione'} · {s.partite.length} partite · conclusa{pronosticoMap.get(s.id) ? ' · ✓ giocata' : ''}
+                      {s.torneo ? `${s.torneo} · ` : ''}{s.fase === 'gironi' ? 'Gironi' : s.fase === 'campionato' ? 'Campionato' : 'Eliminazione'} · {s.partite.length} partite · conclusa{pronosticoMap.get(s.id) ? ' · ✓ giocata' : ''}
                     </div>
                   </div>
                   <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90 shrink-0">▶</span>
                 </summary>
                 <div className="px-1 pb-1">
-                  <SchedinaCard schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} />
+                  <SchedinaCard schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} />
                 </div>
               </details>
             ))}

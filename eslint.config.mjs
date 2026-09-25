@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // brain è un progetto a sé: ha il suo eslint.config.mjs.
     "brain/**",
+    // Motore OCR di terze parti, già minificato: non è codice nostro.
+    "public/onetap/ocr/**",
   ]),
 ]);
 

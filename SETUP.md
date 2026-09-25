@@ -12,6 +12,9 @@ Segui questi passi una sola volta. Tempo richiesto: ~5 minuti.
 2. Apri il file [`supabase/schema.sql`](supabase/schema.sql) di questo progetto, **copia tutto** e incollalo.
 3. Premi **Run** (in basso a destra). Deve comparire *Success. No rows returned*.
    - Crea tabelle, policy di sicurezza, la view classifica e inserisce le 2 schedine con tutte le partite.
+4. Poi, nell'ordine, le migration: `migration_activity.sql`, `migration_timing.sql`,
+   `migration_eliminazione.sql`, `migration_campionato.sql`.
+   L'ultima prepara il test sui campionati italiani: istruzioni in [`TEST_OTTOBRE.md`](TEST_OTTOBRE.md).
 
 ## 3. Copia le chiavi API
 1. Menu laterale → **Project Settings** (icona ingranaggio) → **API**.

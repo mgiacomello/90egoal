@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Sora } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
@@ -17,8 +17,25 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "90 & Goal — Pronostici Mondiali FIFA 2026",
-  description: "Indovina i minuti dei gol e scala la classifica. Il gioco di pronostici ufficiale per i Mondiali FIFA 2026.",
+  title: "90 & Goal — Indovina il minuto del gol",
+  description: "Dieci partite, tredici minuti da scegliere, la classifica in diretta. Il gioco di pronostici sui minuti dei gol.",
+  applicationName: "90 & Goal",
+  appleWebApp: { capable: true, title: "90 & Goal", statusBarStyle: "black-translucent" },
+  icons: {
+    icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  // Test chiuso: il link gira solo nella community, i motori di ricerca restano fuori.
+  // ONE TAP dichiara nel suo layout la propria indicizzazione.
+  robots: { index: false, follow: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#07090d",
+  colorScheme: "dark",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
