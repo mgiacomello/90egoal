@@ -150,6 +150,15 @@ export function useRecorder() {
     }
   }, []);
 
+  /** Sonda di accensione (tasto nella schermata iniziale). */
+  const probe = useCallback(async () => {
+    const src = source.current;
+    if (!(src instanceof WebBluetoothMendi)) return;
+    const { runProbe } = await import("../mendi/probe");
+    const log = (line: string) => setBtLog((prev) => [...prev, `${new Date().toLocaleTimeString("it-IT")} ${line}`]);
+    await runProbe(src, log);
+  }, []);
+
   const disconnect = useCallback(async () => {
     await source.current?.disconnect();
     unsubscribe.current?.();
@@ -314,7 +323,7 @@ export function useRecorder() {
   return {
     phase, device, battery, error, connecting, btLog, document, clauseIndex, live, frameCount, baseline, received,
     session: session.current,
-    connect, disconnect, wake, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
+    connect, disconnect, wake, probe, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
     clearError: () => setError(null),
   };
 }
