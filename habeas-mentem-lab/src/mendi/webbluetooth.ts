@@ -57,8 +57,10 @@ export async function diagnoseBluetooth(): Promise<BluetoothDiagnosis> {
     verdict = "La pagina non è su https né su localhost: il browser non espone il Bluetooth.";
   } else if (!api) {
     verdict = /iPhone|iPad/.test(ua)
-      ? "Su iPhone e iPad il Bluetooth dal browser non esiste: serve Chrome o Edge su Mac, Windows o Android."
-      : "Questo browser non ha il Web Bluetooth: usa Chrome o Edge.";
+      ? "Su iPhone e iPad Safari e Chrome non hanno il Bluetooth dal browser. Due strade: apri questo stesso indirizzo nell'app Bluefy (App Store, gratuita), che lo implementa; oppure usa Chrome su Mac, Windows o Android."
+      : /Android/.test(ua)
+        ? "Questo browser non ha il Web Bluetooth: su Android apri l'indirizzo in Chrome."
+        : "Questo browser non ha il Web Bluetooth: usa Chrome o Edge.";
   } else if (adapterAvailable === false) {
     verdict = "Il Bluetooth del computer è spento o non concesso a Chrome: accendilo e, su Mac, controlla Impostazioni → Privacy e sicurezza → Bluetooth → Chrome.";
   } else {

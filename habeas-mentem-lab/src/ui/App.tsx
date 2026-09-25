@@ -167,8 +167,10 @@ function Setup({ r }: { r: R }) {
           </>
         )}
         <p className="hint">
-          Si può anche leggere senza fascia: resta attivo il solo sensore del tempo. È il diritto di non essere
-          misurati, applicato al laboratorio.
+          La fascia si collega direttamente al browser, senza l'app Mendi (che va chiusa sul telefono: tiene occupata
+          la connessione). Funziona con Chrome o Edge su Mac, Windows e Android; su iPhone con l'app Bluefy. Si può
+          anche leggere senza fascia: resta attivo il solo sensore del tempo. È il diritto di non essere misurati,
+          applicato al laboratorio.
         </p>
       </section>
 
