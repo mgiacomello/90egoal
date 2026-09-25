@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
 import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
 import { clausesCsv, download, framesCsv, segmentsCsv, sessionJson } from "../session/export";
-import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
+import { LX_ACCESSIBILITY_THRESHOLD, lxScore } from "../session/lx";
 import { clauseMetrics } from "../session/metrics";
 import type { Document } from "../session/model";
 import { Sparkline } from "./Sparkline";
@@ -24,8 +24,9 @@ export function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div>
-          <strong>Habeas Mentem Lab</strong> · LX Reader
+        <div className="brand">
+          <span className="brand-mark">HM</span>
+          Habeas Mentem Lab <span>· LX Reader</span>
         </div>
         <div className="status">
           {r.phase === "setup" && (
@@ -35,13 +36,13 @@ export function App() {
           )}
           {r.device ? (
             <span className="pill ok">
+              <span className={`dot ${r.received > 0 ? "live" : ""}`} />
               {r.device.name}
-              {r.device.simulated ? " (simulata)" : ""}
+              {r.device.simulated ? " (sim)" : ""}
               {r.battery ? ` · ${(r.battery.voltageMv / 1000).toFixed(2)} V` : ""}
-              {r.frameCount > 0 ? ` · ${r.frameCount} campioni` : ""}
             </span>
           ) : (
-            <span className="pill">nessuna fascia</span>
+            <span className="pill"><span className="dot" /> nessuna fascia</span>
           )}
         </div>
       </header>
@@ -104,192 +105,202 @@ function Setup({ r }: { r: R }) {
     return DOCUMENTS.find((d) => d.id === docId) ?? null;
   }, [docId, pasteTitle, pasteText]);
 
+  const docInfo = (d: Document) => {
+    const words = d.clauses.reduce((n, c) => n + c.wordCount, 0);
+    const lx = Math.round(d.clauses.reduce((n, c) => n + lxScore(c.text).total, 0) / Math.max(1, d.clauses.length));
+    return { words, minutes: Math.max(1, Math.round(words / 200)), lx };
+  };
+  const headbandDone = !!r.device;
+  const docDone = !!doc;
+  const modeLabel = READING_MODES.find((m) => m.id === reading.mode)?.label ?? "";
+
   return (
-    <main className="screen">
-      <section className="intro">
+    <main className="screen setup">
+      <section className="hero">
         <p className="eyebrow">Neuro Legal Cortex · Habeas Mentem Lab</p>
         <h1>Misurare dove il diritto smette di raggiungere chi lo legge</h1>
         <p className="lead">
-          Habeas Mentem è il diritto di ogni persona a comprendere, giudicare e decidere in condizioni che non siano
-          state progettate contro di lei. Meno dell'1% delle persone legge i documenti giuridici; più del 90% li
-          accetta comunque. Questo laboratorio osserva la lettura con tre indizi indipendenti e non li fonde mai in
-          un giudizio: nessun sensore dimostra da solo la comprensione.
+          Una sessione di lettura con tre indizi indipendenti: il tempo, il corpo (fascia Mendi), il testo. Nessuno dei tre,
+          da solo, dice se hai capito. Si misurano i documenti, mai le persone.
         </p>
+        <details>
+          <summary>Perché questo laboratorio</summary>
+          <p>
+            Habeas Mentem è il diritto di ogni persona a comprendere, giudicare e decidere in condizioni che non siano state
+            progettate contro di lei. Meno dell'1% delle persone legge i documenti giuridici; più del 90% li accetta comunque.
+            Il laboratorio osserva la lettura e non fonde mai gli indizi in un giudizio: nessun sensore dimostra da solo la
+            comprensione.
+          </p>
+        </details>
         <div className="sensors">
-          <div className="sensor">
-            <span className="sensor-name">Tempo</span>
-            <span>secondi per clausola, ritorni indietro, parole al minuto</span>
-          </div>
-          <div className="sensor">
-            <span className="sensor-name">Corpo</span>
-            <span>fascia Mendi (fNIRS): variazioni compatibili con il carico cognitivo. Un indizio, nient'altro</span>
-          </div>
-          <div className="sensor">
-            <span className="sensor-name">Testo</span>
-            <span>LX Complexity Score: la lingua, l'affollamento, l'ordine, la distanza semantica</span>
-          </div>
+          <div className="sensor"><span className="sensor-name">Tempo</span><span>secondi per clausola o per parola, ritorni, fermate</span></div>
+          <div className="sensor"><span className="sensor-name">Corpo</span><span>fascia Mendi (fNIRS): variazioni compatibili con il carico. Un indizio</span></div>
+          <div className="sensor"><span className="sensor-name">Testo</span><span>LX Complexity Score: lingua, affollamento, ordine, distanza semantica</span></div>
         </div>
       </section>
 
-      <h2 className="section-title">Nuova sessione di lettura</h2>
-
-      <section className="card">
-        <h2>1. Fascia Mendi</h2>
-        {r.device ? (
-          <>
-            <p>
-              Collegata: <strong>{r.device.name}</strong>
-              {r.device.firmwareVersion ? ` · firmware ${r.device.firmwareVersion}` : ""}{" "}
-              <button onClick={r.disconnect}>scollega</button>
-            </p>
-            {!r.device.simulated && (
-              <>
-                <div className={`diag ${r.received > 0 ? "diag-ok" : "diag-bad"}`}>
-                  <strong>{r.received > 0 ? `La fascia trasmette: ${r.received} campioni ricevuti.` : "Collegata, ma ancora nessun campione."}</strong>
-                  {r.received === 0 && (
-                    <span className="diag-detail">
-                      I LED sulla fronte devono accendersi. Se restano spenti, premi «sonda di accensione» e guarda i LED durante la prova (circa 30 secondi); poi «copia il log».
-                    </span>
-                  )}
-                </div>
-                <div className="row">
-                  <button className="primary" onClick={r.probe}>sonda di accensione</button>
-                  <button onClick={r.wake}>riaccendi LED e sensore</button>
-                  <button onClick={() => navigator.clipboard?.writeText(r.btLog.join("\n")).catch(() => undefined)}>copia il log</button>
-                </div>
-                <pre className="btlog" id="btlog">
-                  {r.btLog.join("\n")}
-                </pre>
-              </>
-            )}
-          </>
-        ) : (
-          <>
-            <div className="row">
-              <button className="primary" disabled={!bluetooth || blocked || r.connecting} onClick={() => r.connect(false, acceptAll)}>
-                {r.connecting ? "connessione…" : "Collega la fascia (Bluetooth)"}
-              </button>
-              <button disabled={r.connecting} onClick={() => r.connect(true)}>
-                Usa la fascia simulata
-              </button>
-              <label className="check small">
-                <input type="checkbox" checked={acceptAll} onChange={(e) => setAcceptAll(e.target.checked)} /> mostra tutti i dispositivi
-              </label>
-            </div>
-            {diag && (
-              <div className={`diag ${blocked || diag.adapterAvailable === false ? "diag-bad" : "diag-ok"}`}>
-                <strong>Diagnostica Bluetooth.</strong> {diag.verdict}
-                <span className="diag-detail">
-                  API {diag.api ? "sì" : "no"} · https/localhost {diag.secureContext ? "sì" : "no"} · riquadro {diag.inIframe ? "sì" : "no"} · adattatore{" "}
-                  {diag.adapterAvailable === null ? "?" : diag.adapterAvailable ? "acceso" : "spento"}
-                </span>
+      <section className={`setup-step ${headbandDone ? "done" : ""}`}>
+        <span className="step-num">{headbandDone ? "✓" : "1"}</span>
+        <div>
+          <h2>Fascia Mendi <span className="hint">facoltativa</span></h2>
+          {r.device ? (
+            <>
+              <div className="row">
+                <span className="pill ok"><span className={`dot ${r.received > 0 ? "live" : ""}`} /> {r.device.name}{r.device.firmwareVersion ? ` · fw ${r.device.firmwareVersion}` : ""}</span>
+                <button onClick={r.disconnect}>scollega</button>
               </div>
-            )}
-            {r.btLog.length > 0 && (
-              <pre className="btlog" id="btlog">
-                {r.btLog.join("\n")}
-              </pre>
-            )}
-          </>
-        )}
-        <p className="hint">
-          La fascia si collega direttamente al browser, senza l'app Mendi (che va chiusa sul telefono: tiene occupata
-          la connessione). Funziona con Chrome o Edge su Mac, Windows e Android; su iPhone con l'app Bluefy. Si può
-          anche leggere senza fascia: resta attivo il solo sensore del tempo. È il diritto di non essere misurati,
-          applicato al laboratorio.
-        </p>
-      </section>
-
-      <section className="card">
-        <h2>2. Documento</h2>
-        <select value={docId} onChange={(e) => setDocId(e.target.value)}>
-          {DOCUMENTS.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.title} · {d.clauses.length} clausole
-            </option>
-          ))}
-          <option value="__paste__">Incolla un tuo testo…</option>
-        </select>
-        {docId === "__paste__" && (
-          <div className="paste">
-            <input placeholder="Titolo del documento" value={pasteTitle} onChange={(e) => setPasteTitle(e.target.value)} />
-            <textarea
-              rows={10}
-              placeholder="Incolla qui il testo. Le clausole si separano con una riga vuota; una riga breve senza punto finale è letta come titolo."
-              value={pasteText}
-              onChange={(e) => setPasteText(e.target.value)}
-            />
-            {doc && <span className="hint">{doc.clauses.length} clausole riconosciute.</span>}
-          </div>
-        )}
-      </section>
-
-      <section className="card">
-        <h2>3. Come presentare il testo</h2>
-        <div className="modes">
-          {READING_MODES.map((m) => (
-            <label key={m.id} className={`mode ${reading.mode === m.id ? "on" : ""}`}>
-              <input type="radio" name="mode" checked={reading.mode === m.id} onChange={() => setReadingOpts({ ...reading, mode: m.id })} />
-              <span className="mode-label">{m.label}</span>
-              <span className="mode-note">{m.note}</span>
-            </label>
-          ))}
+              {!r.device.simulated && (
+                <>
+                  <div className={`diag ${r.received > 0 ? "diag-ok" : "diag-bad"}`}>
+                    <strong>{r.received > 0 ? `La fascia trasmette: ${r.received} campioni ricevuti.` : "Collegata, ma ancora nessun campione."}</strong>
+                    {r.received === 0 && (
+                      <span className="diag-detail">
+                        I LED sulla fronte devono accendersi. Se restano spenti, premi «sonda di accensione» e guarda i LED durante la prova (circa 60 secondi); poi «copia il log».
+                      </span>
+                    )}
+                  </div>
+                  <details className="details">
+                    <summary>Strumenti e log della fascia</summary>
+                    <div className="row">
+                      <button className="primary" onClick={r.probe}>sonda di accensione</button>
+                      <button onClick={r.wake}>riaccendi LED e sensore</button>
+                      <button onClick={() => navigator.clipboard?.writeText(r.btLog.join("\n")).catch(() => undefined)}>copia il log</button>
+                    </div>
+                    <pre className="btlog" id="btlog">{r.btLog.join("\n")}</pre>
+                  </details>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="row">
+                <button className="primary" disabled={!bluetooth || blocked || r.connecting} onClick={() => r.connect(false, acceptAll)}>
+                  {r.connecting ? "connessione…" : "Collega la fascia"}
+                </button>
+                <button disabled={r.connecting} onClick={() => r.connect(true)}>Fascia simulata</button>
+                <label className="check small">
+                  <input type="checkbox" checked={acceptAll} onChange={(e) => setAcceptAll(e.target.checked)} /> mostra tutti i dispositivi
+                </label>
+              </div>
+              {diag && (
+                <div className={`diag ${blocked || diag.adapterAvailable === false ? "diag-bad" : "diag-ok"}`}>
+                  <strong>Diagnostica Bluetooth.</strong> {diag.verdict}
+                  <span className="diag-detail">
+                    API {diag.api ? "sì" : "no"} · https/localhost {diag.secureContext ? "sì" : "no"} · riquadro {diag.inIframe ? "sì" : "no"} · adattatore{" "}
+                    {diag.adapterAvailable === null ? "?" : diag.adapterAvailable ? "acceso" : "spento"}
+                  </span>
+                </div>
+              )}
+              {r.btLog.length > 0 && <pre className="btlog" id="btlog">{r.btLog.join("\n")}</pre>}
+              <p className="hint">
+                Chrome o Edge su Mac, Windows e Android; su iPhone l'app Bluefy. App Mendi chiusa sul telefono. Senza fascia resta il solo sensore del tempo: è il diritto di non essere misurati.
+              </p>
+            </>
+          )}
         </div>
-        {reading.mode === "scorrimento" && (
+      </section>
+
+      <section className={`setup-step ${docDone ? "done" : ""}`}>
+        <span className="step-num">{docDone ? "✓" : "2"}</span>
+        <div>
+          <h2>Documento</h2>
+          <div className="doc-grid">
+            {DOCUMENTS.map((d) => {
+              const i = docInfo(d);
+              return (
+                <button key={d.id} className={`doc-card ${docId === d.id ? "on" : ""}`} onClick={() => setDocId(d.id)}>
+                  <span className="doc-title">{d.title.replace(" (modello)", "")}</span>
+                  <span className="doc-meta">
+                    <span>{d.clauses.length} clausole</span>
+                    <span>~{i.minutes} min</span>
+                    <span className={`lx ${i.lx > LX_ACCESSIBILITY_THRESHOLD ? "lx-high" : "lx-ok"}`} title="LX medio stimato">LX {i.lx}</span>
+                  </span>
+                </button>
+              );
+            })}
+            <button className={`doc-card ${docId === "__paste__" ? "on" : ""}`} onClick={() => setDocId("__paste__")}>
+              <span className="doc-title">Incolla un tuo testo…</span>
+              <span className="doc-meta"><span>clausole separate da una riga vuota</span></span>
+            </button>
+          </div>
+          {docId === "__paste__" && (
+            <div className="paste">
+              <input placeholder="Titolo del documento" value={pasteTitle} onChange={(e) => setPasteTitle(e.target.value)} />
+              <textarea
+                rows={8}
+                placeholder="Incolla qui il testo. Le clausole si separano con una riga vuota; una riga breve senza punto finale è letta come titolo."
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+              />
+              {doc && <span className="hint">{doc.clauses.length} clausole riconosciute.</span>}
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="setup-step done">
+        <span className="step-num">✓</span>
+        <div>
+          <h2>Presentazione del testo</h2>
+          <div className="modes">
+            {READING_MODES.map((m) => (
+              <label key={m.id} className={`mode ${reading.mode === m.id ? "on" : ""}`}>
+                <input type="radio" name="mode" checked={reading.mode === m.id} onChange={() => setReadingOpts({ ...reading, mode: m.id })} />
+                <span className="mode-icon" aria-hidden="true">
+                  {m.id === "clausola" && <i style={{ width: 40 }} />}
+                  {m.id === "porzioni" && <><i style={{ width: 14 }} /><i style={{ width: 10 }} /><i style={{ width: 12 }} /></>}
+                  {m.id === "scorrimento" && <><i style={{ width: 8 }} /><i style={{ width: 8 }} /><i style={{ width: 8 }} /><i style={{ width: 8 }} /></>}
+                </span>
+                <span className="mode-label">{m.label}</span>
+                <span className="mode-note">{m.note}</span>
+              </label>
+            ))}
+          </div>
+          {reading.mode === "scorrimento" && (
+            <label className="range">
+              <span>Ritmo: <strong>{reading.wordsPerMinute}</strong> parole al minuto</span>
+              <input type="range" min={100} max={300} step={10} value={reading.wordsPerMinute} onChange={(e) => setReadingOpts({ ...reading, wordsPerMinute: Number(e.target.value) })} />
+            </label>
+          )}
           <label className="check small">
-            Ritmo: {reading.wordsPerMinute} parole al minuto
-            <input type="range" min={100} max={300} step={10} value={reading.wordsPerMinute} onChange={(e) => setReadingOpts({ ...reading, wordsPerMinute: Number(e.target.value) })} />
+            <input type="checkbox" checked={reading.recordVoice} onChange={(e) => setReadingOpts({ ...reading, recordVoice: e.target.checked })} /> registra la voce (lettura ad alta voce)
           </label>
-        )}
-        <label className="check small">
-          <input type="checkbox" checked={reading.recordVoice} onChange={(e) => setReadingOpts({ ...reading, recordVoice: e.target.checked })} /> registra la voce (lettura ad alta voce)
-        </label>
-        <p className="hint">
-          La fascia non vede la singola parola: la sua risposta arriva 4–8 secondi dopo. Ciò che si misura parola per parola
-          è il tempo, e solo se il testo compare a porzioni. Il segnale corporeo viene attribuito a ogni porzione con un
-          ritardo dichiarato di 4 secondi. La registrazione vocale resta nel browser e si scarica con la sessione; leggere ad
-          alta voce muove la mascella e produce artefatti di movimento, che il tracciato segnala.
-        </p>
+          <p className="hint">
+            La fascia non vede la singola parola: la sua risposta arriva 4–8 secondi dopo e viene attribuita con un modello della
+            risposta emodinamica. Parola per parola si misura il tempo, e solo a porzioni. La voce resta nel browser; leggere ad
+            alta voce muove la mascella e il tracciato segnala gli artefatti.
+          </p>
+        </div>
       </section>
 
-      <section className="card">
-        <h2>4. Consenso del partecipante</h2>
-        <p className="hint">La costituzione della misurazione, applicata a questa sessione.</p>
-        <ul className="consent">
-          <li>
-            <strong>Una sola finalità.</strong> Misuriamo per migliorare la comprensibilità del documento. Nessun uso
-            ulteriore: i dati non servono a profilare, selezionare o influenzare chi legge.
-          </li>
-          <li>
-            <strong>Si misurano i documenti, mai le persone.</strong> Se una clausola perde chi la legge, il difetto è
-            della clausola. Nessun esito dice qualcosa sulla tua capacità.
-          </li>
-          <li>
-            <strong>Il minimo necessario.</strong> Registriamo tempo per clausola, navigazione avanti e indietro e, con la
-            fascia, i segnali ottici e di movimento. Nessun nome, nessuna e-mail: la sessione ha uno pseudonimo casuale.
-            Nulla va a un server; i dati esistono solo in questa pagina finché non vengono scaricati.
-          </li>
-          <li>
-            <strong>Il metodo è pubblico.</strong> Indicatori, formule e soglie sono nel codice del laboratorio; ogni
-            punteggio si può ricalcolare dai dati esportati.
-          </li>
-          <li>
-            <strong>Nessuno è obbligato a essere misurato.</strong> La partecipazione è volontaria e revocabile: puoi
-            leggere senza fascia o chiudere la pagina in ogni momento, senza alcuna conseguenza.
-          </li>
-          <li>
-            <strong>Il segnale della fascia è un indizio, nient'altro.</strong> Dice che in un passaggio lo sforzo è
-            cresciuto. Non dice se hai capito, non legge pensieri né emozioni.
-          </li>
-        </ul>
-        <label className="check">
-          <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> Ho letto e accetto di partecipare a questa sessione.
-        </label>
+      <section className={`setup-step ${consent ? "done" : ""}`}>
+        <span className="step-num">{consent ? "✓" : "4"}</span>
+        <div>
+          <h2>Consenso <span className="hint">la costituzione della misurazione, applicata</span></h2>
+          <ul className="charter">
+            <li><span><strong>Una sola finalità.</strong> Migliorare la comprensibilità del documento. Nessun uso ulteriore: i dati non profilano, non selezionano, non influenzano.</span></li>
+            <li><span><strong>Si misurano i documenti, mai le persone.</strong> Se una clausola perde chi la legge, il difetto è della clausola.</span></li>
+            <li><span><strong>Il minimo necessario.</strong> Tempo, navigazione e, con la fascia, segnali ottici e di movimento. Nessun nome: uno pseudonimo casuale. Nulla va a un server.</span></li>
+            <li><span><strong>Il metodo è pubblico.</strong> Indicatori, formule e soglie sono nel codice; ogni punteggio si ricalcola dai dati esportati.</span></li>
+            <li><span><strong>Nessuno è obbligato.</strong> Puoi leggere senza fascia o chiudere la pagina in ogni momento, senza conseguenze.</span></li>
+            <li><span><strong>Il segnale della fascia è un indizio.</strong> Non dice se hai capito, non legge pensieri né emozioni.</span></li>
+          </ul>
+          <div className="pledge">
+            <label className="check">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> Ho letto e accetto di partecipare a questa sessione.
+            </label>
+          </div>
+        </div>
       </section>
 
-      <div className="actions">
+      <div className="launch">
+        <div className="launch-summary">
+          <span className="pill">{doc ? doc.title.replace(" (modello)", "") : "nessun documento"}</span>
+          <span className="pill">{modeLabel}</span>
+          <span className="pill">{r.device ? `fascia · baseline ${BASELINE_SECONDS} s` : "senza fascia"}</span>
+        </div>
         <button className="primary big" disabled={!doc || !consent} onClick={() => doc && r.start(doc, reading)}>
-          {r.device ? `Inizia (baseline ${BASELINE_SECONDS} s, poi lettura)` : "Inizia la lettura senza fascia"}
+          {r.device ? "Inizia la sessione" : "Inizia senza fascia"}
         </button>
       </div>
     </main>
@@ -308,12 +319,15 @@ function BaselineScreen({ r }: { r: R }) {
     }
   }, [left, r]);
 
+  const q = r.quality;
+  const state = (ok: boolean, wait: boolean) => (wait ? "wait" : ok ? "good" : "bad");
   return (
     <main className="screen center">
       <h1>Baseline a riposo</h1>
-      <p className="lead">Occhi aperti, sguardo sul punto, testa ferma. Non leggere nulla.</p>
+      <p className="lead">Occhi aperti, sguardo sul punto, testa ferma. Respira con il cerchio. Non leggere nulla.</p>
       <div className="ring-wrap" aria-live="polite">
         <svg className="ring" viewBox="0 0 120 120" width="220" height="220" aria-label={`${Math.max(left, 0)} secondi rimasti`}>
+          <circle cx="60" cy="60" r="44" className="ring-breath" />
           <circle cx="60" cy="60" r="52" className="ring-track" />
           <circle
             cx="60" cy="60" r="52"
@@ -324,7 +338,21 @@ function BaselineScreen({ r }: { r: R }) {
           <text x="60" y="84" className="ring-num">{Math.max(left, 0)}</text>
         </svg>
       </div>
-      <p className="hint">{r.frameCount} campioni raccolti</p>
+      <div className="quality" aria-label="Qualità del segnale">
+        <div className={`q ${state(!!q && q.hz >= 10, !q)}`}>
+          <strong>{q ? `${q.hz} campioni/s` : "in attesa"}</strong>
+          <span>flusso della fascia (atteso ~25)</span>
+        </div>
+        <div className={`q ${state(!!q && q.usable >= 0.9, !q || q.samples < 25)}`}>
+          <strong>{q && q.samples >= 25 ? `${Math.round(q.usable * 100)}% ottico ok` : "in attesa"}</strong>
+          <span>luce sotto controllo, sensori a contatto</span>
+        </div>
+        <div className={`q ${state(!!q && q.still >= 0.9, !q || q.samples < 25)}`}>
+          <strong>{q && q.samples >= 25 ? `${Math.round(q.still * 100)}% fermo` : "in attesa"}</strong>
+          <span>testa ferma (accelerometro)</span>
+        </div>
+      </div>
+      <p className="hint">{r.frameCount} campioni raccolti · la baseline è il riferimento di tutta la sessione</p>
     </main>
   );
 }
@@ -422,41 +450,50 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
         ) : (
           clause.text.split("\n").map((p, i) => <p key={i}>{p}</p>)
         )}
+        {auto && current && (
+          <div className={`timerbar ${r.paused ? "paused" : ""}`} aria-hidden="true">
+            <i key={current.id} style={{ animationDuration: `${autoDurationMs(current.wordCount, r.reading.wordsPerMinute)}ms` }} />
+          </div>
+        )}
       </article>
-      <nav className="actions">
-        <button disabled={r.clauseIndex === 0 && (!segmented || r.segmentIndex === 0)} onClick={back}>
-          ← Torna indietro
-        </button>
-        {auto && (
-          <button onClick={r.togglePause} className={r.paused ? "primary" : ""}>
-            {r.paused ? "Riprendi ▶" : "Fermati ⏸"}
-          </button>
-        )}
-        {lastSegment ? (
-          <button className="primary" onClick={r.finishReading}>
-            Ho finito
-          </button>
-        ) : (
-          !auto && (
-            <button className="primary" onClick={forward}>
-              Avanti →
-            </button>
-          )
-        )}
-      </nav>
-      <p className="hint center">
-        {auto
-          ? "Le porzioni avanzano da sole. Spazio o «Fermati» per fermare il tempo; ← per tornare indietro. Fermate e ritorni sono segnali."
-          : segmented
-            ? "Spazio o → per la porzione successiva; ← per tornare indietro."
-            : "Frecce ← → per muoverti tra le clausole."}
-      </p>
       {r.device && (
         <div className="livebox">
           <Sparkline points={r.live} />
-          <span className="hint">Indice di sforzo (proxy, media mobile 1 s). Le barre rosse segnalano movimenti della testa.</span>
+          <span className="hint">ΔHbO dal vivo (µM stimati, media mobile 2 s, senza deriva). Le bande rosse sono movimenti della testa: rotazioni dal giroscopio, scosse dall'accelerometro.</span>
         </div>
       )}
+      <div className="readerbar">
+        <div className="readerbar-in">
+          <button disabled={r.clauseIndex === 0 && (!segmented || r.segmentIndex === 0)} onClick={back}>
+            ← Indietro
+          </button>
+          <span className="hint center">
+            {auto
+              ? "Le porzioni avanzano da sole. Spazio per fermare il tempo; ← per tornare. Fermate e ritorni sono segnali."
+              : segmented
+                ? "Spazio o → per la porzione successiva; ← per tornare indietro."
+                : "Frecce ← → per muoverti tra le clausole."}
+          </span>
+          <nav className="actions">
+            {auto && (
+              <button onClick={r.togglePause} className={r.paused ? "primary" : ""}>
+                {r.paused ? "Riprendi ▶" : "Fermati ⏸"}
+              </button>
+            )}
+            {lastSegment ? (
+              <button className="primary" onClick={r.finishReading}>
+                Ho finito
+              </button>
+            ) : (
+              !auto && (
+                <button className="primary" onClick={forward}>
+                  Avanti →
+                </button>
+              )
+            )}
+          </nav>
+        </div>
+      </div>
     </main>
   );
 }
@@ -479,6 +516,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const [building, setBuilding] = useState(false);
   const [dossierError, setDossierError] = useState<string | null>(null);
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
+  const [tab, setTab] = useState<"mappa" | "parole" | "dati">("mappa");
   // Il modulo PDF è un chunk separato: lo scarichiamo appena arriviamo ai
   // risultati, così se nel frattempo il sito è stato ripubblicato (e i vecchi
   // chunk non esistono più) ce l'abbiamo già.
@@ -554,14 +592,30 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         </div>
       </div>
 
-      <FrictionStrip
-        items={friction.map((f) => {
-          const m = metrics.find((x) => x.clauseId === f.clauseId)!;
-          return { clauseId: f.clauseId, index: m.index, heading: m.heading, level: f.level, count: f.count, reasons: f.reasons };
-        })}
-      />
+      <div className="tabs" role="tablist">
+        <button className={`tab ${tab === "mappa" ? "on" : ""}`} role="tab" aria-selected={tab === "mappa"} onClick={() => setTab("mappa")}>Mappa della frizione</button>
+        {segmentRows.length > 0 && (
+          <button className={`tab ${tab === "parole" ? "on" : ""}`} role="tab" aria-selected={tab === "parole"} onClick={() => setTab("parole")}>Parola per parola</button>
+        )}
+        <button className={`tab ${tab === "dati" ? "on" : ""}`} role="tab" aria-selected={tab === "dati"} onClick={() => setTab("dati")}>Tabella e dati</button>
+      </div>
 
-      {segmentRows.length > 0 && <WordView rows={segmentRows} clauses={doc.clauses} hasBody={!!r.baseline} r2={segmentAnalysis.modelR2} />}
+      {tab === "mappa" && (
+        <div className="panel">
+          <FrictionStrip
+            items={friction.map((f) => {
+              const m = metrics.find((x) => x.clauseId === f.clauseId)!;
+              return { clauseId: f.clauseId, index: m.index, heading: m.heading, level: f.level, count: f.count, reasons: f.reasons };
+            })}
+          />
+        </div>
+      )}
+
+      {tab === "parole" && segmentRows.length > 0 && (
+        <div className="panel">
+          <WordView rows={segmentRows} clauses={doc.clauses} hasBody={!!r.baseline} r2={segmentAnalysis.modelR2} />
+        </div>
+      )}
 
       {r.audio && (
         <p className="hint">
@@ -572,8 +626,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         </p>
       )}
 
-      <details className="details">
-        <summary>Tabella completa per clausola</summary>
+      <div className="panel" style={{ display: tab === "dati" ? "block" : "none" }}>
 
       <table className="metrics">
         <thead>
@@ -655,13 +708,13 @@ function Results({ r, doc }: { r: R; doc: Document }) {
           ))}
         </tbody>
       </table>
-      </details>
+      </div>
 
       <p className="hint">
         ⚠ = oltre 600 parole al minuto: il tempo esclude la lettura completa. LX = stima euristica dell'LX
         Complexity Score (0-100; sopra {LX_ACCESSIBILITY_THRESHOLD} la soglia sperimentale di accessibilità; passa
         il mouse per le quattro dimensioni). Lo sforzo è la variazione media del proxy HbO rispetto alla baseline,
-        in unità arbitrarie: confrontabile solo tra clausole della stessa sessione. Nessuna colonna, da sola, dice
+        in µM stimati (Beer-Lambert a due lunghezze d'onda): confrontabile solo tra clausole della stessa sessione. Nessuna colonna, da sola, dice
         se la clausola è stata compresa. La colonna Frizione applica la regola della convergenza: ogni sensore
         conta al massimo un indizio, il corpo da solo non colora mai. Il punteggio non giudica le persone: fa la
         diagnosi ai documenti.

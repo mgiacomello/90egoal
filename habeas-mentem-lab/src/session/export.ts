@@ -36,7 +36,9 @@ export function framesCsv(session: Session): string {
       effort_left: a.effort ? a.effort.left.toFixed(5) : "",
       effort_right: a.effort ? a.effort.right.toFixed(5) : "",
       effort: a.effort ? a.effort.effort.toFixed(5) : "",
+      hbr_um: a.effort?.hbr !== undefined ? a.effort.hbr.toFixed(5) : "",
       motion_g: a.effort ? a.effort.motion.toFixed(3) : "",
+      rotation_dps: a.effort?.rotation !== undefined ? a.effort.rotation.toFixed(1) : "",
     })),
   );
 }

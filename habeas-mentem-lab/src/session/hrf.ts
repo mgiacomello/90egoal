@@ -11,7 +11,7 @@
 // sovrappongono nel segnale: risolverle insieme le separa invece di
 // confonderle. Resta un'attribuzione modellata, non una misura della parola.
 
-import type { EffortSample } from "../mendi/signal";
+import { isArtifact, type EffortSample } from "../mendi/signal";
 
 /** Risposta emodinamica canonica: doppia gamma (Glover 1999 / SPM). Tempo in secondi. */
 export const HRF = {
@@ -94,7 +94,7 @@ export function fitHrfGlm(effort: EffortSample[], intervals: Interval[], hz = MO
   const y = new Float64Array(n);
   const count = new Int32Array(n);
   for (const s of effort) {
-    if (s.motion > 0.15) continue; // artefatti di movimento fuori dal modello
+    if (isArtifact(s)) continue; // artefatti di movimento fuori dal modello
     const k = Math.round(((s.timestamp - t0) / 1000) * hz);
     if (k >= 0 && k < n) {
       y[k] += s.effort;

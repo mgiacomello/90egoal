@@ -9,6 +9,9 @@ import { explainBluetoothError, WebBluetoothMendi } from "../mendi/webbluetooth"
 import {
   computeBaseline,
   effortFromFrame,
+  GYRO_LSB_PER_DPS,
+  isArtifact,
+  isUsable,
   MovingAverage,
   type Baseline,
   type EffortSample,
@@ -33,6 +36,7 @@ export interface LivePoint {
   timestamp: number;
   effort: number;
   motion: number;
+  rotation?: number;
 }
 
 export function useRecorder() {
@@ -64,7 +68,7 @@ export function useRecorder() {
   const audioChunks = useRef<Blob[]>([]);
   const baselineFrames = useRef<Frame[]>([]);
   const baselineRef = useRef<Baseline | null>(null);
-  const smoother = useRef(new MovingAverage(25));
+  const smoother = useRef(new MovingAverage(50)); // ~2 s: il segnale emodinamico è lento
   const liveBuf = useRef<LivePoint[]>([]);
   const counter = useRef(0);
 
@@ -95,7 +99,7 @@ export function useRecorder() {
 
     if (effort) {
       const smoothed = smoother.current.push(effort.effort);
-      liveBuf.current.push({ timestamp: frame.timestamp, effort: smoothed, motion: effort.motion });
+      liveBuf.current.push({ timestamp: frame.timestamp, effort: smoothed, motion: effort.motion, rotation: effort.rotation });
       if (liveBuf.current.length > 25 * 60) liveBuf.current.shift(); // ultimo minuto
     }
     if (counter.current % 5 === 0) {
@@ -151,6 +155,27 @@ export function useRecorder() {
 
   /** Contatore grezzo dei campioni ricevuti dalla fascia (anche fuori dalle fasi registrate). */
   const [received, setReceived] = useState(0);
+  /** Qualità del segnale durante la baseline, aggiornata ogni secondo. */
+  const [quality, setQuality] = useState<{ hz: number; usable: number; still: number; samples: number } | null>(null);
+  useEffect(() => {
+    if (phase !== "baseline") {
+      setQuality(null);
+      return;
+    }
+    let lastCount = 0;
+    const t = setInterval(() => {
+      const frames = baselineFrames.current;
+      const hz = frames.length - lastCount;
+      lastCount = frames.length;
+      const recent = frames.slice(-75);
+      const usable = recent.length ? recent.filter(isUsable).length / recent.length : 0;
+      const still = recent.length
+        ? recent.filter((f) => !isArtifact({ motion: Math.abs(Math.hypot(f.accX, f.accY, f.accZ) / 16384 - 1), rotation: Math.hypot(f.angX, f.angY, f.angZ) / GYRO_LSB_PER_DPS })).length / recent.length
+        : 0;
+      setQuality({ hz, usable, still, samples: frames.length });
+    }, 1000);
+    return () => clearInterval(t);
+  }, [phase]);
   useEffect(() => {
     if (!device) return;
     const t = setInterval(() => {
@@ -448,7 +473,7 @@ export function useRecorder() {
 
   return {
     phase, device, battery, error, connecting, btLog, document, clauseIndex, live, frameCount, baseline, received,
-    segmentIndex, reading, paused, audio,
+    segmentIndex, reading, paused, audio, quality,
     segments: segmentsRef.current,
     session: session.current,
     connect, disconnect, wake, probe, stepSegment, togglePause, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
