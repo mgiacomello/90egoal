@@ -60,10 +60,10 @@ export function clausesCsv(session: Session, metrics: ClauseMetrics[]): string {
       effort_samples: m.effort.sampleCount,
       motion_artifact_ratio: m.effort.motionArtifactRatio.toFixed(3),
       lx_total: m.lx.total,
-      lx_linguistic: m.lx.linguistic,
-      lx_conceptual: m.lx.conceptual,
-      lx_structural: m.lx.structural,
+      lx_syntactic: m.lx.syntactic,
       lx_semantic: m.lx.semantic,
+      lx_structural: m.lx.structural,
+      lx_conceptual: m.lx.conceptual,
     })),
   );
 }
