@@ -48,6 +48,8 @@ next-env.d.ts
 /brain/node_modules
 /brain/.next/
 
-# habeas-mentem-lab, idem (Vite: la build finisce in dist)
+# habeas-mentem-lab, idem (Vite: la build finisce in dist). La copia servita
+# dal sito principale, public/lab, è versionata: scripts/build-lab.mjs la
+# rigenera a ogni build quando può.
 /habeas-mentem-lab/node_modules
 /habeas-mentem-lab/dist

@@ -142,6 +142,21 @@ export function decodeDiagnostics(buf: Uint8Array, timestamp = Date.now()): Diag
   }
 }
 
+/** Decodifica Sensor (0xABB2): risposta a una lettura di registro. */
+export function decodeSensor(buf: Uint8Array): { read: boolean; address: number; data: number } | null {
+  try {
+    const r = { read: false, address: 0, data: 0 };
+    for (const fld of readFields(buf)) {
+      if (fld.wire === 0 && fld.n === 1) r.read = fld.value !== 0n;
+      else if (fld.wire === 0 && fld.n === 2) r.address = toUint32(fld.value);
+      else if (fld.wire === 5 && fld.n === 3) r.data = fld.raw;
+    }
+    return r;
+  } catch {
+    return null;
+  }
+}
+
 /** Decodifica Calibration (caratteristica 0xABB6). */
 export function decodeCalibration(buf: Uint8Array, timestamp = Date.now()): CalibrationReading | null {
   try {
@@ -218,6 +233,20 @@ export function encodeAdc(a: Omit<AdcReading, "timestamp">): Uint8Array {
   writeInt32Field(out, 1, a.voltageMv);
   writeBoolField(out, 2, a.charging);
   writeBoolField(out, 3, a.usb);
+  return Uint8Array.from(out);
+}
+
+/** Sensor (0xABB2): read=true accende il flusso ottico, read=false lo spegne (flusso dell'app Mendi). */
+export function encodeSensor(read: boolean, address = 0, data = 0): Uint8Array {
+  const out: number[] = [];
+  writeBoolField(out, 1, read);
+  writeInt32Field(out, 2, address);
+  if (data !== 0) {
+    writeVarint(out, BigInt((3 << 3) | 5));
+    const b = new Uint8Array(4);
+    new DataView(b.buffer).setUint32(0, data, true);
+    out.push(...b);
+  }
   return Uint8Array.from(out);
 }
 

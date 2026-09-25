@@ -19,6 +19,9 @@ import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
 import type { Document, Session } from "./model";
 import { AGGREGATE_THRESHOLDS, type Aggregate } from "./aggregate";
+import { BOOK_R, describeWeights, type Calibration } from "./calibrate";
+import { highestEffortSegments, slowestSegments, type SegmentMetrics } from "./segments";
+import { HRF_DESCRIPTION } from "./hrf";
 
 export interface DossierInput {
   session: Session;
@@ -29,6 +32,10 @@ export interface DossierInput {
   sessionJson: string;
   /** Nome di chi risponde del documento ("il nome sul cartello"). Facoltativo. */
   responsible?: string;
+  /** Metriche parola per parola (solo nei modi a porzioni). */
+  segments?: SegmentMetrics[];
+  /** Varianza spiegata dal modello HRF sulle porzioni. */
+  modelR2?: number | null;
 }
 
 /** SHA-256 esadecimale, con WebCrypto; in ambienti senza crypto ritorna null. */
@@ -179,6 +186,13 @@ function writer(pdf: jsPDF) {
   return { state, heading, paragraph, bullets, title, afterTable, frictionColor, closing };
 }
 
+function readingModeLabel(session: Session): string {
+  const r = session.reading;
+  if (!r || r.mode === "clausola") return "clausola intera";
+  if (r.mode === "porzioni") return "a porzioni, al ritmo del lettore";
+  return `a porzioni, a scorrimento (${r.wordsPerMinute ?? "?"} parole al minuto)`;
+}
+
 export async function buildDossier(input: DossierInput): Promise<Blob> {
   const { session, doc, metrics, friction } = input;
   const pdf = new jsPDF({ unit: "mm", format: "a4" });
@@ -276,10 +290,53 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     }
   }
 
-  heading("4. Metodo dichiarato");
+  const segs = input.segments ?? [];
+  if (segs.length > 0) {
+    heading("4. Parola per parola");
+    const median = (() => {
+      const xs = segs.filter((r) => r.msPerWord !== null).map((r) => r.msPerWord!).sort((a, b) => a - b);
+      return xs.length ? xs[Math.floor(xs.length / 2)] : null;
+    })();
+    paragraph(
+      `Presentazione ${readingModeLabel(session)}${session.reading?.voiceRecorded ? ", con registrazione vocale" : ""}. ` +
+        `${segs.length} porzioni; tempo per parola mediano ${median ? Math.round(median) : "—"} ms. ` +
+        "Le porzioni più lente della sessione, con il tempo per parola, i ritorni e le fermate.",
+      8.5,
+      3,
+    );
+    const hasBodySeg = segs.some((r) => r.model);
+    const head = ["Cl.", "Porzione", "Parole", "ms/parola", "Rit.", "Ferm."];
+    if (hasBodySeg) head.push("β sforzo (HRF)");
+    autoTable(pdf, {
+      startY: w.state.y,
+      head: [head],
+      body: slowestSegments(segs, 12).map((r) => {
+        const row: (string | number)[] = [r.clauseIndex, r.text, r.wordCount, Math.round(r.msPerWord!), r.returns, r.pauses];
+        if (hasBodySeg) row.push(r.model ? `${r.model.beta.toFixed(4)} ± ${r.model.se.toFixed(4)}` : "—");
+        return row;
+      }),
+      ...TABLE_STYLE,
+      columnStyles: { 1: { cellWidth: 80 } },
+    });
+    w.afterTable();
+    if (hasBodySeg) {
+      paragraph(HRF_DESCRIPTION + (input.modelR2 != null ? ` Varianza spiegata dal modello: ${(input.modelR2 * 100).toFixed(0)}%.` : ""), 8, 3);
+      paragraph("Le porzioni con lo sforzo attribuito più alto (β), con l'errore standard: un β non distinguibile da zero entro due errori standard non è un indizio.", 8.5, 3);
+      autoTable(pdf, {
+        startY: w.state.y,
+        head: [["Cl.", "Porzione", "ms/parola", "β sforzo (HRF)", "± e.s.", "Rit."]],
+        body: highestEffortSegments(segs, 12).map((r) => [r.clauseIndex, r.text, Math.round(r.msPerWord!), r.model!.beta.toFixed(4), r.model!.se.toFixed(4), r.returns]),
+        ...TABLE_STYLE,
+        columnStyles: { 1: { cellWidth: 80 } },
+      });
+      w.afterTable();
+    }
+  }
+
+  heading(segs.length > 0 ? "5. Metodo dichiarato" : "4. Metodo dichiarato");
   bullets(METHOD, 8.5);
 
-  heading("5. La costituzione della misurazione, applicata");
+  heading(segs.length > 0 ? "6. La costituzione della misurazione, applicata" : "5. La costituzione della misurazione, applicata");
   bullets(CONSTITUTION, 8.5);
 
   await w.closing(pdf, input.sessionJson, input.responsible, paragraph, heading);
@@ -293,6 +350,7 @@ export interface AggregateDossierInput {
   /** JSON dell'aggregato (per l'impronta). */
   aggregateJson: string;
   responsible?: string;
+  calibration?: Calibration;
 }
 
 export function aggregateSummary(a: Aggregate): string[] {
@@ -384,7 +442,28 @@ export async function buildAggregateDossier(input: AggregateDossierInput): Promi
     8.5,
   );
 
-  heading("4. La costituzione della misurazione, applicata");
+  if (input.calibration) {
+    const c = input.calibration;
+    const fr = (r: number | null) => (r === null ? "—" : r.toFixed(2));
+    heading("4. Ricalibrazione dell'LX sui dati");
+    if (!c.eligible) {
+      paragraph(`${c.reason} Con i pesi attuali (${describeWeights(c.defaultWeights)}) la correlazione tra LX e comprensione è r = ${fr(c.defaultR)}.`, 8.5, 3);
+    } else {
+      bullets(
+        [
+          `Pesi attuali: ${describeWeights(c.defaultWeights)} → r = ${fr(c.defaultR)}.`,
+          `Pesi ricalibrati su ${c.clauses} clausole e ${c.sessions} lettori: ${describeWeights(c.weights)} → r = ${fr(c.r)}. Nel libro: r = ${BOOK_R.calibration} in calibrazione, ${BOOK_R.validation} in validazione.`,
+          c.threshold
+            ? `Soglia osservata: ${c.threshold}/100 (sopra, la comprensione media cala di ${Math.round((c.thresholdDrop ?? 0) * 100)} punti); soglia del libro: ${LX_ACCESSIBILITY_THRESHOLD}.`
+            : "Nessuna soglia netta osservabile con questi dati.",
+          ...c.caveats,
+        ],
+        8.5,
+      );
+    }
+  }
+
+  heading(`${input.calibration ? 5 : 4}. La costituzione della misurazione, applicata`);
   bullets(CONSTITUTION, 8.5);
 
   await w.closing(pdf, input.aggregateJson, input.responsible, paragraph, heading);

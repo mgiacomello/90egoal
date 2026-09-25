@@ -16,6 +16,7 @@ const eslintConfig = defineConfig([
     "brain/**",
     // habeas-mentem-lab, idem.
     "habeas-mentem-lab/**",
+    "public/lab/**",
     // Motore OCR di terze parti, già minificato: non è codice nostro.
     "public/onetap/ocr/**",
   ]),

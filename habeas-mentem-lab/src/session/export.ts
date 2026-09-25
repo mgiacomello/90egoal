@@ -3,6 +3,7 @@
 import type { ClauseMetrics } from "./metrics";
 import type { Friction } from "./friction";
 import type { Clause, Session } from "./model";
+import type { SegmentMetrics } from "./segments";
 
 function csvEscape(v: unknown): string {
   const s = v === null || v === undefined ? "" : String(v);
@@ -78,7 +79,41 @@ export function clausesCsv(session: Session, metrics: ClauseMetrics[], friction:
   );
 }
 
-export function sessionJson(session: Session, clauses: Clause[], metrics: ClauseMetrics[], friction: Friction[] = []): string {
+/** Un record per porzione: il dato parola per parola. */
+export function segmentsCsv(session: Session, rows: SegmentMetrics[]): string {
+  const audioStart = session.events.find((e) => e.type === "audio_start")?.timestamp ?? null;
+  const firstEnter = session.events.find((e) => e.type === "segment_enter")?.timestamp ?? null;
+  return toCsv(
+    rows.map((r) => ({
+      session: session.id,
+      clause: r.clauseIndex,
+      segment: r.index + 1,
+      text: r.text,
+      words: r.wordCount,
+      dwell_ms: r.dwellMs,
+      ms_per_word: r.msPerWord === null ? "" : r.msPerWord.toFixed(1),
+      z_log_time: r.z === null ? "" : r.z.toFixed(3),
+      heat: r.heat,
+      visits: r.visits,
+      returns: r.returns,
+      pauses: r.pauses,
+      effort_beta_hrf: r.model ? r.model.beta.toFixed(5) : "",
+      effort_beta_se: r.model ? r.model.se.toFixed(5) : "",
+      effort_z_hrf: r.model?.z == null ? "" : r.model.z.toFixed(3),
+      effort_mean_lagged: r.effort.sampleCount ? r.effort.mean.toFixed(5) : "",
+      effort_samples: r.effort.sampleCount,
+      first_enter_offset_ms: firstEnter === null ? "" : firstVisitOffset(session, r.segmentId, firstEnter),
+      audio_offset_ms: audioStart === null ? "" : firstVisitOffset(session, r.segmentId, audioStart),
+    })),
+  );
+}
+
+function firstVisitOffset(session: Session, segmentId: string, origin: number): number | "" {
+  const ev = session.events.find((e) => e.type === "segment_enter" && e.segmentId === segmentId);
+  return ev ? ev.timestamp - origin : "";
+}
+
+export function sessionJson(session: Session, clauses: Clause[], metrics: ClauseMetrics[], friction: Friction[] = [], segments: SegmentMetrics[] = []): string {
   return JSON.stringify(
     {
       schema: "habeas-mentem-lab/session/v1",
@@ -87,6 +122,7 @@ export function sessionJson(session: Session, clauses: Clause[], metrics: Clause
       clauses,
       metrics,
       friction,
+      segments: segments.length ? segments : undefined,
       frameCount: session.frames.length,
       note:
         "L'indice di sforzo è un proxy relativo alla baseline della stessa sessione. " +

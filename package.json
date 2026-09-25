@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/onetap-ocr-assets.mjs && node scripts/build-lab.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -12,7 +13,6 @@
     "test": "npm run test:game && npm run test:onetap",
     "onetap:icons": "node scripts/onetap-icons.mjs",
     "onetap:ocr": "node scripts/onetap-ocr-assets.mjs",
-    "prebuild": "node scripts/onetap-ocr-assets.mjs",
     "predev": "node scripts/onetap-ocr-assets.mjs",
     "game:icons": "node scripts/game-icons.mjs"
   },
@@ -36,5 +36,8 @@
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": "22.x"
   }
 }

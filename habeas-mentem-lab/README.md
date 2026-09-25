@@ -69,8 +69,46 @@ open source [`mendi`](https://crates.io/crates/mendi) (Rust, MIT):
 - schema `proto3` in `src/mendi/protobuf.ts`, decoder scritto a mano
   (solo varint, fixed32, float), coperto dai test.
 
+Accensione, verificata su firmware 1.0.4 / hardware r2.2a: il flusso ottico
+non parte da solo. Dentro la fascia c'è un front-end TI AFE4404, raggiungibile
+registro per registro dalla caratteristica Sensor `…abb2`; il firmware lo
+configura all'avvio ma lascia spento il timer di campionamento (registro
+`0x1E`, bit TIMEREN). Il client scrive `0x1E = 0x000100` dopo la calibrazione
+e i frame arrivano entro un secondo; allo scollegamento lo rimette a zero.
+Il tasto «sonda di accensione» fotografa i 64 registri e prova le varianti,
+scrivendo tutto nel log: è ciò che ha permesso di trovare la sequenza.
+
 Un aggiornamento del firmware Mendi può cambiare il protocollo senza
 preavviso. È il rischio accettato per un prototipo interno.
+
+## Parola per parola
+
+La fascia non vede la singola parola: la risposta emodinamica arriva 4-8 s
+dopo lo stimolo. Ciò che si misura davvero parola per parola è il tempo, e
+solo se il testo compare a porzioni. Tre modi di presentazione, scelti prima
+della sessione:
+
+- **clausola intera**: il tempo si misura per clausola (modo originale);
+- **a porzioni, al ritmo del lettore**: poche parole alla volta (2-5, spezzate
+  alla punteggiatura e prima dei connettivi), si avanza con spazio o freccia:
+  tempo per parola, ritorni;
+- **a porzioni, a scorrimento**: le porzioni avanzano da sole a un ritmo in
+  parole al minuto; contano fermate e ritorni.
+
+Il segnale corporeo non viene «spostato»: viene modellato (`src/session/hrf.ts`).
+Ogni porzione ha un regressore pari alla sua esposizione convoluta con la
+risposta emodinamica canonica (doppia gamma: picco a 6 s, sottoscatto a 16 s,
+30 s di durata); i pesi β si stimano tutti insieme ai minimi quadrati, con
+costante e deriva lineare, escludendo i campioni con movimento. È il modello
+lineare generale dell'analisi fNIRS: le porzioni vicine si sovrappongono nel
+segnale e risolverle insieme le separa. Lo stesso modello dà un β per clausola.
+Resta un'attribuzione modellata, non una misura della parola, e il fascicolo lo
+scrive insieme alla varianza spiegata e all'errore standard di ogni β. Per
+confronto il CSV riporta anche la media su finestra spostata di 4 s. La vista
+«Parola per parola» colora ogni porzione per tempo per parola oppure per β.
+Facoltativa la registrazione vocale (lettura ad alta voce): resta nel
+browser, si scarica in `.webm`, e il CSV dà l'offset di ogni porzione
+dall'inizio dell'audio per un allineamento forzato fuori dal browser.
 
 ## L'indice di sforzo, e i suoi limiti
 
@@ -132,8 +170,7 @@ tests/           vitest
 
 2. ~~Test e prova operativa~~ — fatto.
 3. ~~Mappa della frizione~~ — fatto (prima versione; le soglie sono dichiarate nel codice).
-4. **LX Score Analyzer** — le quattro dimensioni (complessità linguistica, densità
-   concettuale, struttura informativa, distanza semantica) e la ricalibrazione dei pesi sui dati raccolti.
+4. ~~LX Score Analyzer~~ — fatto in prima versione: `src/session/calibrate.ts` ricalibra i pesi delle quattro strade sui dati aggregati (misura composita di comprensione = verifica, prova operativa, tempo compatibile con la lettura; ricerca dei pesi che rendono più negativa la correlazione, come nel libro; soglia osservata), con minimi dichiarati (5 lettori, 6 clausole), confronto con r = −0,71/−0,68 del libro e cautele esplicite. Il risultato entra nel fascicolo aggregato.
 6. ~~Fascicolo aggregato~~ — fatto: `src/session/aggregate.ts` importa i JSON di più sessioni sullo stesso documento e calcola, in forma anonima, dove i lettori si perdono (quote di lettori troppo veloci o tornati indietro, accuratezza della verifica, riuscita della prova, sforzo medio tra chi aveva il segnale, quota di lettori "persi"); frizione per convergenza tra lettori con soglie dichiarate (`AGGREGATE_THRESHOLDS`) e PDF aggregato in orizzontale.
 5. ~~Fascicolo di comprensibilità~~ — fatto: `src/session/dossier.ts` genera nel browser (jsPDF) il PDF con sintesi, mappa della frizione, risposte e compiti, metodo dichiarato, costituzione applicata, nome di chi risponde del documento e impronta SHA-256 del JSON di sessione.
 

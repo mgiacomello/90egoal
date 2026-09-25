@@ -1,6 +1,7 @@
 // Service worker di 90 & Goal: serve solo alle notifiche push.
 // Non intercetta la rete (nessun gestore "fetch"): il sito si comporta esattamente come senza.
 // ONE TAP ha il suo service worker su /onetap/, che ha la precedenza sulle sue pagine.
+// Le finestre di ONE TAP e del laboratorio (/lab) non vengono mai portate via da un tocco su una notifica.
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
@@ -34,7 +35,7 @@ self.addEventListener('notificationclick', (event) => {
     const finestre = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const c of finestre) {
       const u = new URL(c.url)
-      if (u.origin === self.location.origin && !u.pathname.startsWith('/onetap')) {
+      if (u.origin === self.location.origin && !u.pathname.startsWith('/onetap') && !u.pathname.startsWith('/lab')) {
         await c.focus()
         if ('navigate' in c) { try { await c.navigate(url) } catch { /* pagina di un'altra origine o chiusa */ } }
         return
