@@ -20,8 +20,8 @@ export function Stepper({ phase, skip = [] }: { phase: Phase; skip?: string[] })
         const state = i < current ? "done" : i === current ? "current" : "todo";
         return (
           <li key={s.key} className={`step ${state}`} aria-current={state === "current" ? "step" : undefined}>
-            <span className="step-dot">{state === "done" ? "✓" : s.short}</span>
-            <span className="step-label">{s.label}</span>
+            <span className="step-bar" />
+            <span className="step-label">{state === "done" ? "✓ " : ""}{s.label}</span>
           </li>
         );
       })}

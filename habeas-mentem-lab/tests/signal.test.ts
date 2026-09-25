@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { computeBaseline, effortFromFrame, MovingAverage, summarize } from "../src/mendi/signal";
+import { computeBaseline, effortFromFrame, isArtifact, MovingAverage, summarize } from "../src/mendi/signal";
 import type { Frame } from "../src/mendi/types";
+import * as sig from "../src/mendi/signal";
 
 function frame(over: Partial<Frame> = {}): Frame {
   return {
@@ -23,20 +24,42 @@ describe("indice di sforzo", () => {
     expect(b.sampleCount).toBe(10);
   });
 
-  it("vale zero sulla baseline stessa e cresce quando il rosso viene assorbito di più dell'IR", () => {
+  it("vale zero sulla baseline; l'attivazione (più assorbimento IR, meno rosso) alza HbO e abbassa HbR", () => {
     const b = computeBaseline(Array.from({ length: 10 }, () => frame()))!;
-    expect(effortFromFrame(frame(), b)!.effort).toBeCloseTo(0, 10);
-    // Attivazione: meno rosso trasmesso (più assorbito), IR un po' più trasmesso.
-    const active = frame({ redLeft: 29000, redRight: 29000, irLeft: 50500, irRight: 50500 });
-    expect(effortFromFrame(active, b)!.effort).toBeGreaterThan(0);
-    const calm = frame({ redLeft: 31000, redRight: 31000 });
+    const rest = effortFromFrame(frame(), b)!;
+    expect(rest.effort).toBeCloseTo(0, 10);
+    expect(rest.hbr).toBeCloseTo(0, 10);
+    // Attivazione prefrontale: sale HbO (assorbe di più a 850 nm → meno IR trasmesso),
+    // scende HbR (assorbe di più a 660 nm → più rosso trasmesso).
+    const active = frame({ irLeft: 49000, irRight: 49000, redLeft: 30400, redRight: 30400 });
+    const a = effortFromFrame(active, b)!;
+    expect(a.effort).toBeGreaterThan(0);
+    expect(a.hbr!).toBeLessThan(0);
+    const calm = frame({ irLeft: 51000, irRight: 51000, redLeft: 29600, redRight: 29600 });
     expect(effortFromFrame(calm, b)!.effort).toBeLessThan(0);
   });
 
-  it("segnala il movimento della testa e scarta i campioni saturi", () => {
+  it("l'inversione a due lunghezze d'onda è coerente con i coefficienti di estinzione", () => {
+    // ΔOD prodotti da HbO = +1 mM·cm e HbR = 0 devono tornare HbO > 0, HbR ≈ 0.
+    const { EXTINCTION, hemoglobin, PATH_LENGTH_CM } = sig;
+    const od660 = EXTINCTION.hbo660 * PATH_LENGTH_CM * 0.001;
+    const od850 = EXTINCTION.hbo850 * PATH_LENGTH_CM * 0.001;
+    const h = hemoglobin(od660, od850);
+    expect(h.hbo).toBeCloseTo(1, 6);
+    expect(h.hbr).toBeCloseTo(0, 6);
+  });
+
+  it("segnala il movimento della testa (scossa o rotazione) e scarta i campioni saturi", () => {
     const b = computeBaseline(Array.from({ length: 10 }, () => frame()))!;
-    const moving = effortFromFrame(frame({ accX: 8000 }), b)!;
-    expect(moving.motion).toBeGreaterThan(0.1);
+    const moving = effortFromFrame(frame({ accX: 12000 }), b)!;
+    expect(moving.motion).toBeGreaterThan(0.15);
+    expect(isArtifact(moving)).toBe(true);
+    // Rotazione lenta: il modulo dell'accelerazione resta 1 g, ma il giroscopio la vede.
+    const turning = effortFromFrame(frame({ angY: Math.round(20 * (32768 / 125)) }), b)!;
+    expect(turning.motion).toBeLessThan(0.05);
+    expect(turning.rotation!).toBeCloseTo(20, 0);
+    expect(isArtifact(turning)).toBe(true);
+    expect(isArtifact(effortFromFrame(frame(), b)!)).toBe(false);
     expect(effortFromFrame(frame({ irLeft: 500, ambLeft: 1000 }), b)).toBeNull();
   });
 

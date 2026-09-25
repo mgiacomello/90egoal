@@ -112,18 +112,18 @@ dall'inizio dell'audio per un allineamento forzato fuori dal browser.
 
 ## L'indice di sforzo, e i suoi limiti
 
-`src/mendi/signal.ts`, dichiarato per intero:
-
-1. sottrazione della luce ambiente per canale;
-2. densità ottica relativa alla baseline, `od = −ln(I / I₀)`;
-3. proxy HbO = `od(rosso) − od(IR)` (coefficienti di estinzione e DPF non
-   applicati: è un'approssimazione di primo ordine, non una concentrazione);
-4. media dei canali frontali sinistro e destro, media mobile di 1 s.
-
-Unità arbitrarie, confrontabili solo tra clausole della **stessa sessione**.
-Il modulo non produce un giudizio di comprensione, non inferisce emozioni,
-non classifica il partecipante. Segnala dove il segnale si sposta rispetto
-al riposo: un indizio da leggere in convergenza con gli altri sensori.
+Dal segnale grezzo (`src/mendi/signal.ts`): luce ambiente sottratta; ΔOD per
+lunghezza d'onda rispetto alla media della baseline a riposo (30 s);
+inversione a due lunghezze d'onda con la legge di Beer-Lambert modificata e i
+coefficienti di estinzione di HbO e HbR a 660 e 850 nm (tabelle di Prahl),
+percorso ottico L·DPF = 18 cm: ΔHbO e ΔHbR in µM stimati. L'indice di sforzo è
+ΔHbO, media dei due canali frontali. Le lunghezze d'onda reali della fascia non
+sono pubblicate: 660/850 è l'ipotesi dichiarata, e il valore è confrontabile
+solo dentro la stessa sessione. Gli artefatti di movimento vengono dal
+giroscopio (rotazione > 12°/s) e dall'accelerometro (oltre 0,15 g da 1 g), e
+restano fuori dal modello. La risposta emodinamica è lenta (4-8 s): un singolo
+episodio di distrazione può non lasciare una firma leggibile a occhio; il
+segnale acquista senso sulle porzioni lunghe o riviste e nel modello HRF.
 
 ## L'LX Complexity Score, stimato
 

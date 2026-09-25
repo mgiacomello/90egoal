@@ -93,7 +93,7 @@ export function dossierSummary(input: DossierInput): string[] {
 
 const METHOD: string[] = [
   "Tempo: millisecondi per clausola, visite e ritorni; parole al minuto; sopra 600 wpm il tempo esclude la lettura completa.",
-  "Corpo (se presente): fascia Mendi, ~25 Hz; baseline a riposo di 30 s; indice di sforzo = od(rosso) - od(IR) rispetto alla baseline, media dei canali frontali, unità arbitrarie; campioni con movimento > 0,15 g segnalati come artefatti.",
+  "Corpo (se presente): fascia Mendi, ~25 Hz; baseline a riposo di 30 s; ΔOD per lunghezza d'onda rispetto alla baseline e inversione a due lunghezze d'onda (Beer-Lambert modificata, coefficienti di estinzione HbO/HbR a 660 e 850 nm, L·DPF = 18 cm): indice di sforzo = ΔHbO in µM stimati, media dei canali frontali; artefatti = rotazione > 12°/s (giroscopio) o accelerazione oltre 0,15 g da 1 g, esclusi dal modello.",
   `Testo: stima euristica dell'LX Complexity Score (0-100) su quattro strade: lingua, affollamento, ordine, distanza semantica; calibrata sui valori del corpus BCI (Giacomello, Springer 2026); soglia ${LX_ACCESSIBILITY_THRESHOLD}.`,
   "Verifica: domande a risposta chiusa dopo la lettura, senza rileggere. Prova operativa: ritrovare la clausola che serve, con il documento riapribile.",
   "Convergenza: ogni sensore alza al massimo un indizio per clausola. Rosso con almeno tre indizi di cui uno da verifica o prova; giallo con due, o con una sola verifica o prova fallita; verde altrimenti. Il corpo da solo non colora mai.",
@@ -248,7 +248,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
   });
   w.afterTable();
   paragraph(
-    "! = oltre 600 parole al minuto. LX in scala 0-100 (le quattro strade nel JSON allegato). Lo sforzo è la variazione media rispetto alla baseline, unità arbitrarie, confrontabile solo dentro la sessione.",
+    "! = oltre 600 parole al minuto. LX in scala 0-100 (le quattro strade nel JSON allegato). Lo sforzo è ΔHbO medio rispetto alla baseline, in µM stimati, confrontabile solo dentro la sessione.",
     8,
     4,
   );
