@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/onetap-ocr-assets.mjs && node scripts/build-lab.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -11,7 +12,6 @@
     "test": "npm run test:onetap",
     "onetap:icons": "node scripts/onetap-icons.mjs",
     "onetap:ocr": "node scripts/onetap-ocr-assets.mjs",
-    "prebuild": "node scripts/onetap-ocr-assets.mjs",
     "predev": "node scripts/onetap-ocr-assets.mjs"
   },
   "dependencies": {
