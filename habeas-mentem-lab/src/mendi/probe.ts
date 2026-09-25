@@ -21,7 +21,33 @@ interface Step {
   run: (dev: WebBluetoothMendi) => Promise<void>;
 }
 
+// Calibration con TUTTI i campi presenti, anche a zero: alcuni firmware
+// (nanopb con has_*) distinguono «campo assente» da «campo a zero».
+const CALIBRATION_EXPLICIT = Uint8Array.from([
+  0x0d, 0, 0, 0, 0, // offset_l = 0.0
+  0x15, 0, 0, 0, 0, // offset_r = 0.0
+  0x1d, 0, 0, 0, 0, // offset_p = 0.0
+  0x20, 0x01, // enable = true
+  0x28, 0x00, // low_power_mode = false
+]);
+// Sensor con tutti i campi: read=true, address=0, data=0.
+const SENSOR_EXPLICIT = Uint8Array.from([0x08, 0x01, 0x10, 0x00, 0x1d, 0, 0, 0, 0]);
+// Sensor «scrittura» con tutti i campi a zero: read=false, address=0, data=0.
+const SENSOR_WRITE_ZERO = Uint8Array.from([0x08, 0x00, 0x10, 0x00, 0x1d, 0, 0, 0, 0]);
+
 const STEPS: Step[] = [
+  {
+    title: "calibrazione con tutti i campi espliciti (offset 0, auto sì, risparmio no)",
+    run: (d) => d.writeRaw("calibration", CALIBRATION_EXPLICIT, "Calibration esplicita").then(() => undefined),
+  },
+  {
+    title: "Sensor con tutti i campi espliciti (read=true, registro 0, dato 0)",
+    run: (d) => d.writeRaw("sensor", SENSOR_EXPLICIT, "Sensor esplicito").then(() => undefined),
+  },
+  {
+    title: "Sensor scrittura con campi a zero (read=false)",
+    run: (d) => d.writeRaw("sensor", SENSOR_WRITE_ZERO, "Sensor read=false esplicito").then(() => undefined),
+  },
   {
     title: "calibrazione con correnti LED esplicite (20 mA) e autocalibrazione",
     run: (d) => d.writeCalibration(20, 20, 20, true, false).then(() => undefined),

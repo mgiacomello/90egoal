@@ -154,9 +154,14 @@ export function useRecorder() {
   const probe = useCallback(async () => {
     const src = source.current;
     if (!(src instanceof WebBluetoothMendi)) return;
-    const { runProbe } = await import("../mendi/probe");
     const log = (line: string) => setBtLog((prev) => [...prev, `${new Date().toLocaleTimeString("it-IT")} ${line}`]);
-    await runProbe(src, log);
+    log("Avvio la sonda…");
+    try {
+      const { runProbe } = await import("../mendi/probe");
+      await runProbe(src, log);
+    } catch (e) {
+      log(`Sonda interrotta: ${e instanceof Error ? e.message : String(e)}`);
+    }
   }, []);
 
   const disconnect = useCallback(async () => {
