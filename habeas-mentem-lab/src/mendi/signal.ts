@@ -6,18 +6,38 @@
 // prefrontale si sposta. È un indizio, da leggere solo in convergenza con
 // tempo di lettura, ritorni, test di comprensione e prova operativa.
 //
-// Metodo (volutamente semplice e dichiarato):
+// Metodo (dichiarato, standard fNIRS):
 // 1. Sottrazione della luce ambiente: ir' = ir - amb, red' = red - amb.
-// 2. Densità ottica relativa (legge di Beer-Lambert modificata, senza DPF):
-//    od = -ln(I / I0), con I0 = media della baseline.
-// 3. Proxy di ossigenazione: hbo ≈ odRed - k·odIr (k = 1 come prima
-//    approssimazione, coefficienti di estinzione non applicati).
-//    In fNIRS l'aumento di ossiemoglobina durante attivazione riduce
-//    l'assorbimento dell'IR e aumenta quello del rosso: il segno è coerente.
-// 4. Media dei due canali frontali (sinistro, destro) e media mobile.
-// L'indice ha unità arbitrarie ed è confrontabile solo dentro la stessa sessione.
+// 2. Variazione di densità ottica per lunghezza d'onda (Beer-Lambert
+//    modificata): ΔOD = -ln(I / I0), con I0 = media della baseline.
+// 3. Inversione a due lunghezze d'onda con i coefficienti di estinzione di
+//    emoglobina ossigenata (HbO) e deossigenata (HbR) a 660 nm (rosso) e
+//    850 nm (infrarosso), tabelle di Prahl (cm⁻¹ / mM):
+//      ΔHbO = (ε_HbR,850·ΔOD_660 − ε_HbR,660·ΔOD_850) / det
+//      ΔHbR = (ε_HbO,660·ΔOD_850 − ε_HbO,850·ΔOD_660) / det
+//    con det = ε_HbO,660·ε_HbR,850 − ε_HbO,850·ε_HbR,660, e percorso ottico
+//    L·DPF = 3 cm · 6 = 18 cm: le unità sono µM stimati, confrontabili solo
+//    dentro la sessione (le lunghezze d'onda reali della fascia non sono
+//    pubblicate: 660/850 è l'ipotesi dichiarata).
+// 4. Indice di sforzo = ΔHbO (attivazione prefrontale: sale HbO, scende HbR).
+//    Media dei due canali frontali; media mobile per la vista dal vivo.
+// 5. Movimento: giroscopio (±125 dps su int16) e modulo dell'accelerazione;
+//    un campione è artefatto se la rotazione supera ROTATION_THRESHOLD_DPS o
+//    l'accelerazione si scosta da 1 g oltre MOTION_THRESHOLD_G.
 
 import type { Frame } from "./types";
+
+/** Coefficienti di estinzione (cm⁻¹/mM), Prahl: HbO2 e Hb a 660 e 850 nm. */
+export const EXTINCTION = {
+  hbo660: 0.3200, hbr660: 3.2270,
+  hbo850: 1.0580, hbr850: 0.6910,
+};
+/** Percorso ottico efficace L·DPF (cm). */
+export const PATH_LENGTH_CM = 3 * 6;
+
+/** Fondo scala del giroscopio: ±125 dps su int16 → 262.14 LSB per dps. */
+export const GYRO_LSB_PER_DPS = 32768 / 125;
+export const ROTATION_THRESHOLD_DPS = 12;
 
 export interface Baseline {
   irLeft: number; redLeft: number; irRight: number; redRight: number;
@@ -26,14 +46,32 @@ export interface Baseline {
 
 export interface EffortSample {
   timestamp: number;
-  /** Proxy HbO canale sinistro (unità arbitrarie, 0 = baseline). */
+  /** ΔHbO canale sinistro (µM stimati, 0 = baseline). */
   left: number;
-  /** Proxy HbO canale destro. */
+  /** ΔHbO canale destro. */
   right: number;
-  /** Media dei due canali. */
+  /** Indice di sforzo: media dei due canali di ΔHbO. */
   effort: number;
-  /** Ampiezza del movimento della testa (g), per scartare gli artefatti. */
+  /** ΔHbR medio (scende durante l'attivazione). */
+  hbr?: number;
+  /** Scostamento del modulo dell'accelerazione da 1 g. */
   motion: number;
+  /** Velocità angolare della testa (gradi al secondo). */
+  rotation?: number;
+}
+
+/** Vero se il campione è un artefatto di movimento (rotazione o scossa). */
+export function isArtifact(s: { motion: number; rotation?: number }): boolean {
+  return s.motion > MOTION_THRESHOLD_G || (s.rotation ?? 0) > ROTATION_THRESHOLD_DPS;
+}
+
+/** Inversione a due lunghezze d'onda: da ΔOD (rosso, IR) a ΔHbO e ΔHbR in µM stimati. */
+export function hemoglobin(odRed: number, odIr: number): { hbo: number; hbr: number } {
+  const { hbo660: a, hbr660: b, hbo850: c, hbr850: d } = EXTINCTION;
+  const det = a * d - c * b;
+  const hbo = (d * odRed - b * odIr) / det / PATH_LENGTH_CM;
+  const hbr = (a * odIr - c * odRed) / det / PATH_LENGTH_CM;
+  return { hbo: hbo * 1000, hbr: hbr * 1000 };
 }
 
 export function computeBaseline(frames: Frame[]): Baseline | null {
@@ -65,15 +103,19 @@ function od(intensity: number, reference: number): number {
 
 export function effortFromFrame(f: Frame, b: Baseline): EffortSample | null {
   if (!isUsable(f)) return null;
-  const left = od(f.redLeft - f.ambLeft, b.redLeft) - od(f.irLeft - f.ambLeft, b.irLeft);
-  const right = od(f.redRight - f.ambRight, b.redRight) - od(f.irRight - f.ambRight, b.irRight);
+  const l = hemoglobin(od(f.redLeft - f.ambLeft, b.redLeft), od(f.irLeft - f.ambLeft, b.irLeft));
+  const r = hemoglobin(od(f.redRight - f.ambRight, b.redRight), od(f.irRight - f.ambRight, b.irRight));
   // Accelerometro ±2 g su int16: 16384 ≈ 1 g. A riposo il modulo vale ~1 g.
   const g = Math.hypot(f.accX, f.accY, f.accZ) / 16384;
+  const rotation = Math.hypot(f.angX, f.angY, f.angZ) / GYRO_LSB_PER_DPS;
   return {
     timestamp: f.timestamp,
-    left, right,
-    effort: (left + right) / 2,
+    left: l.hbo,
+    right: r.hbo,
+    effort: (l.hbo + r.hbo) / 2,
+    hbr: (l.hbr + r.hbr) / 2,
     motion: Math.abs(g - 1),
+    rotation,
   };
 }
 
@@ -109,7 +151,7 @@ export function summarize(samples: EffortSample[]): EffortStats {
   for (const s of samples) {
     sum += s.effort;
     if (s.effort > peak) peak = s.effort;
-    if (s.motion > MOTION_THRESHOLD_G) artifacts++;
+    if (isArtifact(s)) artifacts++;
   }
   return {
     mean: sum / samples.length,
