@@ -13,7 +13,7 @@ import {
   MENDI_SERVICE_UUID,
 } from "./protocol";
 import { decodeAdc, decodeCalibration, decodeDiagnostics, decodeFrame, decodeSensor, encodeCalibration, encodeSensor } from "./protobuf";
-import type { DeviceInfo, MendiListener, MendiSource } from "./types";
+import type { DeviceInfo, Frame, MendiListener, MendiSource } from "./types";
 
 const DEVICE_INFORMATION_SERVICE = "device_information";
 const FIRMWARE_REVISION = "firmware_revision_string";
@@ -108,7 +108,11 @@ export class WebBluetoothMendi implements MendiSource {
   private diagnostics: BluetoothRemoteGATTCharacteristic | null = null;
   private frameChar: BluetoothRemoteGATTCharacteristic | null = null;
   private frames = 0;
+  /** Campioni arrivati per notifica (non per lettura diretta o polling). */
+  private notified = 0;
   private otherNotifications = 0;
+  private polling: ReturnType<typeof setInterval> | null = null;
+  private pendingRegister: Map<number, (r: SensorResponse) => void> = new Map();
   private listeners = new Set<MendiListener>();
   private log: (line: string) => void = () => undefined;
   private watchdog: ReturnType<typeof setTimeout>[] = [];
@@ -146,6 +150,7 @@ export class WebBluetoothMendi implements MendiSource {
     log(`Dispositivo scelto: ${this.device.name ?? "(senza nome)"} · id ${this.device.id.slice(0, 8)}…`);
     this.device.addEventListener("gattserverdisconnected", () => {
       this.clearWatchdog();
+      this.stopPolling();
       this.server = null;
       this.service = null;
       this.calibration = null;
@@ -209,16 +214,17 @@ export class WebBluetoothMendi implements MendiSource {
       const bytes = toBytes(value);
       const decoded = decodeFrame(bytes);
       if (decoded) {
-        this.frames++;
-        if (this.frames === 1) {
+        this.notified++;
+        if (this.notified === 1) {
           this.clearWatchdog();
-          log(`Primo campione ricevuto (${bytes.length} byte: ${hex(bytes, 16)}…): la fascia trasmette.`);
-          log(`IR sx ${decoded.irLeft} · IR dx ${decoded.irRight} · ambiente sx ${decoded.ambLeft} · temp ${decoded.temperature.toFixed(1)}°`);
-        } else if (this.frames === 250) {
-          log("250 campioni ricevuti (~10 s a 25 Hz). Flusso regolare.");
+          this.stopPolling();
+          log(`Primo campione per notifica (${bytes.length} byte: ${hex(bytes, 16)}…): la fascia trasmette.`);
+          log(describeOptics(decoded));
+        } else if (this.notified === 250) {
+          log("250 campioni per notifica (~10 s a 25 Hz). Flusso regolare.");
         }
-        this.emit({ type: "frame", frame: decoded });
-      } else if (this.frames === 0) {
+        this.pushFrame(decoded);
+      } else if (this.notified === 0) {
         log(`Notifica su ABB1 non decodificabile (${bytes.length} byte: ${hex(bytes, 16)})`);
       }
     });
@@ -229,7 +235,12 @@ export class WebBluetoothMendi implements MendiSource {
     //    i byte grezzi delle prime risposte, così si vede se la fascia «parla».
     this.sensor = await this.listen(service, SENSOR_CHARACTERISTIC, "ABB2 Sensor", (bytes) => {
       const r = decodeSensor(bytes);
-      if (r) log(`Sensor → read=${r.read} indirizzo 0x${r.address.toString(16)} dato 0x${r.data.toString(16)}`);
+      if (!r) return;
+      const waiter = this.pendingRegister.get(r.address);
+      if (waiter) {
+        this.pendingRegister.delete(r.address);
+        waiter(r);
+      } else log(`Sensor → read=${r.read} registro 0x${r.address.toString(16).padStart(2, "0")} dato 0x${r.data.toString(16).padStart(6, "0")}`);
     });
     await this.listen(service, ADC_CHARACTERISTIC, "ABB4 Batteria", (bytes) => {
       const decoded = decodeAdc(bytes);
@@ -242,12 +253,14 @@ export class WebBluetoothMendi implements MendiSource {
         this.emit({ type: "calibration", reading: decoded });
       }
     });
-    try {
-      this.diagnostics = await service.getCharacteristic(DIAGNOSTICS_CHARACTERISTIC);
-      await this.readDiagnostics();
-    } catch (e) {
-      log(`Diagnostica non disponibile: ${errText(e)}`);
-    }
+    this.diagnostics = await this.listen(service, DIAGNOSTICS_CHARACTERISTIC, "ABB5 Diagnostica", (bytes) => {
+      const d = decodeDiagnostics(bytes);
+      if (d) {
+        log(`Diagnostica: IMU ${d.imuOk ? "ok" : "NO"} · sensore ottico ${d.sensorOk ? "ok" : "NO"}${d.adc ? ` · batteria ${d.adc.voltageMv} mV` : ""}`);
+        this.emit({ type: "diagnostics", reading: d });
+      }
+    });
+    if (this.diagnostics?.properties.read) await this.readDiagnostics();
 
     // 3. Accensione. È la sequenza della CLI Rust `mendi` (tasti c, e) e
     //    dell'app Mendi: autocalibrazione dei LED, poi Sensor(read=true).
@@ -343,29 +356,101 @@ export class WebBluetoothMendi implements MendiSource {
     await this.write(this.calibration, payload, "Autocalibrazione LED (Calibration enable=true)");
   }
 
+  private pushFrame(f: Frame): void {
+    this.frames++;
+    this.emit({ type: "frame", frame: f });
+  }
+
+  /** Legge il Frame una volta (0xABB1 è leggibile su firmware 1.0.4). */
+  async readFrameOnce(): Promise<Frame | null> {
+    if (!this.frameChar?.properties.read) return null;
+    try {
+      const bytes = toBytes(await this.frameChar.readValue());
+      return bytes.length > 0 ? decodeFrame(bytes) : null;
+    } catch (e) {
+      this.log(`Lettura diretta ABB1 fallita: ${errText(e)}`);
+      return null;
+    }
+  }
+
+  /**
+   * Ripiego: se le notifiche non arrivano ma la lettura diretta dà valori ottici
+   * diversi da zero, leggiamo il Frame in polling (~10 Hz). Per il segnale
+   * emodinamico, lento per natura, basta.
+   */
+  startPolling(): void {
+    if (this.polling) return;
+    this.log("Passo alla lettura diretta in polling (10 Hz): le notifiche non arrivano ma il sensore risponde.");
+    let busy = false;
+    this.polling = setInterval(async () => {
+      if (busy || !this.connected) return;
+      busy = true;
+      const f = await this.readFrameOnce();
+      if (f) this.pushFrame(f);
+      busy = false;
+    }, 100);
+  }
+
+  stopPolling(): void {
+    if (this.polling) clearInterval(this.polling);
+    this.polling = null;
+  }
+
+  get isPolling(): boolean {
+    return this.polling !== null;
+  }
+
+  /** Legge un registro del sensore ottico (risposta via notifica su ABB2). */
+  async readRegister(address: number, timeoutMs = 600): Promise<SensorResponse | null> {
+    if (!this.sensor) return null;
+    const answer = new Promise<SensorResponse | null>((resolve) => {
+      const t = setTimeout(() => {
+        this.pendingRegister.delete(address);
+        resolve(null);
+      }, timeoutMs);
+      this.pendingRegister.set(address, (r) => {
+        clearTimeout(t);
+        resolve(r);
+      });
+    });
+    const ok = await this.write(this.sensor, encodeSensor(true, address), `leggo registro 0x${address.toString(16).padStart(2, "0")}`);
+    if (!ok) return null;
+    return answer;
+  }
+
+  /** Scrive un registro del sensore ottico (Sensor read=false). */
+  async writeRegister(address: number, data: number): Promise<boolean> {
+    return this.write(this.sensor, encodeSensor(false, address, data), `scrivo registro 0x${address.toString(16).padStart(2, "0")} = 0x${data.toString(16).padStart(6, "0")}`);
+  }
+
+  /** Scrive un messaggio Calibration con offset espliciti. */
+  async writeCalibration(offsetLeft: number, offsetRight: number, offsetPulse: number, autoCalibration: boolean, lowPowerMode: boolean): Promise<boolean> {
+    const payload = encodeCalibration({ offsetLeft, offsetRight, offsetPulse, autoCalibration, lowPowerMode });
+    return this.write(this.calibration, payload, `Calibrazione offset ${offsetLeft}/${offsetRight}/${offsetPulse} mA auto=${autoCalibration} risparmio=${lowPowerMode}`);
+  }
+
+  /** Campioni arrivati per notifica dall'inizio del collegamento. */
+  get notifiedCount(): number {
+    return this.notified;
+  }
+
   /** Tentativi alternativi quando la fascia resta muta, uno per volta. */
   async nudge(step: number): Promise<void> {
     if (!this.service) return;
-    if (this.frames > 0) return;
+    if (this.notified > 0) return;
     if (step === 1) {
       this.log("Nessun campione dopo 4 s: riprovo Sensor(read=true).");
       await this.enableSensor();
     } else if (step === 2) {
-      this.log("Ancora nulla dopo 8 s: leggo la diagnostica e rimando la calibrazione con risparmio energetico spento.");
-      await this.readDiagnostics();
+      this.log("Ancora nulla dopo 8 s: rimando la calibrazione e il sensore.");
       await this.enableAutoCalibration();
       await this.enableSensor();
     } else if (step === 3) {
-      this.log("Ancora nulla dopo 14 s: provo a leggere direttamente il Frame e a riattivare le notifiche.");
-      if (this.frameChar?.properties.read) {
-        try {
-          const bytes = toBytes(await this.frameChar.readValue());
-          this.log(`Lettura diretta ABB1: ${bytes.length} byte: ${hex(bytes, 24)}`);
-          const f = decodeFrame(bytes);
-          if (f && bytes.length > 0) this.emit({ type: "frame", frame: f });
-        } catch (e) {
-          this.log(`Lettura diretta ABB1 fallita: ${errText(e)}`);
-        }
+      this.log("Ancora nulla dopo 14 s: leggo direttamente il Frame e riattivo le notifiche.");
+      const f = await this.readFrameOnce();
+      if (f) {
+        this.log(`Lettura diretta ABB1: ${describeOptics(f)}`);
+        if (hasOptics(f)) this.startPolling();
       }
       try {
         await this.frameChar?.stopNotifications();
@@ -374,11 +459,15 @@ export class WebBluetoothMendi implements MendiSource {
       } catch (e) {
         this.log(`Riattivazione notifiche fallita: ${errText(e)}`);
       }
-      await this.enableSensor();
     } else {
+      const f = await this.readFrameOnce();
+      if (f && hasOptics(f)) {
+        this.startPolling();
+        return;
+      }
       this.log(
-        "La fascia è collegata ma non trasmette. Prova: spegni e riaccendi la fascia (tasto laterale, fino alla vibrazione), " +
-          "assicurati che l'app Mendi sia chiusa, poi «scollega» e ricollega. Se i LED restano spenti, copia questo log e mandamelo.",
+        "La fascia è collegata e risponde, ma il sensore ottico è spento (canali ottici a zero). " +
+          "Premi «sonda di accensione»: prova le accensioni possibili una per volta e scrive che cosa succede. Guarda i LED durante la prova.",
       );
     }
   }
@@ -403,6 +492,7 @@ export class WebBluetoothMendi implements MendiSource {
 
   async disconnect(): Promise<void> {
     this.clearWatchdog();
+    this.stopPolling();
     try {
       if (this.sensor) await this.sensor.writeValueWithResponse(encodeSensor(false).slice().buffer as ArrayBuffer);
     } catch {
@@ -416,6 +506,20 @@ export class WebBluetoothMendi implements MendiSource {
     this.diagnostics = null;
     this.frameChar = null;
   }
+}
+
+export interface SensorResponse {
+  read: boolean;
+  address: number;
+  data: number;
+}
+
+export function describeOptics(f: Frame): string {
+  return `IR sx ${f.irLeft} · rosso sx ${f.redLeft} · amb sx ${f.ambLeft} · IR dx ${f.irRight} · rosso dx ${f.redRight} · IR polso ${f.irPulse} · acc ${f.accX}/${f.accY}/${f.accZ} · temp ${f.temperature.toFixed(1)}°`;
+}
+
+export function hasOptics(f: Frame): boolean {
+  return f.irLeft !== 0 || f.redLeft !== 0 || f.irRight !== 0 || f.redRight !== 0 || f.irPulse !== 0;
 }
 
 function hex(bytes: Uint8Array, max: number): string {

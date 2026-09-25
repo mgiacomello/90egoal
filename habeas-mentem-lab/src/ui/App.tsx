@@ -144,11 +144,12 @@ function Setup({ r }: { r: R }) {
                   <strong>{r.received > 0 ? `La fascia trasmette: ${r.received} campioni ricevuti.` : "Collegata, ma ancora nessun campione."}</strong>
                   {r.received === 0 && (
                     <span className="diag-detail">
-                      I LED sulla fronte devono accendersi. Se restano spenti: «riaccendi», poi spegni e riaccendi la fascia e ricollega. Il log qui sotto dice che cosa risponde.
+                      I LED sulla fronte devono accendersi. Se restano spenti, premi «sonda di accensione» e guarda i LED durante la prova (circa 30 secondi); poi «copia il log».
                     </span>
                   )}
                 </div>
                 <div className="row">
+                  <button className="primary" onClick={r.probe}>sonda di accensione</button>
                   <button onClick={r.wake}>riaccendi LED e sensore</button>
                   <button onClick={() => navigator.clipboard?.writeText(r.btLog.join("\n")).catch(() => undefined)}>copia il log</button>
                 </div>
