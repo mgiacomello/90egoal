@@ -186,7 +186,15 @@ export function useRecorder() {
   const finishBaseline = useCallback((): boolean => {
     const b = computeBaseline(baselineFrames.current);
     if (!b) {
-      setError("Baseline insufficiente: controlla che la fascia sia ben posizionata e riprova.");
+      const n = baselineFrames.current.length;
+      const src = source.current;
+      if (n === 0 && src instanceof WebBluetoothMendi) {
+        // Collegata ma muta: riprovo ad accendere il sensore ottico prima della nuova baseline.
+        src.enableSensor().catch(() => undefined);
+        setError("La fascia è collegata ma non ha inviato campioni in 30 s. Ho riacceso il sensore ottico: riprovo la baseline. Se resta a zero, scollega e ricollega la fascia (e controlla che i LED sulla fronte siano accesi).");
+      } else {
+        setError(`Baseline insufficiente: ${n} campioni ricevuti, ma con luce ambiente troppo alta o sensori scoperti. Controlla che la fascia aderisca alla fronte, lontano da luce diretta, e riprovo.`);
+      }
       baselineFrames.current = [];
       return false;
     }

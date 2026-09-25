@@ -61,3 +61,12 @@ describe("protobuf Mendi", () => {
     expect(cal.autoCalibration).toBe(true);
   });
 });
+
+describe("messaggio Sensor", () => {
+  it("read=true è il varint del campo 1, come nell'app Mendi", async () => {
+    const { encodeSensor } = await import("../src/mendi/protobuf");
+    expect(Array.from(encodeSensor(true))).toEqual([0x08, 0x01]);
+    expect(Array.from(encodeSensor(false))).toEqual([]);
+    expect(Array.from(encodeSensor(true, 5))).toEqual([0x08, 0x01, 0x10, 0x05]);
+  });
+});
