@@ -69,4 +69,10 @@ describe("messaggio Sensor", () => {
     expect(Array.from(encodeSensor(false))).toEqual([]);
     expect(Array.from(encodeSensor(true, 5))).toEqual([0x08, 0x01, 0x10, 0x05]);
   });
+
+  it("decodifica la risposta di lettura registro (data è fixed32)", async () => {
+    const { decodeSensor, encodeSensor } = await import("../src/mendi/protobuf");
+    expect(decodeSensor(encodeSensor(true, 0x12, 0xabcdef))).toEqual({ read: true, address: 0x12, data: 0xabcdef });
+    expect(decodeSensor(new Uint8Array())).toEqual({ read: false, address: 0, data: 0 });
+  });
 });
