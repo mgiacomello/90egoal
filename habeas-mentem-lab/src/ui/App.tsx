@@ -7,6 +7,7 @@ import { clauseMetrics } from "../session/metrics";
 import type { Document } from "../session/model";
 import { Sparkline } from "./Sparkline";
 import { Operate, Verify } from "./VerifyOperate";
+import { AggregateScreen } from "./AggregateScreen";
 import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
@@ -14,6 +15,7 @@ const BASELINE_SECONDS = 30;
 
 export function App() {
   const r = useRecorder();
+  const [mode, setMode] = useState<"session" | "aggregate">("session");
   return (
     <div className="app">
       <header className="topbar">
@@ -21,6 +23,11 @@ export function App() {
           <strong>Habeas Mentem Lab</strong> · LX Reader
         </div>
         <div className="status">
+          {r.phase === "setup" && (
+            <button className="linklike" onClick={() => setMode(mode === "session" ? "aggregate" : "session")}>
+              {mode === "session" ? "Fascicolo aggregato" : "Nuova sessione"}
+            </button>
+          )}
           {r.device ? (
             <span className="pill ok">
               {r.device.name}
@@ -40,7 +47,8 @@ export function App() {
         </div>
       )}
 
-      {r.phase === "setup" && <Setup r={r} />}
+      {r.phase === "setup" && mode === "aggregate" && <AggregateScreen onBack={() => setMode("session")} />}
+      {r.phase === "setup" && mode === "session" && <Setup r={r} />}
       {r.phase === "baseline" && <BaselineScreen r={r} />}
       {r.phase === "reading" && r.document && <Reader r={r} doc={r.document} />}
       {r.phase === "verify" && r.document && (

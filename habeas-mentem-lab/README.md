@@ -53,7 +53,10 @@ simulata** (flusso realistico, ma non simula il carico cognitivo) oppure
 
 Flusso: consenso → collega la fascia → scegli il documento (tre modelli
 inclusi, oppure **incolla un tuo testo**) → 30 s di baseline a riposo →
-lettura clausola per clausola → tabella dei risultati ed esportazione.
+lettura clausola per clausola → verifica → prova operativa → tabella dei
+risultati, esportazione e fascicolo PDF. Dalla schermata iniziale,
+**Fascicolo aggregato** importa i JSON di più sessioni sullo stesso
+documento e produce la mappa della frizione tra lettori.
 
 ## Come parla con Mendi
 
@@ -131,6 +134,7 @@ tests/           vitest
 3. ~~Mappa della frizione~~ — fatto (prima versione; le soglie sono dichiarate nel codice).
 4. **LX Score Analyzer** — le quattro dimensioni (complessità linguistica, densità
    concettuale, struttura informativa, distanza semantica) e la ricalibrazione dei pesi sui dati raccolti.
+6. ~~Fascicolo aggregato~~ — fatto: `src/session/aggregate.ts` importa i JSON di più sessioni sullo stesso documento e calcola, in forma anonima, dove i lettori si perdono (quote di lettori troppo veloci o tornati indietro, accuratezza della verifica, riuscita della prova, sforzo medio tra chi aveva il segnale, quota di lettori "persi"); frizione per convergenza tra lettori con soglie dichiarate (`AGGREGATE_THRESHOLDS`) e PDF aggregato in orizzontale.
 5. ~~Fascicolo di comprensibilità~~ — fatto: `src/session/dossier.ts` genera nel browser (jsPDF) il PDF con sintesi, mappa della frizione, risposte e compiti, metodo dichiarato, costituzione applicata, nome di chi risponde del documento e impronta SHA-256 del JSON di sessione.
 
 I documenti modello in `src/documents/` sono scritti per il laboratorio sul

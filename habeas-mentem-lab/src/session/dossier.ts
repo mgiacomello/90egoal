@@ -13,11 +13,12 @@
 // nome di chi risponde del documento e l'impronta dei dati esportati.
 
 import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
+import autoTable, { type CellHookData } from "jspdf-autotable";
 import { LX_ACCESSIBILITY_THRESHOLD } from "./lx";
 import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
 import type { Document, Session } from "./model";
+import { AGGREGATE_THRESHOLDS, type Aggregate } from "./aggregate";
 
 export interface DossierInput {
   session: Session;
@@ -101,46 +102,90 @@ const CONSTITUTION: string[] = [
   "6. Chi misura accetta di essere misurato: il metodo dichiara in anticipo i propri limiti e i risultati che lo smentirebbero.",
 ];
 
-export async function buildDossier(input: DossierInput): Promise<Blob> {
-  const { session, doc, metrics, friction } = input;
-  const pdf = new jsPDF({ unit: "mm", format: "a4" });
-  const W = pdf.internal.pageSize.getWidth();
-  const margin = 16;
-  const textWidth = W - margin * 2;
-  let y = margin;
+const margin = 16;
+const TABLE_STYLE = {
+  margin: { left: margin, right: margin },
+  styles: { font: "helvetica" as const, fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" as const },
+  headStyles: { fillColor: [47, 79, 111] as [number, number, number] },
+};
 
+/** Lo scrittore di pagina: titoli, paragrafi, elenchi, con il cambio pagina. */
+function writer(pdf: jsPDF) {
+  const textWidth = pdf.internal.pageSize.getWidth() - margin * 2;
+  const state = { y: margin };
   const heading = (text: string, size = 13) => {
-    if (y > 260) {
+    if (state.y > 260) {
       pdf.addPage();
-      y = margin;
+      state.y = margin;
     }
     pdf.setFont("helvetica", "bold").setFontSize(size);
-    pdf.text(text, margin, y);
-    y += size * 0.6;
+    pdf.text(text, margin, state.y);
+    state.y += size * 0.6;
   };
   const paragraph = (text: string, size = 9.5, gap = 2) => {
     pdf.setFont("helvetica", "normal").setFontSize(size);
     const lines = pdf.splitTextToSize(text, textWidth) as string[];
     for (const line of lines) {
-      if (y > 280) {
+      if (state.y > 280) {
         pdf.addPage();
-        y = margin;
+        state.y = margin;
       }
-      pdf.text(line, margin, y);
-      y += size * 0.5;
+      pdf.text(line, margin, state.y);
+      state.y += size * 0.5;
     }
-    y += gap;
+    state.y += gap;
   };
   const bullets = (items: string[], size = 9) => {
     for (const item of items) paragraph(`• ${item}`, size, 1);
-    y += 2;
+    state.y += 2;
   };
+  const title = (text: string) => {
+    pdf.setFont("helvetica", "bold").setFontSize(18);
+    pdf.text(text, margin, state.y);
+    state.y += 8;
+  };
+  const afterTable = () => {
+    state.y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  };
+  const frictionColor = (levelColumn: number) => (data: CellHookData) => {
+    if (data.section === "body" && data.column.index === levelColumn) {
+      const v = String(data.cell.raw);
+      data.cell.styles.fontStyle = "bold";
+      data.cell.styles.textColor = v === "rosso" ? [179, 38, 30] : v === "giallo" ? [160, 120, 0] : [46, 125, 79];
+    }
+  };
+  const closing = async (pdf: jsPDF, json: string, responsible: string | undefined, para: typeof paragraph, head: typeof heading) => {
+    head("Chi risponde di questo documento");
+    para(
+      responsible?.trim()
+        ? `Responsabile del documento: ${responsible.trim()}`
+        : "Responsabile del documento: ______________________________  (il nome sul cartello del cantiere)",
+      9.5,
+      2,
+    );
+    para("Data e firma: ______________________________", 9.5, 4);
+    head("Impronta dei dati", 11);
+    const hash = await fingerprint(json);
+    para(
+      hash
+        ? `SHA-256 dei dati esportati: ${hash}. Chi possiede i dati può ricalcolare ogni numero di questo fascicolo.`
+        : "Impronta non disponibile in questo ambiente. I dati esportati permettono comunque di ricalcolare ogni numero.",
+      8,
+      2,
+    );
+    para(`Generato ${fmtDate(Date.now())} da Habeas Mentem Lab (prototipo interno, non commerciale). Si misurano i documenti, mai le persone.`, 8, 0);
+    void pdf;
+  };
+  return { state, heading, paragraph, bullets, title, afterTable, frictionColor, closing };
+}
 
-  // Intestazione
-  pdf.setFont("helvetica", "bold").setFontSize(18);
-  pdf.text("Fascicolo di comprensibilità", margin, y);
-  y += 8;
-  pdf.setFont("helvetica", "normal").setFontSize(9.5);
+export async function buildDossier(input: DossierInput): Promise<Blob> {
+  const { session, doc, metrics, friction } = input;
+  const pdf = new jsPDF({ unit: "mm", format: "a4" });
+  const w = writer(pdf);
+  const { heading, paragraph, bullets } = w;
+
+  w.title("Fascicolo di comprensibilità");
   paragraph(`Documento: ${doc.title}`, 10, 0);
   paragraph(`Sessione ${session.id} · partecipante ${session.participant} · ${fmtDate(session.createdAt)}`, 9, 0);
   paragraph(
@@ -180,22 +225,14 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     return row;
   });
   autoTable(pdf, {
-    startY: y,
+    startY: w.state.y,
     head: [head],
     body,
-    margin: { left: margin, right: margin },
-    styles: { font: "helvetica", fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" },
-    headStyles: { fillColor: [47, 79, 111] },
+    ...TABLE_STYLE,
     columnStyles: { 1: { cellWidth: 34 }, [head.length - 1]: { cellWidth: 46 } },
-    didParseCell: (data) => {
-      if (data.section === "body" && data.column.index === head.length - 2) {
-        const v = String(data.cell.raw);
-        data.cell.styles.fontStyle = "bold";
-        data.cell.styles.textColor = v === "rosso" ? [179, 38, 30] : v === "giallo" ? [160, 120, 0] : [46, 125, 79];
-      }
-    },
+    didParseCell: w.frictionColor(head.length - 2),
   });
-  y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  w.afterTable();
   paragraph(
     "! = oltre 600 parole al minuto. LX in scala 0-100 (le quattro strade nel JSON allegato). Lo sforzo è la variazione media rispetto alla baseline, unità arbitrarie, confrontabile solo dentro la sessione.",
     8,
@@ -206,7 +243,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     heading("3. Verifica e prova operativa");
     if (hasVerify) {
       autoTable(pdf, {
-        startY: y,
+        startY: w.state.y,
         head: [["Domanda", "Clausola", "Risposta data", "Esito", "Tempo"]],
         body: session.answers.map((a) => {
           const q = doc.questions.find((x) => x.id === a.questionId);
@@ -218,28 +255,24 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
             seconds(a.ms),
           ];
         }),
-        margin: { left: margin, right: margin },
-        styles: { font: "helvetica", fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" },
-        headStyles: { fillColor: [47, 79, 111] },
+        ...TABLE_STYLE,
         columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 55 } },
       });
-      y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 4;
+      w.afterTable();
     }
     if (hasOperate) {
       autoTable(pdf, {
-        startY: y,
+        startY: w.state.y,
         head: [["Compito", "Clausola giusta", "Clausola scelta", "Esito", "Aperte", "Tempo"]],
         body: session.tasks.map((t) => {
           const task = doc.tasks.find((x) => x.id === t.taskId);
           const idx = (id: string) => doc.clauses.find((c) => c.id === id)?.index ?? id;
           return [task?.prompt ?? t.taskId, idx(t.clauseId), idx(t.chosenClauseId), t.correct ? "riuscito" : "fallito", t.opened, seconds(t.ms)];
         }),
-        margin: { left: margin, right: margin },
-        styles: { font: "helvetica", fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" },
-        headStyles: { fillColor: [47, 79, 111] },
+        ...TABLE_STYLE,
         columnStyles: { 0: { cellWidth: 80 } },
       });
-      y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+      w.afterTable();
     }
   }
 
@@ -249,26 +282,111 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
   heading("5. La costituzione della misurazione, applicata");
   bullets(CONSTITUTION, 8.5);
 
-  heading("6. Chi risponde di questo documento");
-  paragraph(
-    input.responsible?.trim()
-      ? `Responsabile del documento: ${input.responsible.trim()}`
-      : "Responsabile del documento: ______________________________  (il nome sul cartello del cantiere)",
-    9.5,
-    2,
-  );
-  paragraph("Data e firma: ______________________________", 9.5, 4);
+  await w.closing(pdf, input.sessionJson, input.responsible, paragraph, heading);
+  return pdf.output("blob");
+}
 
-  heading("7. Impronta dei dati", 11);
-  const hash = await fingerprint(input.sessionJson);
+// ── Fascicolo aggregato ──────────────────────────────────────────────────────
+
+export interface AggregateDossierInput {
+  aggregate: Aggregate;
+  /** JSON dell'aggregato (per l'impronta). */
+  aggregateJson: string;
+  responsible?: string;
+}
+
+export function aggregateSummary(a: Aggregate): string[] {
+  const T = AGGREGATE_THRESHOLDS;
+  const red = a.clauses.filter((c) => c.friction.level === "rosso").length;
+  const yellow = a.clauses.filter((c) => c.friction.level === "giallo").length;
+  const worst = [...a.clauses].sort((x, y) => y.lostShare - x.lostShare)[0];
+  const vAsked = a.clauses.reduce((s, c) => s + c.verification.asked, 0);
+  const vCorrect = a.clauses.reduce((s, c) => s + c.verification.correct, 0);
+  const oAsked = a.clauses.reduce((s, c) => s + c.operational.asked, 0);
+  const oCorrect = a.clauses.reduce((s, c) => s + c.operational.correct, 0);
+  const lines = [
+    `${a.sessions} lettori sullo stesso documento (${a.clauses.length} clausole), dal ${fmtDate(a.firstSession)} al ${fmtDate(a.lastSession)}.${a.simulatedSessions ? ` Attenzione: ${a.simulatedSessions} sessioni con fascia simulata (segnale non reale).` : ""}`,
+    `Corpo: ${a.sessionsWithSignal} lettori con segnale della fascia${a.sessionsWithSignal < T.minSignalReaders ? ` (sotto il minimo di ${T.minSignalReaders}: il corpo non conta come indizio)` : ""}.`,
+    `Frizione per convergenza tra lettori: ${red} clausole rosse, ${yellow} gialle, ${a.clauses.length - red - yellow} verdi.`,
+  ];
+  if (vAsked) lines.push(`Verifica: ${vCorrect} risposte corrette su ${vAsked} (${Math.round((vCorrect / vAsked) * 100)}%).`);
+  if (oAsked) lines.push(`Prova operativa: ${oCorrect} compiti riusciti su ${oAsked} (${Math.round((oCorrect / oAsked) * 100)}%).`);
+  if (worst && worst.lostShare > 0) {
+    lines.push(`La clausola che perde più lettori è la ${worst.index}${worst.heading ? ` (${worst.heading})` : ""}: gialla o rossa per il ${Math.round(worst.lostShare * 100)}% dei lettori nella propria sessione.`);
+  }
+  return lines;
+}
+
+export async function buildAggregateDossier(input: AggregateDossierInput): Promise<Blob> {
+  const a = input.aggregate;
+  const T = AGGREGATE_THRESHOLDS;
+  const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
+  const w = writer(pdf);
+  const { heading, paragraph, bullets } = w;
+
+  w.title("Fascicolo di comprensibilità — aggregato");
+  paragraph(`Documento: ${a.documentTitle}`, 10, 0);
+  paragraph(`${a.sessions} sessioni aggregate in forma anonima · Habeas Mentem Lab, LX Reader`, 9, 4);
+
+  heading("1. Sintesi");
+  bullets(aggregateSummary(a));
+
+  heading("2. Dove i lettori si perdono");
+  const hasVerify = a.clauses.some((c) => c.verification.asked > 0);
+  const hasOperate = a.clauses.some((c) => c.operational.asked > 0);
+  const hasBody = a.sessionsWithSignal > 0;
+  const head = ["#", "Clausola", "Parole", "Lettori", "Tempo mediano", "Troppo veloci", "Tornati", "LX"];
+  if (hasVerify) head.push("Verifica");
+  if (hasOperate) head.push("Prova");
+  if (hasBody) head.push("Sforzo (n)");
+  head.push("Persi", "Frizione", "Indizi");
+  const pct = (x: number | null) => (x === null ? "—" : `${Math.round(x * 100)}%`);
+  const body = a.clauses.map((c) => {
+    const row: (string | number)[] = [
+      c.index,
+      c.heading ?? "—",
+      c.wordCount,
+      c.readers,
+      seconds(c.dwellMedianMs),
+      pct(c.tooFastShare),
+      pct(c.returnedShare),
+      c.lx.total,
+    ];
+    if (hasVerify) row.push(c.verification.asked ? `${c.verification.correct}/${c.verification.asked}` : "—");
+    if (hasOperate) row.push(c.operational.asked ? `${c.operational.correct}/${c.operational.asked}${c.operational.timesChosenWrongly ? ` (scelta per errore ${c.operational.timesChosenWrongly})` : ""}` : "—");
+    if (hasBody) row.push(c.effort.mean === null ? "—" : `${c.effort.mean.toFixed(4)} (${c.effort.readersWithSignal})`);
+    row.push(pct(c.lostShare), c.friction.level, c.friction.reasons.join("; ") || "nessuno");
+    return row;
+  });
+  autoTable(pdf, {
+    startY: w.state.y,
+    head: [head],
+    body,
+    ...TABLE_STYLE,
+    columnStyles: { 1: { cellWidth: 40 }, [head.length - 1]: { cellWidth: 60 } },
+    didParseCell: w.frictionColor(head.length - 2),
+  });
+  w.afterTable();
   paragraph(
-    hash
-      ? `SHA-256 del JSON di sessione esportato: ${hash}. Chi possiede il JSON può ricalcolare ogni numero di questo fascicolo.`
-      : "Impronta non disponibile in questo ambiente. Il JSON di sessione esportato permette comunque di ricalcolare ogni numero.",
+    "Persi = quota di lettori per cui la clausola era gialla o rossa nella propria sessione. Le quote sono calcolate sui lettori che hanno aperto la clausola.",
     8,
-    2,
+    4,
   );
-  paragraph(`Generato ${fmtDate(Date.now())} da Habeas Mentem Lab (prototipo interno, non commerciale). Si misurano i documenti, mai le persone.`, 8, 0);
 
+  heading("3. Metodo dichiarato (aggregato)");
+  bullets(
+    [
+      ...METHOD.slice(0, 4),
+      `Convergenza tra lettori: il tempo conta se almeno il ${Math.round(T.timeShare * 100)}% dei lettori è stato troppo veloce o è tornato indietro; la verifica conta con almeno ${T.minAnswers} risposte e accuratezza sotto il ${Math.round(T.verifyAccuracy * 100)}%; la prova con almeno ${T.minAnswers} compiti e riuscita sotto il ${Math.round(T.operateSuccess * 100)}%; il corpo con almeno ${T.minSignalReaders} lettori con segnale e sforzo medio nel terzo più alto. Rosso con almeno tre indizi di cui uno da verifica o prova; giallo con due, o con una sola verifica o prova; verde altrimenti.`,
+      "Anonimato: gli pseudonimi delle sessioni non sono riportati; conta solo quanti lettori erano. I dati restano aggregati.",
+      METHOD[5],
+    ],
+    8.5,
+  );
+
+  heading("4. La costituzione della misurazione, applicata");
+  bullets(CONSTITUTION, 8.5);
+
+  await w.closing(pdf, input.aggregateJson, input.responsible, paragraph, heading);
   return pdf.output("blob");
 }
