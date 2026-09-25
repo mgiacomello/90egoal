@@ -23,3 +23,34 @@ Durata
 
 I cookie di sessione vengono cancellati alla chiusura del browser. I cookie persistenti hanno durata variabile, da alcuni giorni a un massimo di ventiquattro mesi, come indicato in dettaglio per ciascun cookie nel pannello delle preferenze.
 `;
+
+import type { Question, Task } from "../session/model";
+
+export const cookieQuestions: Question[] = [
+  {
+    id: "q1",
+    clauseId: "c5",
+    prompt: "Se chiudi il banner con la \"X\" senza scegliere, quali cookie vengono installati?",
+    options: ["Tutti", "Nessuno", "Solo quelli tecnici", "Quelli tecnici e analitici"],
+    correctIndex: 2,
+  },
+  {
+    id: "q2",
+    clauseId: "c4",
+    prompt: "Chi è responsabile dei cookie installati dai partner terzi per la pubblicità?",
+    options: ["Il sito, come titolare unico", "I partner, come titolari autonomi", "Nessuno: sono anonimi", "Il browser dell'utente"],
+    correctIndex: 1,
+  },
+  {
+    id: "q3",
+    clauseId: "c5",
+    prompt: "Per quanto tempo il sito ricorda le tue scelte sui cookie prima di riproporre il banner?",
+    options: ["Sei mesi", "Dodici mesi", "Ventiquattro mesi", "Per sempre"],
+    correctIndex: 0,
+  },
+];
+
+export const cookieTasks: Task[] = [
+  { id: "t1", clauseId: "c5", prompt: "Hai accettato tutto per sbaglio e vuoi cambiare idea. Trova la clausola che dice dove si fa." },
+  { id: "t2", clauseId: "c3", prompt: "Vuoi sapere se i cookie \"statistici\" richiedono il tuo consenso. Trova la clausola che lo spiega." },
+];

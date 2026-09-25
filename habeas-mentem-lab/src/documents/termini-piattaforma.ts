@@ -27,3 +27,34 @@ Il Fornitore può modificare i Termini in qualsiasi momento. Le modifiche sostan
 
 I Termini sono regolati dalla legge italiana. Per qualsiasi controversia è competente in via esclusiva il Foro di Milano, fatta salva, per gli utenti consumatori, la competenza inderogabile del foro del luogo di residenza o domicilio. Gli utenti consumatori possono altresì ricorrere alla piattaforma europea per la risoluzione delle controversie online.
 `;
+
+import type { Question, Task } from "../session/model";
+
+export const terminiQuestions: Question[] = [
+  {
+    id: "q1",
+    clauseId: "c4",
+    prompt: "Entro quando devi disdire l'abbonamento per evitare il rinnovo automatico?",
+    options: ["Entro il giorno della scadenza", "Almeno quindici giorni prima", "Almeno trenta giorni prima", "In qualsiasi momento, con rimborso del periodo residuo"],
+    correctIndex: 2,
+  },
+  {
+    id: "q2",
+    clauseId: "c3",
+    prompt: "Caricando un contenuto sulla Piattaforma, concedi al Fornitore il diritto di usarlo anche per addestrare sistemi di intelligenza artificiale?",
+    options: ["No, solo per mostrarlo agli altri utenti", "Sì, e la licenza è gratuita e sublicenziabile", "Sì, ma solo finché l'account resta aperto", "Solo se lo autorizzi caso per caso"],
+    correctIndex: 1,
+  },
+  {
+    id: "q3",
+    clauseId: "c5",
+    prompt: "Qual è il tetto massimo alla responsabilità del Fornitore verso di te?",
+    options: ["Nessun tetto", "Il prezzo dell'ultimo mese", "Quanto hai pagato nei dodici mesi precedenti", "Il doppio di quanto hai pagato in totale"],
+    correctIndex: 2,
+  },
+];
+
+export const terminiTasks: Task[] = [
+  { id: "t1", clauseId: "c4", prompt: "Vuoi disdire l'abbonamento. Trova la clausola che dice dove e come si fa." },
+  { id: "t2", clauseId: "c7", prompt: "Sei un consumatore e vuoi fare causa. Trova la clausola che dice davanti a quale giudice puoi andare." },
+];

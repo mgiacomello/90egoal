@@ -35,3 +35,37 @@ I Servizi utilizzano processi decisionali automatizzati per adattare la difficol
 
 Il Titolare si riserva di modificare la presente informativa. Le modifiche sono comunicate mediante pubblicazione nell'applicazione e hanno efficacia dalla data di pubblicazione. L'uso continuato dei Servizi successivamente alla pubblicazione costituisce presa d'atto delle modifiche.
 `;
+
+import type { Question, Task } from "../session/model";
+
+// Tre domande di verifica (una risposta giusta, distrattori plausibili) e due
+// prove operative: trovare la clausola che serve. Le clausole sono c1…c9
+// nell'ordine del testo.
+export const informativaNeurotechQuestions: Question[] = [
+  {
+    id: "q1",
+    clauseId: "c5",
+    prompt: "Per quanto tempo vengono conservati i segnali fisiologici grezzi?",
+    options: ["Dieci anni dalla cessazione del contratto", "Ventiquattro mesi dalla raccolta", "Senza limiti di tempo", "Fino alla revoca del consenso"],
+    correctIndex: 1,
+  },
+  {
+    id: "q2",
+    clauseId: "c7",
+    prompt: "Se revochi il consenso alla ricerca scientifica, che cosa succede ai modelli già addestrati sui tuoi dati?",
+    options: ["Vengono cancellati entro trenta giorni", "Vengono resi anonimi", "Non vengono cancellati", "Vengono restituiti all'interessato"],
+    correctIndex: 2,
+  },
+  {
+    id: "q3",
+    clauseId: "c3",
+    prompt: "Su quale base giuridica il Titolare usa i tuoi segnali per addestrare i propri algoritmi?",
+    options: ["Il tuo consenso esplicito", "L'esecuzione del contratto", "Il legittimo interesse del Titolare", "Un obbligo di legge"],
+    correctIndex: 2,
+  },
+];
+
+export const informativaNeurotechTasks: Task[] = [
+  { id: "t1", clauseId: "c7", prompt: "Vuoi revocare il consenso. Trova la clausola che dice come fare e a chi scrivere." },
+  { id: "t2", clauseId: "c6", prompt: "Vuoi sapere se i tuoi dati possono finire negli Stati Uniti. Trova la clausola che lo dice." },
+];
