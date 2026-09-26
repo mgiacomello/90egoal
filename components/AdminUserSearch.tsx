@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Schedina, Pronostico, Profile, ClassificaRow } from '@/lib/types'
 import Flag from '@/components/Flag'
+import { nomeBreve } from '@/lib/teams'
 
 interface Props {
   schedine: Schedina[]
@@ -19,11 +20,11 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
   const giocatori = profiles.filter(p => !p.is_admin)
 
   // 5 nomi casuali di default (scelti al mount, lato client → niente mismatch SSR)
+  const idsKey = giocatori.map(p => p.id).join(',')
   useEffect(() => {
-    const ids = giocatori.map(p => p.id)
-    for (let i = ids.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ids[i], ids[j]] = [ids[j], ids[i]] }
-    setSample(ids.slice(0, 5))
-  }, [giocatori.length])
+    const t = setTimeout(() => setSample(sampleCasuale(idsKey ? idsKey.split(',') : [], 5)), 0)
+    return () => clearTimeout(t)
+  }, [idsKey])
 
   const pronById = new Map<string, Pronostico[]>()
   pronostici.forEach(p => { const a = pronById.get(p.user_id) ?? []; a.push(p); pronById.set(p.user_id, a) })
@@ -31,7 +32,7 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
   classifica.forEach(c => classByKey.set(`${c.schedina_id}:${c.user_id}`, c))
   const totByUser = new Map<string, number>()
   classifica.forEach(c => totByUser.set(c.user_id, (totByUser.get(c.user_id) ?? 0) + c.totale))
-  const schedinaNome = (id: number) => schedine.find(s => s.id === id)?.nome.replace(' — Mondiali FIFA 2026', '') ?? `Schedina ${id}`
+  const schedinaNome = (id: number) => { const n = schedine.find(s => s.id === id)?.nome; return n ? nomeBreve(n) : `Schedina ${id}` }
 
   const ql = q.trim().toLowerCase()
   const mapped = giocatori.map(p => ({ p, tot: totByUser.get(p.id) ?? 0, n: (pronById.get(p.id) ?? []).length }))
@@ -126,4 +127,10 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
       </div>
     </div>
   )
+}
+
+function sampleCasuale(ids: string[], n: number): string[] {
+  const a = [...ids]
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]] }
+  return a.slice(0, n)
 }

@@ -1,4 +1,5 @@
 import { Schedina, Pronostico, Profile } from '@/lib/types'
+import { nomeBreve } from '@/lib/teams'
 
 interface Props {
   schedine: Schedina[]
@@ -25,7 +26,7 @@ export default function AdminStats({ schedine, profiles, pronostici }: Props) {
           <StatCard
             key={s.id}
             n={pronostici.filter(p => p.schedina_id === s.id).length}
-            l={`Compilati · ${s.nome.replace(' — Mondiali FIFA 2026', '')}`}
+            l={`Compilati · ${nomeBreve(s.nome)}`}
           />
         ))}
       </div>

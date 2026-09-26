@@ -3,16 +3,18 @@ import { Schedina, Pronostico, Risultato, MatchDetail } from '@/lib/types'
 import Flag from '@/components/Flag'
 import { stadiumImage } from '@/lib/stadiums'
 import Countdown from '@/components/Countdown'
+import { nomeBreve } from '@/lib/teams'
 
 interface Props {
   schedina: Schedina
   pronostico?: Pronostico
   risultato?: Risultato
   now: Date
+  punti?: number   // punti del giocatore su questa schedina (dalla classifica), anche durante il live
 }
 
-export default function SchedinaCard({ schedina: s, pronostico, risultato, now }: Props) {
-  const isKnockout = s.fase !== 'gironi'
+export default function SchedinaCard({ schedina: s, pronostico, risultato, now, punti }: Props) {
+  const isKnockout = s.fase === 'eliminazione'
   const deadline = new Date(s.deadline)
   const isScaduta = now > deadline
   const isCompilata = !!pronostico
@@ -20,7 +22,11 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
 
   const dett = (risultato?.dettagli as MatchDetail[] | undefined) ?? []
   const dettMap = new Map(dett.map(d => [`${d.home}__${d.away}`, d]))
-  const giocate = s.partite.filter(p => dettMap.has(`${p.home}__${p.away}`)).length
+  // Dati vecchi senza stato: se il dettaglio c'è, la partita è finita.
+  const statoDi = (d?: MatchDetail) => (d ? d.stato ?? 'finita' : 'da_giocare')
+  const giocate = s.partite.filter(p => statoDi(dettMap.get(`${p.home}__${p.away}`)) === 'finita').length
+  const live = s.partite.filter(p => statoDi(dettMap.get(`${p.home}__${p.away}`)) === 'in_corso').length
+  const conclusa = giocate === s.partite.length
 
   return (
     <div className="glass glass-hover rounded-2xl overflow-hidden">
@@ -37,6 +43,11 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
               ⚔️ Eliminazione
             </span>
           )}
+          {live > 0 && (
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-red-500/80 backdrop-blur px-2.5 py-1 rounded-full">
+              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse-glow" /> LIVE
+            </span>
+          )}
           {isCompilata && (
             <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-soft)] bg-black/40 backdrop-blur border border-[var(--accent)]/40 px-2.5 py-1 rounded-full">
               ✓ Compilata
@@ -47,7 +58,7 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
               ⏳ {giorni === 1 ? 'Ultimo giorno' : `${giorni} giorni rimasti`}
             </span>
           )}
-          {isScaduta && (
+          {isScaduta && live === 0 && (
             <span className="text-xs font-semibold text-red-300 bg-black/40 backdrop-blur border border-red-500/40 px-2.5 py-1 rounded-full">
               Chiusa
             </span>
@@ -55,7 +66,7 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
         </div>
 
         <div className="absolute bottom-0 inset-x-0 p-5">
-          <h2 className="font-display font-bold text-2xl sm:text-3xl drop-shadow-lg leading-tight">{s.nome.replace(' — Mondiali FIFA 2026', '')}</h2>
+          <h2 className="font-display font-bold text-2xl sm:text-3xl drop-shadow-lg leading-tight">{nomeBreve(s.nome)}</h2>
         </div>
       </div>
 
@@ -74,7 +85,12 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
           )}
         </div>
         <div className="shrink-0">
-          {isCompilata ? (
+          {isCompilata && punti != null ? (
+            <span className="inline-flex flex-col items-end leading-tight">
+              <span className="font-display font-extrabold text-2xl text-[var(--accent-soft)] tabular-nums">{punti} <span className="text-xs font-normal text-[var(--muted)]">pt</span></span>
+              <span className="text-[10px] text-[var(--muted)]">{conclusa ? 'punti finali' : 'punti finora'}</span>
+            </span>
+          ) : isCompilata ? (
             <span className="inline-flex items-center gap-1.5 text-sm text-[var(--accent-soft)] bg-[var(--accent)]/10 border border-[var(--accent)]/40 px-4 py-2 rounded-lg">
               🔒 Inviato
             </span>
@@ -93,7 +109,8 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
         <div className="flex items-center justify-between mb-3">
           <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Partite &amp; risultati</p>
           <span className="text-xs text-[var(--muted)]">
-            <span className="text-[var(--accent-soft)] font-semibold">{giocate}</span>/{s.partite.length} giocate
+            {live > 0 && <span className="text-red-300 font-semibold">{live} live · </span>}
+            <span className="text-[var(--accent-soft)] font-semibold">{giocate}</span>/{s.partite.length} finite
           </span>
         </div>
 
@@ -101,11 +118,13 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
           {s.partite.map((p, i) => {
             const d = dettMap.get(`${p.home}__${p.away}`)
             const giocata = !!d
+            const st = statoDi(d)
             return (
-              <div key={i} className={`rounded-xl border px-3 py-2.5 transition-colors ${giocata ? 'bg-[var(--accent)]/[0.07] border-[var(--accent)]/25' : 'bg-white/[0.02] border-white/8'}`}>
+              <div key={i} className={`rounded-xl border px-3 py-2.5 transition-colors ${st === 'in_corso' ? 'bg-red-500/[0.07] border-red-400/30' : giocata ? 'bg-[var(--accent)]/[0.07] border-[var(--accent)]/25' : 'bg-white/[0.02] border-white/8'}`}>
                 <div className="flex items-center gap-2 text-sm">
-                  <span className={`text-[10px] font-bold w-9 shrink-0 ${giocata ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-                    {giocata ? 'FT' : new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                  <span className={`text-[10px] font-bold w-11 shrink-0 leading-tight ${st === 'in_corso' ? 'text-red-300' : giocata ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
+                    {st === 'in_corso' ? '● LIVE' : st === 'finita' ? 'FT' : p.ora ?? new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                    {p.competizione && <span className="block font-normal text-[9px] text-[var(--muted)]">{p.competizione}</span>}
                   </span>
                   <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end text-right">
                     <span className={`truncate ${giocata ? 'font-semibold text-white' : 'text-white/80'}`}>{p.home}</span>
@@ -146,14 +165,16 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now }
       {pronostico && (
         <div className="mx-6 mb-6 pt-4 border-t border-white/8 space-y-3">
           <p className="text-xs text-[var(--accent)] uppercase tracking-wider font-semibold">
-            Il tuo pronostico {risultato ? '· minuti azzeccati in verde' : '· definitivo 🔒'}
+            Il tuo pronostico {risultato ? (conclusa ? '· minuti azzeccati in verde' : '· in verde quelli già azzeccati') : '· definitivo 🔒'}
           </p>
 
           <div className="flex flex-wrap gap-1.5">
             {pronostico.minuti.map((m: number) => {
-              const miss = !!risultato && !risultato.minuti_gol.includes(m)
+              // Durante il live un minuto non ancora uscito non è "sbagliato": lo diventa a schedina conclusa.
+              const hit = !!risultato && risultato.minuti_gol.includes(m)
+              const miss = !!risultato && !hit && conclusa
               return (
-                <span key={m} className={`tag-static ${miss ? 'is-miss' : ''} px-2.5 py-1 text-xs`}>
+                <span key={m} className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2.5 py-1 text-xs`}>
                   {m}&apos;
                 </span>
               )

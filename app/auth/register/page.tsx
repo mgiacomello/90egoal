@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -8,10 +8,18 @@ import { logEvent } from '@/lib/track'
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '', confirm: '' })
+  const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '', confirm: '', invito: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const startedAt = useRef<number>(Date.now())
+  const [serveInvito, setServeInvito] = useState(false)
+  const startedAt = useRef<number>(0)
+
+  // Test chiuso: il campo codice compare solo se l'admin l'ha attivato nel database.
+  // Se la funzione non esiste ancora (migration non eseguita) la registrazione resta libera.
+  useEffect(() => {
+    startedAt.current = Date.now()
+    createClient().rpc('invito_richiesto').then(({ data }) => setServeInvito(data === true))
+  }, [])
 
   function update(field: string, value: string) {
     setForm(f => ({ ...f, [field]: value }))
@@ -27,14 +35,27 @@ export default function RegisterPage() {
 
     setLoading(true)
     const supabase = createClient()
+
+    // Controlli preventivi, per dare un errore chiaro: a decidere resta il database.
+    const [{ data: libero }, { data: invitoOk }] = await Promise.all([
+      supabase.rpc('username_disponibile', { nome: form.username }),
+      supabase.rpc('invito_valido', { codice: form.invito }),
+    ])
+    if (libero === false) { setError('Nickname già in uso: scegline un altro.'); setLoading(false); return }
+    if (invitoOk === false) { setError('Codice invito non valido. Chiedilo a chi ti ha mandato il link.'); setLoading(false); return }
+
     const { error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { username: form.username.toLowerCase(), full_name: form.fullName } },
+      options: { data: { username: form.username.toLowerCase(), full_name: form.fullName, invito: form.invito.trim() } },
     })
 
     if (error) {
-      setError(error.message === 'User already registered' ? 'Email già registrata.' : error.message)
+      setError(
+        error.message === 'User already registered' ? 'Email già registrata.'
+        : /database error/i.test(error.message) ? 'Registrazione non riuscita: controlla il codice invito o scegli un altro nickname.'
+        : error.message
+      )
     } else {
       await logEvent('register', { ms: Date.now() - startedAt.current })
       router.push('/schedine')
@@ -48,7 +69,7 @@ export default function RegisterPage() {
       <div className="text-center mb-7">
         <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-2xl shadow-[0_12px_30px_-8px_rgba(0,230,118,0.6)] mb-4">⚽</div>
         <h1 className="font-display font-bold text-2xl">Crea il tuo account</h1>
-        <p className="text-[var(--muted)] text-sm mt-1">Partecipa ai pronostici dei Mondiali FIFA 2026</p>
+        <p className="text-[var(--muted)] text-sm mt-1">Indovina i minuti dei gol, giornata dopo giornata</p>
       </div>
 
       <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 space-y-4">
@@ -88,6 +109,14 @@ export default function RegisterPage() {
               className="input-field w-full px-4 py-2.5" placeholder="••••••" />
           </div>
         </div>
+
+        {serveInvito && (
+          <div>
+            <label className="block text-sm text-[var(--muted)] mb-1.5">Codice invito <span className="text-white/30">(test chiuso)</span></label>
+            <input type="text" required value={form.invito} onChange={e => update('invito', e.target.value)}
+              className="input-field w-full px-4 py-2.5 uppercase tracking-wider" placeholder="Te l'ha dato chi ti ha invitato" autoCapitalize="characters" />
+          </div>
+        )}
 
         <button type="submit" disabled={loading} className="btn-primary w-full py-3 mt-2">
           {loading ? 'Registrazione…' : 'Crea account'}

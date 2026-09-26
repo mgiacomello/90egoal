@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { Schedina, MatchDetail, Risultato, ClassificaRow } from '@/lib/types'
+import { nomeBreve } from '@/lib/teams'
 
 export const runtime = 'nodejs'
 
@@ -33,15 +34,20 @@ async function buildGameContext(): Promise<string> {
     const parts: string[] = []
 
     for (const s of (schedine as Schedina[] | null) ?? []) {
-      const nome = s.nome.replace(' — Mondiali FIFA 2026', '')
+      const nome = nomeBreve(s.nome)
       const ris = risMap.get(s.id)
       const dett = (ris?.dettagli as MatchDetail[] | undefined) ?? []
       const lines = s.partite.map(p => {
         const d = dett.find(x => x.home === p.home && x.away === p.away)
-        if (d) return `  - ${d.home} ${d.score} ${d.away} (gol: ${d.minuti.join(', ') || '—'})`
-        return `  - ${p.home} vs ${p.away} (${p.date}) — non ancora giocata`
+        const serie = p.competizione ? `[${p.competizione}] ` : ''
+        if (d) {
+          const stato = d.stato === 'in_corso' ? ' — IN CORSO' : ''
+          return `  - ${serie}${d.home} ${d.score} ${d.away} (gol: ${d.minuti.join(', ') || '—'})${stato}`
+        }
+        return `  - ${serie}${p.home} vs ${p.away} (${p.date}${p.ora ? ` ore ${p.ora}` : ''}) — non ancora giocata`
       })
-      parts.push(`${nome}:\n${lines.join('\n')}`)
+      const stato = s.attiva === false ? 'conclusa' : 'in corso / in arrivo'
+      parts.push(`${nome}${s.torneo ? ` (${s.torneo}, ${stato})` : ''}:\n${lines.join('\n')}`)
     }
 
     const cls = (classifica as Pick<ClassificaRow, 'username' | 'totale'>[] | null) ?? []
@@ -56,21 +62,16 @@ async function buildGameContext(): Promise<string> {
   }
 }
 
-const SYSTEM = (gameData: string, today: string) => `Sei l'assistente di "90 & Goal", un gioco di pronostici sul minuto dei gol dei Mondiali FIFA 2026. Oggi è ${today}.
+const SYSTEM = (gameData: string, today: string) => `Sei l'assistente di "90 & Goal", un gioco di pronostici sui minuti dei gol. Oggi è ${today}.
+Ogni schedina ha 10 partite della stessa giornata (in questo periodo: Serie A, Serie B e Serie C). Si scelgono 13 minuti da 1 a 90: +1 punto per ogni minuto in cui c'è almeno un gol in una qualsiasi partita. Bonus: +1 se c'è un gol nel recupero del tempo scelto; +3 per la squadra del primo OPPURE dell'ultimo gol, +10 se entrambe. Nelle schedine a eliminazione diretta c'è anche +5 sui supplementari. I gol nel recupero (45+, 90+) non valgono per i minuti. Scadenza: calcio d'inizio della prima partita. Il pronostico è definitivo.
 
 Rispondi in italiano, in modo amichevole e conciso (massimo ~4 frasi), come in un riquadro su una home page. Niente preamboli tipo "Certo!" o "Ecco".
 
 REGOLE IMPORTANTI:
-- Per domande sulle schedine, sui risultati o sulla classifica usa SOLO i DATI DEL GIOCO qui sotto. Non inventare minuti, punteggi o posizioni.
-- Per curiosità generali sul Mondiale 2026 (formato a 48 squadre, storia, squadre, regole) puoi usare le tue conoscenze. Se non sei sicuro di un dato molto recente o non presente nei DATI DEL GIOCO, dillo con onestà invece di inventare.
+- Per domande sulle schedine, sui risultati o sulla classifica usa SOLO i DATI DEL GIOCO qui sotto. Non inventare minuti, punteggi, orari o posizioni.
+- Per curiosità generali di calcio puoi usare le tue conoscenze, ma su rose, classifiche e risultati recenti di Serie A, B e C non fidarti della memoria: se il dato non è nei DATI DEL GIOCO, dillo con onestà.
 - NON dare consigli su quali minuti giocare o pronostici da fare: rispondi in modo neutro (es. "scegli tu, fa parte del bello del gioco!").
-- Resta sul tema Mondiali / 90 & Goal. Se la domanda è fuori tema, riportala gentilmente al calcio.
-
-FATTI VERIFICATI sul Mondiale FIFA 2026 (usali, sono corretti):
-- Si gioca negli USA, in Canada e in Messico, da giugno a luglio 2026.
-- Per la prima volta partecipano 48 squadre (prima erano 32).
-- Formato: 12 gironi da 4 squadre. Passano agli ottavi (fase a eliminazione diretta a 32 squadre) le prime due di ogni girone più le 8 migliori terze.
-- In totale si giocano 104 partite. La finale è il 19 luglio 2026 al MetLife Stadium di New York/New Jersey.
+- Resta sul tema calcio / 90 & Goal. Se la domanda è fuori tema, riportala gentilmente al calcio.
 
 DATI DEL GIOCO (reali):
 ${gameData}`

@@ -2,7 +2,7 @@
 
 import { Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
-import { flagCode } from '@/lib/flags'
+import { squadreDi } from '@/lib/teams'
 
 interface Props {
   partite: Partita[]
@@ -13,8 +13,8 @@ interface Props {
 // Selezione squadra a pulsanti (al posto del <select> nativo, problematico
 // su browser datati). Mostra tutte le squadre in gioco; una sola selezionabile.
 export default function TeamPicker({ partite, value, onChange }: Props) {
-  // Solo nazionali reali (esclude segnaposto tipo "Vinc. USA-Belgio", "da definire")
-  const teams = [...new Set(partite.flatMap(p => [p.home, p.away]))].filter(t => flagCode(t) !== 'un')
+  // Tutte le squadre in gioco, esclusi i segnaposto del tabellone ("Vinc. USA-Belgio", "da definire")
+  const teams = squadreDi(partite)
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">

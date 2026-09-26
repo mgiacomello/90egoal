@@ -3,10 +3,10 @@
 import { useState, useRef } from 'react'
 
 const SUGGESTED = [
-  'Come funziona il formato a 48 squadre del Mondiale 2026?',
-  'Chi è in testa alla classifica di 90 & Goal?',
-  'Quanti gol sono stati segnati nella Schedina 1?',
-  'A che minuto si segna di più finora?',
+  'Come si calcolano i punti?',
+  'Chi è in testa alla classifica?',
+  'Quali partite ci sono nella prossima schedina?',
+  'Vale un gol al 90+2?',
 ]
 
 export default function AskAI() {
@@ -40,7 +40,7 @@ export default function AskAI() {
 
   return (
     <section className="relative">
-      <div className="glass rounded-3xl p-7 sm:p-10 overflow-hidden">
+      <div className="relative glass rounded-3xl p-7 sm:p-10 overflow-hidden">
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-[var(--accent-cyan)]/12 blur-3xl rounded-full pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[var(--accent)]/10 blur-3xl rounded-full pointer-events-none" />
 
@@ -50,8 +50,7 @@ export default function AskAI() {
             Le tue domande sul giorno della partita, con le risposte dell&apos;AI
           </h2>
           <p className="text-[var(--muted)] mt-3 max-w-2xl">
-            Il più grande torneo sportivo è appena diventato ancora più grande. Curiosità sul Mondiale 2026,
-            sui risultati o sulla classifica di <strong className="text-white">90 &amp; Goal</strong>?
+            Dubbi sulle regole, curiosità sulle partite in schedina, risultati o classifica di <strong className="text-white">90 &amp; Goal</strong>?
             Chiedi pure.
           </p>
 
@@ -64,7 +63,7 @@ export default function AskAI() {
               ref={inputRef}
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Chiedi qualcosa sul Mondiale…"
+              placeholder="Chiedi qualcosa sul gioco o sulle partite…"
               maxLength={300}
               className="flex-1 rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3 text-[15px] outline-none focus:border-[var(--accent-cyan)]/50 transition-colors placeholder:text-white/30"
             />

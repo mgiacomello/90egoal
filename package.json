@@ -9,10 +9,12 @@
     "start": "next start",
     "lint": "eslint",
     "test:onetap": "node --experimental-strip-types --no-warnings scripts/onetap-detect.test.ts",
-    "test": "npm run test:onetap",
+    "test:game": "node --experimental-strip-types --no-warnings scripts/game.test.ts",
+    "test": "npm run test:game && npm run test:onetap",
     "onetap:icons": "node scripts/onetap-icons.mjs",
     "onetap:ocr": "node scripts/onetap-ocr-assets.mjs",
-    "predev": "node scripts/onetap-ocr-assets.mjs"
+    "predev": "node scripts/onetap-ocr-assets.mjs",
+    "game:icons": "node scripts/game-icons.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
@@ -21,13 +23,15 @@
     "next": "16.3.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
     "tailwindcss": "^4",

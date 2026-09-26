@@ -32,9 +32,12 @@ export default async function ScedinaPage({ params }: { params: Promise<{ id: st
 
   if (pronostico) redirect('/schedine')
 
-  // Statistiche gol del torneo (sessione tecnica) — da tutte le partite giocate
+  // Statistiche gol (sessione tecnica): solo le partite già giocate dello stesso torneo.
+  // I Mondiali restano fuori dal test sui campionati italiani, e viceversa.
+  const { data: stessoTorneo } = await supabase.from('schedine').select('id').eq('torneo', schedina.torneo ?? '')
+  const ids = new Set(((stessoTorneo ?? []) as { id: number }[]).map(s => s.id))
   const { data: risultati } = await supabase.from('risultati').select('*')
-  const ris = (risultati as Risultato[] | null) ?? []
+  const ris = ((risultati as Risultato[] | null) ?? []).filter(r => ids.size === 0 || ids.has(r.schedina_id))
   const goalStats = computeGoalStats(ris)
   const teamStats = computeTeamGoalStats(ris)
 
