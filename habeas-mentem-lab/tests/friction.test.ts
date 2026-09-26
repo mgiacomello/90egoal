@@ -10,10 +10,18 @@ function session(over: Partial<Session> = {}): Session {
   return {
     id: "hm-test", participant: "ulisse-nodo-1", documentId: doc.id, documentTitle: doc.title,
     device: null, createdAt: 0, consent: { accepted: true, timestamp: 0 },
-    events: doc.clauses.flatMap((c, i) => [
-      { type: "clause_enter" as const, timestamp: i * 20_000, clauseId: c.id, direction: "forward" as const },
-      { type: "clause_leave" as const, timestamp: i * 20_000 + 19_000, clauseId: c.id },
-    ]),
+    // Lettura a 200 parole al minuto: 300 ms per parola, così nessuna clausola risulta "troppo veloce".
+    events: (() => {
+      let t = 0;
+      return doc.clauses.flatMap((c) => {
+        const enter = t;
+        t += c.wordCount * 300;
+        return [
+          { type: "clause_enter" as const, timestamp: enter, clauseId: c.id, direction: "forward" as const },
+          { type: "clause_leave" as const, timestamp: t - 500, clauseId: c.id },
+        ];
+      });
+    })(),
     frames: [], answers: [], tasks: [],
     ...over,
   };
