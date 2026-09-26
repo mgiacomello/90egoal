@@ -36,6 +36,9 @@ export function framesCsv(session: Session): string {
       effort_left: a.effort ? a.effort.left.toFixed(5) : "",
       effort_right: a.effort ? a.effort.right.toFixed(5) : "",
       effort: a.effort ? a.effort.effort.toFixed(5) : "",
+      hbo_raw_um: a.effort?.raw !== undefined ? a.effort.raw.toFixed(5) : "",
+      hbo_short_um: a.effort?.short !== undefined ? a.effort.short.toFixed(5) : "",
+      short_beta: a.effort?.shortBeta !== undefined ? a.effort.shortBeta.toFixed(3) : "",
       hbr_um: a.effort?.hbr !== undefined ? a.effort.hbr.toFixed(5) : "",
       motion_g: a.effort ? a.effort.motion.toFixed(3) : "",
       rotation_dps: a.effort?.rotation !== undefined ? a.effort.rotation.toFixed(1) : "",
@@ -77,6 +80,22 @@ export function clausesCsv(session: Session, metrics: ClauseMetrics[], friction:
       friction: byId.get(m.clauseId)?.level ?? "",
       friction_indicators: byId.get(m.clauseId)?.count ?? "",
       friction_reasons: byId.get(m.clauseId)?.reasons.join("; ") ?? "",
+    })),
+  );
+}
+
+/** Un record per battito: frequenza, variabilità, fase e clausola. */
+export function vitalsCsv(session: Session): string {
+  return toCsv(
+    (session.vitals ?? []).map((v) => ({
+      session: session.id,
+      timestamp_ms: v.timestamp,
+      phase: v.phase,
+      clause: v.clauseId ?? "",
+      segment: v.segmentId ?? "",
+      bpm: v.bpm ?? "",
+      rmssd_ms: v.rmssd ?? "",
+      quality: v.quality.toFixed(2),
     })),
   );
 }

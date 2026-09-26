@@ -74,6 +74,8 @@ export type NavigationEvent =
   | { type: "segment_leave"; timestamp: number; segmentId: string }
   | { type: "segment_pause"; timestamp: number; segmentId: string }
   | { type: "segment_resume"; timestamp: number; segmentId: string }
+  | { type: "rest_start"; timestamp: number; seconds: number }
+  | { type: "rest_end"; timestamp: number }
   | { type: "audio_start"; timestamp: number }
   | { type: "audio_end"; timestamp: number }
   | { type: "reading_end"; timestamp: number }
@@ -83,13 +85,23 @@ export type NavigationEvent =
   | { type: "operate_end"; timestamp: number }
   | { type: "note"; timestamp: number; text: string };
 
+export interface VitalRecord {
+  timestamp: number;
+  bpm: number | null;
+  rmssd: number | null;
+  quality: number;
+  phase: "baseline" | "reading" | "rest" | "verify" | "operate";
+  clauseId: string | null;
+  segmentId: string | null;
+}
+
 export interface AnnotatedFrame {
   frame: Frame;
   /** null durante baseline o fuori dalla lettura. */
   clauseId: string | null;
   /** Porzione visibile (solo nei modi a porzioni). */
   segmentId?: string | null;
-  phase: "baseline" | "reading" | "verify" | "operate" | "idle";
+  phase: "baseline" | "reading" | "rest" | "verify" | "operate" | "idle";
   effort: EffortSample | null;
 }
 
@@ -103,7 +115,9 @@ export interface Session {
   createdAt: number;
   consent: { accepted: boolean; timestamp: number | null };
   /** Come è stato presentato il testo. */
-  reading?: { mode: "clausola" | "porzioni" | "scorrimento"; wordsPerMinute: number | null; voiceRecorded: boolean };
+  reading?: { mode: "clausola" | "porzioni" | "scorrimento"; wordsPerMinute: number | null; voiceRecorded: boolean; restSeconds?: number };
+  /** Battito dal canale pulse, un record per battito rilevato (indicatore sistemico, mai giudizio). */
+  vitals?: VitalRecord[];
   events: NavigationEvent[];
   frames: AnnotatedFrame[];
   answers: AnswerRecord[];

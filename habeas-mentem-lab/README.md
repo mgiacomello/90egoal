@@ -119,9 +119,17 @@ coefficienti di estinzione di HbO e HbR a 660 e 850 nm (tabelle di Prahl),
 percorso ottico L·DPF = 18 cm: ΔHbO e ΔHbR in µM stimati. L'indice di sforzo è
 ΔHbO, media dei due canali frontali. Le lunghezze d'onda reali della fascia non
 sono pubblicate: 660/850 è l'ipotesi dichiarata, e il valore è confrontabile
-solo dentro la stessa sessione. Gli artefatti di movimento vengono dal
+solo dentro la stessa sessione. Poi la pipeline in linea (`src/mendi/processing.ts`): passa-banda
+Butterworth 0,01–0,5 Hz (via battito, respiro, deriva) e regressione del
+canale corto, cioè il canale «pulse» della fascia, che vede soprattutto la
+circolazione superficiale e la sottrae dai canali frontali (β stimato su una
+finestra di 60 s). Dal canale pulse si ricavano anche battito e variabilità
+(RMSSD): un indicatore sistemico e rapido, riportato a parte nel CSV e nella
+tabella, mai nella mappa della frizione. Gli artefatti di movimento vengono dal
 giroscopio (rotazione > 12°/s) e dall'accelerometro (oltre 0,15 g da 1 g), e
-restano fuori dal modello. La risposta emodinamica è lenta (4-8 s): un singolo
+restano fuori dal modello. La «pausa di fissazione» opzionale tra le clausole
+è il disegno a blocchi classico: dà al modello HRF un riposo tra un blocco e
+l'altro, e il segnale lento diventa leggibile per clausola. La risposta emodinamica è lenta (4-8 s): un singolo
 episodio di distrazione può non lasciare una firma leggibile a occhio; il
 segnale acquista senso sulle porzioni lunghe o riviste e nel modello HRF.
 

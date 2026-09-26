@@ -19,6 +19,8 @@ import {
 import type { AdcReading, DeviceInfo, Frame, MendiSource } from "../mendi/types";
 import { newPseudonym, newSessionId, type Document, type NavigationEvent, type Question, type Session, type Task } from "../session/model";
 import { segmentsFor, type ReadingMode, type Segment } from "../session/segments";
+import { EffortPipeline, PulseDetector, type PulseReading } from "../mendi/processing";
+import { MENDI_FRAME_RATE_HZ } from "../mendi/protocol";
 
 export interface ReadingOptions {
   mode: ReadingMode;
@@ -26,11 +28,13 @@ export interface ReadingOptions {
   wordsPerMinute: number;
   /** Registra la voce durante la lettura (lettura ad alta voce). */
   recordVoice: boolean;
+  /** Pausa di fissazione tra una clausola e la successiva (s): 0 = nessuna. Dà al modello un riposo tra i blocchi. */
+  restSeconds: number;
 }
 
-export const DEFAULT_READING: ReadingOptions = { mode: "clausola", wordsPerMinute: 180, recordVoice: false };
+export const DEFAULT_READING: ReadingOptions = { mode: "clausola", wordsPerMinute: 180, recordVoice: false, restSeconds: 0 };
 
-export type Phase = "setup" | "baseline" | "reading" | "verify" | "operate" | "results";
+export type Phase = "setup" | "baseline" | "reading" | "rest" | "verify" | "operate" | "results";
 
 export interface LivePoint {
   timestamp: number;
@@ -69,6 +73,11 @@ export function useRecorder() {
   const baselineFrames = useRef<Frame[]>([]);
   const baselineRef = useRef<Baseline | null>(null);
   const smoother = useRef(new MovingAverage(50)); // ~2 s: il segnale emodinamico è lento
+  const pipeline = useRef(new EffortPipeline(MENDI_FRAME_RATE_HZ));
+  const pulse = useRef(new PulseDetector(MENDI_FRAME_RATE_HZ));
+  const [heart, setHeart] = useState<PulseReading | null>(null);
+  const restTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [restLeft, setRestLeft] = useState(0);
   const liveBuf = useRef<LivePoint[]>([]);
   const counter = useRef(0);
 
@@ -82,19 +91,26 @@ export function useRecorder() {
     counter.current++;
     let effort: EffortSample | null = null;
 
+    if (p !== "baseline" && p !== "reading" && p !== "rest" && p !== "verify" && p !== "operate") return;
+
+    // Battito dal canale pulse, in tutte le fasi registrate.
+    const beat = pulse.current.push(frame.irPulse - frame.ambPulse, frame.timestamp);
+    if (beat && s) {
+      s.vitals ??= [];
+      s.vitals.push({ timestamp: frame.timestamp, ...beat, phase: p, clauseId: p === "reading" ? clauseRef.current : null, segmentId: p === "reading" ? segmentRef.current : null });
+      if (s.vitals.length % 3 === 0) setHeart(beat);
+    }
+
     if (p === "baseline") {
       baselineFrames.current.push(frame);
       s?.frames.push({ frame, clauseId: null, phase: "baseline", effort: null });
-    } else if (p === "reading" && baselineRef.current) {
-      effort = effortFromFrame(frame, baselineRef.current);
-      s?.frames.push({ frame, clauseId: clauseRef.current, segmentId: segmentRef.current, phase: "reading", effort });
-    } else if ((p === "verify" || p === "operate") && baselineRef.current) {
-      // Registriamo anche durante verifica e prova operativa, senza clausola:
-      // il segnale qui non entra nelle metriche per clausola.
-      effort = effortFromFrame(frame, baselineRef.current);
-      s?.frames.push({ frame, clauseId: null, phase: p, effort });
+    } else if (baselineRef.current) {
+      const rawSample = effortFromFrame(frame, baselineRef.current);
+      effort = rawSample ? pipeline.current.push(rawSample) : null;
+      if (p === "reading") s?.frames.push({ frame, clauseId: clauseRef.current, segmentId: segmentRef.current, phase: "reading", effort });
+      else s?.frames.push({ frame, clauseId: null, phase: p, effort }); // riposo, verifica, prova: senza clausola
     } else {
-      return; // fuori dalle fasi utili non registriamo nulla
+      return;
     }
 
     if (effort) {
@@ -233,7 +249,8 @@ export function useRecorder() {
       device: device ? { name: device.name, simulated: device.simulated, firmwareVersion: device.firmwareVersion } : null,
       createdAt: now,
       consent: { accepted: true, timestamp: now },
-      reading: { mode: options.mode, wordsPerMinute: options.mode === "scorrimento" ? options.wordsPerMinute : null, voiceRecorded: options.recordVoice },
+      reading: { mode: options.mode, wordsPerMinute: options.mode === "scorrimento" ? options.wordsPerMinute : null, voiceRecorded: options.recordVoice, restSeconds: options.restSeconds },
+      vitals: [],
       events: [],
       frames: [],
       answers: [],
@@ -245,6 +262,9 @@ export function useRecorder() {
     setBaseline(null);
     liveBuf.current = [];
     smoother.current.reset();
+    pipeline.current = new EffortPipeline(MENDI_FRAME_RATE_HZ);
+    pulse.current.reset();
+    setHeart(null);
     setLive([]);
     setFrameCount(0);
     if (device) {
@@ -318,6 +338,8 @@ export function useRecorder() {
       baselineFrames.current = [];
       return false;
     }
+    const restBeats = (session.current?.vitals ?? []).filter((v) => v.phase === "baseline" && v.bpm !== null && v.quality >= 0.7);
+    b.bpm = restBeats.length ? Math.round(restBeats.reduce((a, v) => a + v.bpm!, 0) / restBeats.length) : null;
     baselineRef.current = b;
     setBaseline(b);
     pushEvent({ type: "baseline_end", timestamp: Date.now() });
@@ -327,12 +349,31 @@ export function useRecorder() {
   }, [document]);
 
   const goTo = useCallback(
-    (nextIndex: number, direction: "forward" | "back") => {
+    (nextIndex: number, direction: "forward" | "back", afterRest = false) => {
       if (!document) return;
       const now = Date.now();
       const from = clauseRef.current;
       const to = document.clauses[nextIndex];
       if (!to) return;
+      const rest = readingRef.current.restSeconds;
+      if (direction === "forward" && rest > 0 && !afterRest && phaseRef.current === "reading") {
+        // Pausa di fissazione: chiudiamo la clausola, il modello riceve un riposo tra i blocchi.
+        if (segmentRef.current) pushEvent({ type: "segment_leave", timestamp: now, segmentId: segmentRef.current });
+        segmentRef.current = null;
+        if (from) pushEvent({ type: "clause_leave", timestamp: now, clauseId: from });
+        clauseRef.current = null;
+        pushEvent({ type: "rest_start", timestamp: now, seconds: rest });
+        setRestLeft(rest);
+        setPhase("rest");
+        const tick = setInterval(() => setRestLeft((x) => Math.max(0, x - 1)), 1000);
+        restTimer.current = setTimeout(() => {
+          clearInterval(tick);
+          pushEvent({ type: "rest_end", timestamp: Date.now() });
+          setPhase("reading");
+          goTo(nextIndex, "forward", true);
+        }, rest * 1000);
+        return;
+      }
       if (from) pushEvent({ type: "clause_leave", timestamp: now, clauseId: from });
       pushEvent({ type: "clause_enter", timestamp: now, clauseId: to.id, direction });
       clauseRef.current = to.id;
@@ -456,6 +497,7 @@ export function useRecorder() {
 
   const reset = useCallback(() => {
     session.current = null;
+    if (restTimer.current) clearTimeout(restTimer.current);
     stopAudio();
     setAudio(null);
     segmentsRef.current = [];
@@ -473,7 +515,7 @@ export function useRecorder() {
 
   return {
     phase, device, battery, error, connecting, btLog, document, clauseIndex, live, frameCount, baseline, received,
-    segmentIndex, reading, paused, audio, quality,
+    segmentIndex, reading, paused, audio, quality, heart, restLeft,
     segments: segmentsRef.current,
     session: session.current,
     connect, disconnect, wake, probe, stepSegment, togglePause, start, finishBaseline, goTo, finishReading, answerQuestion, finishVerify, completeTask, finishOperate, reset,
