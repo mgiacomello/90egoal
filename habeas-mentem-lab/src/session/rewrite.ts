@@ -44,12 +44,12 @@ export interface ClauseReading {
 /** Glossario: locuzioni giuridiche frequenti e la resa piana. */
 export const PLAIN_WORDS: [RegExp, string, string][] = [
   [/\bai sensi (dell'|dello |della |del |dei |degli |delle |di )/gi, "secondo $1", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
-  [/\bnonché\b/gi, "e", "«nonché» è una congiunzione rara: «e» basta"],
+  [/\bnonché(?![a-zà-ù])/gi, "e", "«nonché» è una congiunzione rara: «e» basta"],
   [/\bovvero\b/gi, "oppure", "«ovvero» in italiano comune vuol dire «cioè»: qui significa «oppure», meglio dirlo"],
   [/\bqualora\b/gi, "se", "«qualora» è «se»"],
   [/\bove\b/gi, "se", "«ove» è «se» (o «dove»)"],
   [/\bladdove\b/gi, "dove", "«laddove» è «dove»"],
-  [/\bpurché\b/gi, "a patto che", "«purché» si legge meglio come «a patto che»"],
+  [/\bpurché(?![a-zà-ù])/gi, "a patto che", "«purché» si legge meglio come «a patto che»"],
   [/\bprevio (il )?consenso\b/gi, "dopo il consenso", "«previo» è «dopo aver ottenuto»"],
   [/\bprevia\b/gi, "dopo", "«previa» è «dopo»"],
   [/\bprevio\b/gi, "dopo", "«previo» è «dopo»"],
