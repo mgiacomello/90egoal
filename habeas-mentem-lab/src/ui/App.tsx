@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
 import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
-import { clausesCsv, download, framesCsv, segmentsCsv, sessionJson } from "../session/export";
+import { clausesCsv, download, framesCsv, segmentsCsv, sessionJson, vitalsCsv } from "../session/export";
 import { LX_ACCESSIBILITY_THRESHOLD, lxScore } from "../session/lx";
 import { clauseMetrics } from "../session/metrics";
 import type { Document } from "../session/model";
@@ -40,6 +40,7 @@ export function App() {
               {r.device.name}
               {r.device.simulated ? " (sim)" : ""}
               {r.battery ? ` · ${(r.battery.voltageMv / 1000).toFixed(2)} V` : ""}
+              {r.heart?.bpm ? ` · ♥ ${r.heart.bpm}` : ""}
             </span>
           ) : (
             <span className="pill"><span className="dot" /> nessuna fascia</span>
@@ -68,6 +69,7 @@ export function App() {
       {r.phase === "setup" && mode === "session" && <Setup r={r} />}
       {r.phase === "baseline" && <BaselineScreen r={r} />}
       {r.phase === "reading" && r.document && <Reader r={r} doc={r.document} />}
+      {r.phase === "rest" && <RestScreen r={r} />}
       {r.phase === "verify" && r.document && (
         <Verify doc={r.document} onAnswer={r.answerQuestion} onDone={r.finishVerify} />
       )}
@@ -265,6 +267,9 @@ function Setup({ r }: { r: R }) {
           <label className="check small">
             <input type="checkbox" checked={reading.recordVoice} onChange={(e) => setReadingOpts({ ...reading, recordVoice: e.target.checked })} /> registra la voce (lettura ad alta voce)
           </label>
+          <label className="check small">
+            <input type="checkbox" checked={reading.restSeconds > 0} onChange={(e) => setReadingOpts({ ...reading, restSeconds: e.target.checked ? 12 : 0 })} /> pausa di fissazione di 12 s tra le clausole (disegno a blocchi: il segnale corporeo si legge meglio)
+          </label>
           <p className="hint">
             La fascia non vede la singola parola: la sua risposta arriva 4–8 secondi dopo e viene attribuita con un modello della
             risposta emodinamica. Parola per parola si misura il tempo, e solo a porzioni. La voce resta nel browser; leggere ad
@@ -303,6 +308,23 @@ function Setup({ r }: { r: R }) {
           {r.device ? "Inizia la sessione" : "Inizia senza fascia"}
         </button>
       </div>
+    </main>
+  );
+}
+
+function RestScreen({ r }: { r: R }) {
+  return (
+    <main className="screen center">
+      <h1>Un momento di pausa</h1>
+      <p className="lead">Sguardo sul punto, testa ferma. Il testo riprende da solo.</p>
+      <div className="ring-wrap" aria-live="polite">
+        <svg className="ring" viewBox="0 0 120 120" width="180" height="180" aria-label={`${r.restLeft} secondi di pausa`}>
+          <circle cx="60" cy="60" r="44" className="ring-breath" />
+          <text x="60" y="56" className="ring-plus">+</text>
+          <text x="60" y="84" className="ring-num">{r.restLeft}</text>
+        </svg>
+      </div>
+      <p className="hint">La pausa dà al modello un riposo tra un blocco di lettura e l'altro: è così che il segnale lento diventa leggibile.</p>
     </main>
   );
 }
@@ -459,7 +481,10 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
       {r.device && (
         <div className="livebox">
           <Sparkline points={r.live} />
-          <span className="hint">ΔHbO dal vivo (µM stimati, media mobile 2 s, senza deriva). Le bande rosse sono movimenti della testa: rotazioni dal giroscopio, scosse dall'accelerometro.</span>
+          <span className="hint">
+            ΔHbO dal vivo (µM stimati; filtrato 0,01–0,5 Hz, circolazione superficiale del canale corto sottratta, media mobile 2 s). Il segno «5 s fa» ricorda il ritardo della risposta: quel punto corrisponde a ciò che leggevi 5 secondi prima. Bande rosse: movimenti della testa.
+            {r.heart?.bpm ? ` Battito ♥ ${r.heart.bpm} bpm${r.baseline?.bpm ? ` (a riposo ${r.baseline.bpm})` : ""}: indicatore sistemico, non cognitivo.` : ""}
+          </span>
         </div>
       )}
       <div className="readerbar">
@@ -643,6 +668,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
             {hasOperate && <th>Prova</th>}
             {r.baseline && <th>Sforzo medio (Δ baseline)</th>}
             {r.baseline && <th>Artefatti</th>}
+            {metrics.some((m) => m.pulse) && <th title="Battito medio sulla clausola meno battito a riposo: indicatore sistemico, non cognitivo">♥ Δ bpm</th>}
           </tr>
         </thead>
         <tbody>
@@ -704,6 +730,9 @@ function Results({ r, doc }: { r: R; doc: Document }) {
                 </td>
               )}
               {r.baseline && <td>{m.effort.sampleCount ? `${(m.effort.motionArtifactRatio * 100).toFixed(0)}%` : "—"}</td>}
+              {metrics.some((x) => x.pulse) && (
+                <td>{m.pulse?.deltaBpm != null ? `${m.pulse.deltaBpm >= 0 ? "+" : ""}${m.pulse.deltaBpm.toFixed(0)}` : m.pulse?.bpm ? `${m.pulse.bpm.toFixed(0)}` : "—"}</td>
+              )}
             </tr>
           ))}
         </tbody>
@@ -756,6 +785,11 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         {segmentRows.length > 0 && (
           <button onClick={() => download(`${stamp}-porzioni.csv`, segmentsCsv(session, segmentRows), "text/csv")}>
             Scarica le porzioni (CSV)
+          </button>
+        )}
+        {(session.vitals?.length ?? 0) > 0 && (
+          <button onClick={() => download(`${stamp}-battito.csv`, vitalsCsv(session), "text/csv")}>
+            Scarica il battito (CSV)
           </button>
         )}
         <button onClick={() => download(`${stamp}.json`, sessionJson(session, doc.clauses, metrics, friction, segmentRows), "application/json")}>

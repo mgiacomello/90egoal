@@ -13,7 +13,9 @@ const STEPS: { key: Phase | "verify" | "operate"; label: string; short: string }
 
 export function Stepper({ phase, skip = [] }: { phase: Phase; skip?: string[] }) {
   const order = STEPS.filter((s) => !skip.includes(s.key));
-  const current = Math.max(0, order.findIndex((s) => s.key === phase));
+  // La pausa di fissazione fa parte della lettura.
+  const effective = phase === "rest" ? "reading" : phase;
+  const current = Math.max(0, order.findIndex((s) => s.key === effective));
   return (
     <ol className="stepper" aria-label="Percorso della sessione">
       {order.map((s, i) => {
