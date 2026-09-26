@@ -148,6 +148,49 @@ superficie calcolata nel browser, non il modello NLC calibrato su EEG/fNIRS
 (pannello di 100 lettori, r = −0,71 in calibrazione e −0,68 in validazione).
 Il punteggio non giudica le persone: fa la diagnosi ai documenti.
 
+## L'archivio del team e l'apprendimento
+
+Il laboratorio non ricomincia da zero a ogni sessione. Alla fine di ogni
+sessione con fascia vera (per quelle simulate c'è il tasto «Archivia
+comunque») i risultati vanno all'**archivio del team**: due indirizzi del
+sito principale, `POST /api/lab/sessions` e `GET /api/lab/model`, che
+scrivono su Supabase (tabelle in `migration_lab.sql`, alla radice del repo).
+Nell'archivio entrano solo clausole, metriche, frizione, porzioni, risposte e
+compiti: mai il tracciato grezzo, mai lo pseudonimo, mai gli eventi di
+navigazione né il battito (`archivable()` in `src/session/learning.ts`).
+
+Da lì il laboratorio **impara da solo** (`learn()` nello stesso file, puro e
+testato): ogni volta che arrivano sessioni nuove, all'apertura del
+laboratorio o con il cron notturno di Vercel (`vercel.json`), il server
+ricalcola un modello pubblico e lo salva in `lab_models`:
+
+- **pesi e soglia dell'LX**, ricalibrati sulla comprensione misurata con il
+  metodo di `calibrate.ts` esteso a tutti i documenti; sostituiscono quelli del
+  libro solo se la correlazione migliora di almeno 0,05 (soglia: solo se
+  separa la comprensione media di almeno dieci punti), con almeno 5 sessioni;
+- **l'ordine delle strade** (lingua, distanza semantica, ordine,
+  affollamento) per correlazione con la perdita del lettore: le proposte di
+  riscrittura di quel tipo vengono prima;
+- **lo storico per documento e clausola** (lettori, quota di sessioni gialle o
+  rosse, tempi mediani, verifica, prova), che nel fascicolo prende il posto
+  dello storico locale del browser;
+- **le parole lente**: parole che ricorrono nelle porzioni lette più lentamente
+  della media in almeno tre sessioni, segnalate nelle proposte dove compaiono.
+
+Il laboratorio carica il modello all'avvio (`src/session/archive.ts`), lo
+applica a LX e proposte (`setLxModel`, `setLearnedModel`) e lo riporta nel
+fascicolo («Che cosa ha imparato il laboratorio»). Senza rete vale l'ultimo
+modello ricevuto; le sessioni non inviate restano in coda e partono alla
+prossima apertura.
+
+Configurazione, una volta sola: eseguire `migration_lab.sql` nell'editor SQL
+del progetto Supabase già usato dal sito; su Vercel, oltre alle variabili
+Supabase già presenti, impostare `LAB_TEAM_KEY` (la chiave che il team
+inserisce nel passo Consenso, § 7) e, consigliata, `SUPABASE_SERVICE_ROLE_KEY`
+(così le tabelle restano chiuse a chi non passa dalle API). Con
+`CRON_SECRET` il cron è autenticato; senza, il ricalcolo avviene comunque
+all'apertura del laboratorio.
+
 ## La costituzione della misurazione, applicata
 
 I sei articoli del capitolo *La costituzione della misurazione* (v37), tradotti
@@ -155,7 +198,7 @@ nel prototipo:
 
 1. **Una sola finalità** — migliorare la comprensibilità del documento; nessun uso secondario.
 2. **Si misurano i documenti, mai le persone** — nessun esito individuale, nessun giudizio sul lettore.
-3. **Il sensore meno invasivo, i dati minimi** — pseudonimo casuale, nessuna rete, dati solo nella pagina; strumenti neurofisiologici solo in laboratorio, con consenso pieno.
+3. **Il sensore meno invasivo, i dati minimi** — pseudonimo casuale; il tracciato resta nella pagina, nell'archivio del team vanno solo risultati per clausola senza pseudonimo; strumenti neurofisiologici solo in laboratorio, con consenso pieno.
 4. **Il metodo è pubblico** — formule e soglie nel codice, punteggi ricalcolabili dai CSV esportati.
 5. **Nessuno è obbligato a essere misurato** — si legge anche senza fascia; si può chiudere in ogni momento.
 6. **Chi misura accetta di essere misurato** — test automatici, e questo README dichiara cosa lo strumento non sa fare.
@@ -168,7 +211,7 @@ e, verosimilmente, una DPIA. Per una pubblicazione, parere del comitato etico.
 
 ```
 src/mendi/       protocollo, decoder protobuf, client Web Bluetooth, simulatore, indice di sforzo
-src/session/     modello della sessione, metriche per clausola, esportazione
+src/session/     modello della sessione, metriche per clausola, esportazione, archivio e apprendimento
 src/documents/   tre documenti modello + import di testo incollato
 src/ui/          registratore (hook), schermate, tracciato dal vivo
 tests/           vitest

@@ -43,6 +43,27 @@ export interface LxScore {
 }
 
 export const LX_ACCESSIBILITY_THRESHOLD = 45;
+
+/** Pesi delle quattro strade nel totale LX, come nel libro. */
+export interface LxWeightSet { syntactic: number; semantic: number; structural: number; conceptual: number }
+export const LX_DEFAULT_WEIGHTS: LxWeightSet = { syntactic: 0.35, semantic: 0.35, structural: 0.15, conceptual: 0.15 };
+
+// Il modello appreso dall'archivio (learning.ts) può sostituire pesi e soglia:
+// il laboratorio lo carica all'avvio e da quel momento ogni punteggio e ogni
+// indizio "testo" lo usano. Senza archivio restano i valori del libro.
+let activeWeights: LxWeightSet = LX_DEFAULT_WEIGHTS;
+let activeThreshold = LX_ACCESSIBILITY_THRESHOLD;
+let activeSource: "predefinito" | "appreso" = "predefinito";
+
+export function setLxModel(model: { weights: LxWeightSet; threshold: number; source?: "predefinito" | "appreso" } | null): void {
+  activeWeights = model?.weights ?? LX_DEFAULT_WEIGHTS;
+  activeThreshold = model?.threshold ?? LX_ACCESSIBILITY_THRESHOLD;
+  activeSource = model ? (model.source ?? "appreso") : "predefinito";
+}
+/** Soglia di accessibilità in vigore (predefinita 45, o appresa dall'archivio). */
+export function lxThreshold(): number { return activeThreshold; }
+export function lxWeights(): LxWeightSet { return activeWeights; }
+export function lxSource(): "predefinito" | "appreso" { return activeSource; }
 /** Valore-obiettivo di accessibilità: parole per frase (libro, p. 146). */
 export const LX_TARGET_SENTENCE_LENGTH = 22;
 
@@ -130,7 +151,8 @@ export function lxScore(text: string): LxScore {
   // L'affollamento: rinvii normativi per 100 parole.
   const conceptual = clamp((citations / wordCount) * 100 * 16);
 
-  const total = clamp(syntactic * 0.35 + semantic * 0.35 + structural * 0.15 + conceptual * 0.15);
+  const w = activeWeights;
+  const total = clamp(syntactic * w.syntactic + semantic * w.semantic + structural * w.structural + conceptual * w.conceptual);
   return {
     syntactic, semantic, structural, conceptual, total,
     details: {
