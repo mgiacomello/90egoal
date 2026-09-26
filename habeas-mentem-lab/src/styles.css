@@ -199,6 +199,7 @@ code { background: var(--bg-deep); padding: 1px 5px; border-radius: 4px; font-si
 .spark-line { fill: none; stroke: var(--accent); stroke-width: 1.6; }
 .spark-motion { fill: var(--bad-soft); }
 .spark-label { font-size: 10px; fill: var(--muted); font-family: var(--sans); }
+.spark-lagline { stroke: var(--accent-2); stroke-width: 1; stroke-dasharray: 2 3; }
 
 /* ── Verifica e prova ──────────────────────────────────── */
 .quiz { font-size: 16px; }

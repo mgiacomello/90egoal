@@ -41,7 +41,11 @@ export const ROTATION_THRESHOLD_DPS = 12;
 
 export interface Baseline {
   irLeft: number; redLeft: number; irRight: number; redRight: number;
+  /** Canale corto (pulse): riferimento per la regressione della circolazione superficiale. */
+  irPulse?: number; redPulse?: number;
   sampleCount: number;
+  /** Battito a riposo (bpm) se rilevato durante la baseline. */
+  bpm?: number | null;
 }
 
 export interface EffortSample {
@@ -54,6 +58,12 @@ export interface EffortSample {
   effort: number;
   /** ΔHbR medio (scende durante l'attivazione). */
   hbr?: number;
+  /** ΔHbO medio grezzo, prima di filtro e regressione del canale corto. */
+  raw?: number;
+  /** ΔHbO del canale corto (pulse): circolazione superficiale. */
+  short?: number;
+  /** Peso β della regressione del canale corto applicato a questo campione. */
+  shortBeta?: number;
   /** Scostamento del modulo dell'accelerazione da 1 g. */
   motion: number;
   /** Velocità angolare della testa (gradi al secondo). */
@@ -84,6 +94,8 @@ export function computeBaseline(frames: Frame[]): Baseline | null {
     redLeft: mean((f) => f.redLeft - f.ambLeft),
     irRight: mean((f) => f.irRight - f.ambRight),
     redRight: mean((f) => f.redRight - f.ambRight),
+    irPulse: mean((f) => f.irPulse - f.ambPulse),
+    redPulse: mean((f) => f.redPulse - f.ambPulse),
     sampleCount: valid.length,
   };
 }
@@ -108,12 +120,17 @@ export function effortFromFrame(f: Frame, b: Baseline): EffortSample | null {
   // Accelerometro ±2 g su int16: 16384 ≈ 1 g. A riposo il modulo vale ~1 g.
   const g = Math.hypot(f.accX, f.accY, f.accZ) / 16384;
   const rotation = Math.hypot(f.angX, f.angY, f.angZ) / GYRO_LSB_PER_DPS;
+  const shortOk = b.irPulse && b.redPulse && f.irPulse - f.ambPulse > 0 && f.redPulse - f.ambPulse > 0;
+  const p = shortOk ? hemoglobin(od(f.redPulse - f.ambPulse, b.redPulse!), od(f.irPulse - f.ambPulse, b.irPulse!)) : null;
+  const mean = (l.hbo + r.hbo) / 2;
   return {
     timestamp: f.timestamp,
     left: l.hbo,
     right: r.hbo,
-    effort: (l.hbo + r.hbo) / 2,
+    effort: mean,
+    raw: mean,
     hbr: (l.hbr + r.hbr) / 2,
+    short: p ? p.hbo : undefined,
     motion: Math.abs(g - 1),
     rotation,
   };

@@ -25,6 +25,15 @@ export function Sparkline({ points, width = 640, height = 90 }: { points: LivePo
         <rect key={i} x={x(i) - 1} y={0} width={2} height={height} className="spark-motion" />
       ))}
       <path d={path} className="spark-line" />
+      {points.length > 130 && (() => {
+        const xi = x(points.length - 1 - 125);
+        return (
+          <g className="spark-lag">
+            <line x1={xi} x2={xi} y1={0} y2={height} className="spark-lagline" />
+            <text x={xi + 4} y={height - 4} className="spark-label">5 s fa</text>
+          </g>
+        );
+      })()}
       <text x={4} y={12} className="spark-label">+{max.toFixed(2)} µM</text>
       <text x={4} y={height - 4} className="spark-label">−{max.toFixed(2)} µM</text>
     </svg>

@@ -27,6 +27,8 @@ export interface ClauseMetrics {
   effort: EffortStats;
   /** Sforzo attribuito alla clausola con il modello della risposta emodinamica (GLM), null senza fascia. */
   effortModel: { beta: number; se: number } | null;
+  /** Indicatore sistemico: battito medio sulla clausola e scarto dal battito a riposo (bpm). */
+  pulse: { bpm: number | null; deltaBpm: number | null; rmssd: number | null } | null;
   /** Terzo indizio, il testo stesso: stima euristica dell'LX Complexity Score. */
   lx: LxScore;
   /** Verifica: domande di comprensione su questa clausola. */
@@ -77,7 +79,7 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
       }
     }
   }
-  const readingEffort = session.frames.filter((f) => f.phase === "reading" && f.effort).map((f) => f.effort!);
+  const readingEffort = session.frames.filter((f) => (f.phase === "reading" || f.phase === "rest") && f.effort).map((f) => f.effort!);
   const glm = readingEffort.length > 0 && visitsByClause.length > 0 ? fitHrfGlm(readingEffort, visitsByClause) : null;
 
   const byClause = new Map<string, ReturnType<typeof summarize>>();
@@ -89,6 +91,8 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
   }
 
   const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null);
+  const vitals = session.vitals ?? [];
+  const restBpm = mean(vitals.filter((v) => v.phase === "baseline" && v.bpm !== null && v.quality >= 0.7).map((v) => v.bpm!));
 
   return clauses.map((c) => {
     const ms = dwell.get(c.id) ?? 0;
@@ -109,6 +113,12 @@ export function clauseMetrics(session: Session, clauses: Clause[]): ClauseMetric
       tooFastToRead: ms > 0 && (c.wordCount / ms) * 60_000 > 600,
       effort: byClause.get(c.id)!,
       effortModel: glm && glm.beta.has(c.id) ? { beta: glm.beta.get(c.id)!, se: glm.se.get(c.id)! } : null,
+      pulse: (() => {
+        const mine = vitals.filter((v) => v.clauseId === c.id && v.bpm !== null && v.quality >= 0.7);
+        if (mine.length === 0) return null;
+        const bpm = mean(mine.map((v) => v.bpm!));
+        return { bpm, deltaBpm: bpm !== null && restBpm !== null ? bpm - restBpm : null, rmssd: mean(mine.filter((v) => v.rmssd !== null).map((v) => v.rmssd!)) };
+      })(),
       lx: lxScore(c.text),
       verification: {
         asked: answers.length,

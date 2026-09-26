@@ -157,7 +157,7 @@ export function analyzeSegments(session: Session, clauses: Clause[]): SegmentAna
     if (ev.type === "segment_pause") pauses.set(ev.segmentId, (pauses.get(ev.segmentId) ?? 0) + 1);
   }
 
-  const readingFrames = session.frames.filter((f) => f.phase === "reading" && f.effort);
+  const readingFrames = session.frames.filter((f) => (f.phase === "reading" || f.phase === "rest") && f.effort);
   // Attribuzione modellata: un regressore per porzione, tutte le visite insieme.
   const glm: GlmResult | null = readingFrames.length > 0
     ? fitHrfGlm(readingFrames.map((f) => f.effort!), visits.map((v) => ({ id: v.segmentId, from: v.from, to: v.to })))
