@@ -76,7 +76,7 @@ function clamp(v: number): number {
   return Math.max(0, Math.min(100, Math.round(v)));
 }
 
-function splitSentences(text: string): string[] {
+export function splitSentences(text: string): string[] {
   return text
     .replace(/\b(art|artt|par|lett|d|lgs|n|p|s|r|l|es|cfr)\./gi, (m) => m.replace(".", "§"))
     // Il periodo finisce al punto: gli elenchi con ";" restano un solo periodo, come li legge una persona.
@@ -86,7 +86,7 @@ function splitSentences(text: string): string[] {
 }
 
 /** Termini tecnici presenti e, tra questi, quelli mai definiti ("ossia", "cioè", virgolette, parentesi). */
-function technicalTerms(text: string): { found: string[]; undefinedTerms: string[] } {
+export function technicalTerms(text: string): { found: string[]; undefinedTerms: string[] } {
   const lower = text.toLowerCase();
   const present = TECHNICAL_TERMS.filter((t) => lower.includes(t));
   // "pseudonimizzat" e "pseudonimizzazione" sono lo stesso termine: teniamo il più lungo.
