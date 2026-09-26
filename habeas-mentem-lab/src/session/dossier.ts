@@ -23,6 +23,8 @@ import { BOOK_R, describeWeights, type Calibration } from "./calibrate";
 import { highestEffortSegments, slowestSegments, type SegmentMetrics } from "./segments";
 import { HRF_DESCRIPTION } from "./hrf";
 import { HEAT, INK, INK_2, MUTED, PAGE, Page, safe } from "./report";
+import { documentAdvice, readClauses } from "./rewrite";
+import type { ClauseHistory } from "./history";
 
 export interface DossierInput {
   session: Session;
@@ -37,6 +39,8 @@ export interface DossierInput {
   segments?: SegmentMetrics[];
   /** Varianza spiegata dal modello HRF sulle porzioni. */
   modelR2?: number | null;
+  /** Storico locale sullo stesso documento (sessioni precedenti). */
+  history?: { sessions: number; clauses: ClauseHistory[] };
 }
 
 /** SHA-256 esadecimale, con WebCrypto; in ambienti senza crypto ritorna null. */
@@ -298,6 +302,57 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     }),
   );
   pg.plain("Tempo: la barra è il tempo speso sulla clausola; la tacca è il tempo plausibile per leggerla tutta a 250 parole al minuto; una barra rossa più corta della tacca oltre il limite di 600 parole al minuto esclude la lettura completa. LX: la barra è il punteggio 0-100, la tacca la soglia sperimentale. V · P: risposte corrette e compiti riusciti sulla clausola. Sforzo: peso attribuito con il modello della risposta emodinamica, in scala relativa alla sessione (a destra dello zero, più alto della baseline).");
+
+  // ── 2b. Lettura dei risultati e proposte ─────────────────────────────────
+  const readings = readClauses(doc.clauses, metrics, friction);
+  const hist = input.history && input.history.sessions > 0 ? input.history : null;
+  pg.newPage();
+  pg.section("Lettura dei risultati e proposte di riscrittura");
+  pg.bullets(documentAdvice(readings), 9.5);
+  if (hist) {
+    pg.p(`Storico locale: ${hist.sessions} ${hist.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} sullo stesso documento in questo browser. Per ogni clausola è indicata la quota di sessioni in cui è stata gialla o rossa.`, 9, INK_2, 3);
+  }
+  const byPriority = [...readings].sort((a, b) => a.priority - b.priority);
+  for (const r of byPriority) {
+    const h = hist?.clauses.find((c) => c.clauseId === r.clauseId);
+    const m = metrics.find((x) => x.clauseId === r.clauseId)!;
+    pg.ensure(30);
+    pg.pdf.setDrawColor(...INK).setLineWidth(0.3);
+    pg.pdf.line(pg.x0, pg.y, pg.x1, pg.y);
+    pg.gap(5);
+    pg.smallcaps(`Priorità ${r.priority} · Clausola ${r.index} · ${r.level}${r.leadRoad ? ` · strada: ${r.leadRoad.road}` : ""}`, pg.x0, pg.y, 6.5, MUTED);
+    pg.gap(5);
+    pg.pdf.setFont("times", "normal").setFontSize(11.5).setTextColor(...INK);
+    pg.pdf.text(safe(clean(r.heading) ?? doc.clauses[r.index - 1].text.slice(0, 60)), pg.x0, pg.y);
+    pg.gap(5.5);
+    pg.smallcaps("Che cosa dicono i dati", pg.x0, pg.y, 6, MUTED);
+    pg.gap(4);
+    pg.bullets([...r.interpretation, ...(h ? [`Storico: in ${h.sessions} ${h.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} questa clausola è stata gialla o rossa nel ${Math.round(h.lostShare * 100)}% dei casi${h.verifyWrongShare ? `, con verifica sbagliata nel ${Math.round(h.verifyWrongShare * 100)}%` : ""}.`] : [])], 9);
+    if (r.proposals.length) {
+      pg.smallcaps("Come migliorare", pg.x0, pg.y, 6, MUTED);
+      pg.gap(4);
+      for (const pr of r.proposals.slice(0, 7)) {
+        pg.ensure(12);
+        pg.pdf.setFont("helvetica", "bold").setFontSize(8).setTextColor(...INK);
+        pg.pdf.text(safe(pr.title), pg.x0, pg.y);
+        pg.gap(4);
+        if (pr.kind === "spezza" || pr.kind === "nominale") {
+          pg.p(`Ora: ${pr.before}`, 8.5, INK_2, 1, pg.w - 4, pg.x0 + 4);
+          pg.p(`Proposta: ${pr.after}`, 8.5, INK, 1, pg.w - 4, pg.x0 + 4);
+        } else {
+          pg.p(`${pr.before} -> ${pr.after}`, 8.5, INK, 1, pg.w - 4, pg.x0 + 4);
+        }
+        pg.p(pr.why, 7.5, MUTED, 2.5, pg.w - 4, pg.x0 + 4);
+      }
+    }
+    if (r.draft && r.draft.after < r.draft.before) {
+      pg.smallcaps(`Bozza automatica · LX ${r.draft.before} -> ${r.draft.after}${r.draft.after <= LX_ACCESSIBILITY_THRESHOLD && r.draft.before > LX_ACCESSIBILITY_THRESHOLD ? " · sotto la soglia" : ""}`, pg.x0, pg.y, 6, MUTED);
+      pg.gap(4);
+      pg.p(r.draft.text, 8.5, INK_2, 3, pg.w - 4, pg.x0 + 4);
+    }
+    if (m.lx.total <= 25 && r.level === "verde" && r.proposals.length === 0) pg.p("Nessun intervento necessario.", 8.5, MUTED, 3);
+  }
+  pg.plain("L'interpretazione legge ogni sensore insieme agli altri: un tempo troppo breve con verifica corretta è una clausola nota, non un problema; una verifica sbagliata con LX alto è un difetto del testo. Le proposte sono regole dichiarate (periodi oltre l'obiettivo, passivi, termini non definiti, rinvii, ordine) e la bozza automatica applica solo sostituzioni sicure, rimisurate con lo stesso LX: dice quanto si guadagna, non sostituisce il giurista.");
 
   // ── 3. Tabella per clausola ──────────────────────────────────────────────
   pg.newPage();

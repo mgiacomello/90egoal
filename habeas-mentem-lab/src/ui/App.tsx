@@ -14,6 +14,8 @@ import { SnowMap } from "./SnowMap";
 import { DEFAULT_READING, type ReadingOptions } from "./useRecorder";
 import { analyzeSegments, autoDurationMs, READING_MODES, type SegmentMetrics } from "../session/segments";
 import { HRF_DESCRIPTION } from "../session/hrf";
+import { documentAdvice, readClauses } from "../session/rewrite";
+import { historyFor, recordSession } from "../session/history";
 import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
@@ -571,7 +573,12 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const [building, setBuilding] = useState(false);
   const [dossierError, setDossierError] = useState<string | null>(null);
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
-  const [tab, setTab] = useState<"mappa" | "parole" | "dati">("mappa");
+  const [tab, setTab] = useState<"mappa" | "parole" | "riscrittura" | "dati">("mappa");
+  const readings = useMemo(() => readClauses(doc.clauses, metrics, friction), [doc, metrics, friction]);
+  const history = useMemo(() => historyFor(doc.id, session.id), [doc.id, session.id]);
+  useEffect(() => {
+    recordSession(doc.id, session.id, session.createdAt, metrics, friction);
+  }, [doc.id, session.id, session.createdAt, metrics, friction]);
   // Il modulo PDF è un chunk separato: lo scarichiamo appena arriviamo ai
   // risultati, così se nel frattempo il sito è stato ripubblicato (e i vecchi
   // chunk non esistono più) ce l'abbiamo già.
@@ -584,7 +591,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
     try {
       const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
       const { buildDossier } = await import("../session/dossier");
-      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows, modelR2: segmentAnalysis.modelR2 });
+      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows, modelR2: segmentAnalysis.modelR2, history });
       const name = `${stamp}-fascicolo.pdf`;
       if (dossierUrl) URL.revokeObjectURL(dossierUrl.url);
       // Il link resta: se il browser blocca il download automatico, un clic diretto funziona sempre.
@@ -677,8 +684,69 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         {segmentRows.length > 0 && (
           <button className={`tab ${tab === "parole" ? "on" : ""}`} role="tab" aria-selected={tab === "parole"} onClick={() => setTab("parole")}>Parola per parola</button>
         )}
+        <button className={`tab ${tab === "riscrittura" ? "on" : ""}`} role="tab" aria-selected={tab === "riscrittura"} onClick={() => setTab("riscrittura")}>Lettura e riscrittura</button>
         <button className={`tab ${tab === "dati" ? "on" : ""}`} role="tab" aria-selected={tab === "dati"} onClick={() => setTab("dati")}>Tabella e dati</button>
       </div>
+
+      {tab === "riscrittura" && (
+        <div className="panel">
+          <section className="tavola">
+            <span className="tavola-title">Lettura dei risultati e proposte</span>
+            <ul className="charter">
+              {documentAdvice(readings).map((a, i) => <li key={i}><span>{a}</span></li>)}
+            </ul>
+            {history.sessions > 0 && <p className="hint">Storico locale: {history.sessions} {history.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} su questo documento in questo browser.</p>}
+          </section>
+          {[...readings].sort((a, b) => a.priority - b.priority).map((r) => {
+            const h = history.clauses.find((c) => c.clauseId === r.clauseId);
+            return (
+              <details key={r.clauseId} className={`reading ${r.level}`} open={r.priority <= 2}>
+                <summary>
+                  <span className="clause-num">{r.index}</span>
+                  <span className={`friction ${r.level}`}>{r.level}</span>
+                  <span className="reading-title">{r.heading?.replace(/^\d+[.)]\s*/, "") ?? doc.clauses[r.index - 1].text.slice(0, 60)}</span>
+                  <span className="hint">priorità {r.priority}{r.leadRoad ? ` · ${r.leadRoad.road}` : ""}</span>
+                </summary>
+                <div className="reading-body">
+                  <h2>Che cosa dicono i dati</h2>
+                  <ul className="charter">
+                    {r.interpretation.map((t, i) => <li key={i}><span>{t}</span></li>)}
+                    {h && <li><span>Storico: in {h.sessions} {h.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} questa clausola è stata gialla o rossa nel {Math.round(h.lostShare * 100)}% dei casi.</span></li>}
+                  </ul>
+                  {r.proposals.length > 0 && (
+                    <>
+                      <h2>Come migliorare</h2>
+                      <div className="proposals">
+                        {r.proposals.map((p, i) => (
+                          <div key={i} className="proposal">
+                            <strong>{p.title}</strong>
+                            {p.kind === "spezza" || p.kind === "nominale" ? (
+                              <>
+                                <p className="before">Ora: {p.before}</p>
+                                <p className="after">Proposta: {p.after}</p>
+                              </>
+                            ) : (
+                              <p className="after">{p.before} → {p.after}</p>
+                            )}
+                            <p className="hint">{p.why}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {r.draft && r.draft.after < r.draft.before && (
+                    <>
+                      <h2>Bozza automatica · LX {r.draft.before} → {r.draft.after}</h2>
+                      <p className="draft">{r.draft.text}</p>
+                      <p className="hint">Solo sostituzioni sicure e periodi spezzati, rimisurate con lo stesso LX. Da rivedere da un giurista.</p>
+                    </>
+                  )}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+      )}
 
       {tab === "mappa" && (
         <div className="panel">

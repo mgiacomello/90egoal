@@ -373,3 +373,19 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus); out
   .drawer p { padding-left: 14px; }
   .tab { font-size: 10px; letter-spacing: 0.04em; padding: 8px 4px; }
 }
+
+/* Lettura e riscrittura */
+.reading { border: 1px solid var(--hair-2); border-radius: var(--radius); margin: 0 0 8px; background: var(--card); }
+.reading.rosso { border-left: 3px solid var(--bad); } .reading.giallo { border-left: 3px solid var(--warn-y); } .reading.verde { border-left: 3px solid var(--ok); }
+.reading summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 10px 12px; flex-wrap: wrap; }
+.reading summary::-webkit-details-marker { display: none; }
+.reading-title { font-family: var(--serif); font-size: 15px; flex: 1; min-width: 200px; }
+.reading-body { padding: 4px 14px 14px; border-top: 1px solid var(--line); }
+.reading-body h2 { margin: 12px 0 8px; }
+.proposals { display: grid; gap: 8px; }
+.proposal { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper); }
+.proposal strong { font-family: var(--sans); font-size: 13px; display: block; margin-bottom: 4px; }
+.proposal p { margin: 3px 0; font-size: 14px; line-height: 1.5; }
+.proposal .before { color: var(--muted); }
+.proposal .after { color: var(--ink); }
+.draft { font-family: var(--serif); font-size: 15px; line-height: 1.65; padding: 12px 14px; border-left: 2px solid var(--ink); margin: 6px 0; background: var(--paper); }
