@@ -225,7 +225,7 @@ function Setup({ r }: { r: R }) {
       {step === 1 && (
         <div className="wiz-body" key="s1">
           <h1>Il documento</h1>
-          <p className="lead">Tre modelli pronti, oppure un tuo testo. Il livello LX è la difficoltà stimata del testo, non della persona.</p>
+          <p className="lead">Tre documenti scritti come li scriverebbe uno studio serio, con la legge citata al posto giusto, oppure un tuo testo. LX è la difficoltà stimata del testo, mai della persona.</p>
           <div className="doc-grid">
             {DOCUMENTS.map((d) => {
               const i = docInfo(d);
@@ -242,7 +242,7 @@ function Setup({ r }: { r: R }) {
             })}
             <button className={`doc-card ${docId === "__paste__" ? "on" : ""}`} onClick={() => setDocId("__paste__")}>
               <span className="doc-title">Incolla un tuo testo…</span>
-              <span className="doc-meta"><span>clausole separate da una riga vuota</span></span>
+              <span className="doc-meta"><span>un'informativa vera, un contratto, un bando: una riga vuota tra le clausole, i titoli su una riga senza punto</span></span>
             </button>
           </div>
           {docId === "__paste__" && (

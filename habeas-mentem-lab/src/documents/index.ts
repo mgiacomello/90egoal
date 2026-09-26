@@ -1,10 +1,11 @@
-// Documenti di prova.
+// Documenti modello.
 //
-// Sono testi scritti per il laboratorio sul modello delle informative reali
-// (struttura dell'art. 13 GDPR, termini di servizio, banner cookie), con la
-// densità e il lessico tipici dei documenti che il libro descrive. Non sono
-// documenti di aziende esistenti. Per testare informative pubbliche vere si
-// usa "Incolla un tuo testo" nella schermata iniziale.
+// Tre documenti scritti come li scriverebbe uno studio serio nel 2026, con
+// la normativa citata al posto giusto (GDPR e Codice privacy, Codice del
+// consumo, codice civile, Linee guida del Garante sui cookie, Data Privacy
+// Framework, Regolamento sull'IA) e con la densità che cambia da clausola a
+// clausola come nei documenti reali. Le società sono di fantasia. Per
+// misurare documenti pubblici veri si usa "Incolla un tuo testo".
 
 import { splitIntoClauses, type Document } from "../session/model";
 import { informativaNeurotech, informativaNeurotechQuestions, informativaNeurotechTasks } from "./informativa-neurotech";
