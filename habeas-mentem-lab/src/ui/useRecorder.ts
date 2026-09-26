@@ -172,7 +172,7 @@ export function useRecorder() {
   /** Contatore grezzo dei campioni ricevuti dalla fascia (anche fuori dalle fasi registrate). */
   const [received, setReceived] = useState(0);
   /** Qualità del segnale durante la baseline, aggiornata ogni secondo. */
-  const [quality, setQuality] = useState<{ hz: number; usable: number; still: number; samples: number } | null>(null);
+  const [quality, setQuality] = useState<{ hz: number; usable: number; still: number; samples: number; tilt: number } | null>(null);
   useEffect(() => {
     if (phase !== "baseline") {
       setQuality(null);
@@ -188,7 +188,9 @@ export function useRecorder() {
       const still = recent.length
         ? recent.filter((f) => !isArtifact({ motion: Math.abs(Math.hypot(f.accX, f.accY, f.accZ) / 16384 - 1), rotation: Math.hypot(f.angX, f.angY, f.angZ) / GYRO_LSB_PER_DPS })).length / recent.length
         : 0;
-      setQuality({ hz, usable, still, samples: frames.length });
+      // Inclinazione laterale: componente X dell'accelerazione, in frazione di g (0 = dritta).
+      const tilt = recent.length ? recent.reduce((a, f) => a + f.accX, 0) / recent.length / 16384 : 0;
+      setQuality({ hz, usable, still, samples: frames.length, tilt });
     }, 1000);
     return () => clearInterval(t);
   }, [phase]);
