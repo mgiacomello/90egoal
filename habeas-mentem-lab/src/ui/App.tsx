@@ -650,7 +650,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
                   <>Il punto in cui il testo perde di più chi legge è <strong>{name}</strong> ({worst.level}, {worst.count} {worst.count === 1 ? "indizio" : "indizi"} convergenti).</>
                 )}
               </p>
-              <p className="hint">{worst.reasons.length ? worst.reasons.join(" · ") : "nessun indizio"} · LX {wm.lx.total}. Diagnosi del documento, non della persona.</p>
+              <p className="hint">{worst.reasons.length ? worst.reasons.join(" · ") : `nessun indizio · LX ${wm.lx.total}`}. Diagnosi del documento, non della persona.</p>
             </div>
           </div>
         );
