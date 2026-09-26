@@ -80,8 +80,7 @@ export function App() {
       {r.phase === "results" && r.document && r.session && <Results r={r} doc={r.document} />}
 
       <footer className="foot">
-        Prototipo interno, non commerciale. I dati restano in questo browser finché non li scarichi.
-        Si misurano i documenti, mai le persone. La comprensione si misura, la mente non si legge.
+        Habeas Mentem Lab · uso interno · i dati restano in questo browser finché non vengono scaricati.
       </footer>
     </div>
   );
@@ -113,46 +112,12 @@ function Setup({ r }: { r: R }) {
     const lx = Math.round(d.clauses.reduce((n, c) => n + lxScore(c.text).total, 0) / Math.max(1, d.clauses.length));
     return { words, minutes: Math.max(1, Math.round(words / 200)), lx };
   };
-  const [step, setStep] = useState(-1);
+  const [step, setStep] = useState(0);
   const STEPS = ["Fascia", "Documento", "Presentazione", "Consenso"];
   const modeLabel = READING_MODES.find((m) => m.id === reading.mode)?.label ?? "";
   const canNext = step === 0 ? true : step === 1 ? !!doc : step === 2 ? true : consent;
   const next = () => setStep((x) => Math.min(STEPS.length - 1, x + 1));
-  const prev = () => setStep((x) => Math.max(-1, x - 1));
-
-  if (step === -1) {
-    return (
-      <main className="screen wizard">
-        <section className="hero">
-          <p className="eyebrow">Neuro Legal Cortex · Habeas Mentem Lab</p>
-          <h1>Misurare dove il diritto smette di raggiungere chi lo legge</h1>
-          <p className="lead">
-            Una sessione di lettura con tre indizi indipendenti: il tempo, il corpo, il testo. Nessuno dei tre, da solo,
-            dice se hai capito. Si misurano i documenti, mai le persone.
-          </p>
-          <div className="sensors">
-            <div className="sensor"><span className="sensor-name">Tempo</span><span>secondi per clausola o per parola, ritorni, fermate</span></div>
-            <div className="sensor"><span className="sensor-name">Corpo</span><span>fascia Mendi (fNIRS): ΔHbO prefrontale, battito. Indizi, non giudizi</span></div>
-            <div className="sensor"><span className="sensor-name">Testo</span><span>LX Complexity Score: lingua, affollamento, ordine, distanza semantica</span></div>
-          </div>
-          <details>
-            <summary>Perché questo laboratorio</summary>
-            <p>
-              Habeas Mentem è il diritto di ogni persona a comprendere, giudicare e decidere in condizioni che non siano state
-              progettate contro di lei. Meno dell'1% delle persone legge i documenti giuridici; più del 90% li accetta comunque.
-              Il laboratorio osserva la lettura e non fonde mai gli indizi in un giudizio.
-            </p>
-          </details>
-        </section>
-        <div className="wiz-nav">
-          <span className="hint">Quattro passi, poi si legge. Circa un minuto.</span>
-          <div className="right">
-            <button className="primary big" onClick={() => setStep(0)}>Prepara la sessione →</button>
-          </div>
-        </div>
-      </main>
-    );
-  }
+  const prev = () => setStep((x) => Math.max(0, x - 1));
 
   return (
     <main className="screen wizard">
@@ -165,8 +130,8 @@ function Setup({ r }: { r: R }) {
 
       {step === 0 && (
         <div className="wiz-body" key="s0">
-          <h1>La fascia Mendi</h1>
-          <p className="lead">Facoltativa. Con la fascia si aggiunge il corpo ai tre indizi; senza, resta il tempo. È il diritto di non essere misurati.</p>
+          <h1>Fascia</h1>
+          <p className="lead">Collega la fascia del partecipante, oppure prosegui senza: resta il solo sensore del tempo.</p>
           {r.device ? (
             <>
               <div className="row">
@@ -216,7 +181,7 @@ function Setup({ r }: { r: R }) {
                 </div>
               )}
               {r.btLog.length > 0 && <pre className="btlog" id="btlog">{r.btLog.join("\n")}</pre>}
-              <p className="hint">Chrome o Edge su Mac, Windows e Android; su iPhone l'app Bluefy. App Mendi chiusa sul telefono.</p>
+              <p className="hint">Chrome o Edge (Mac, Windows, Android); iPhone: Bluefy. App Mendi chiusa. Se i LED restano spenti: «Strumenti e log».</p>
             </>
           )}
         </div>
@@ -224,8 +189,8 @@ function Setup({ r }: { r: R }) {
 
       {step === 1 && (
         <div className="wiz-body" key="s1">
-          <h1>Il documento</h1>
-          <p className="lead">Tre documenti scritti come li scriverebbe uno studio serio, con la legge citata al posto giusto, oppure un tuo testo. LX è la difficoltà stimata del testo, mai della persona.</p>
+          <h1>Documento</h1>
+          <p className="lead">Tre documenti di riferimento, oppure il testo del cliente. LX: difficoltà stimata del testo.</p>
           <div className="doc-grid">
             {DOCUMENTS.map((d) => {
               const i = docInfo(d);
@@ -242,7 +207,7 @@ function Setup({ r }: { r: R }) {
             })}
             <button className={`doc-card ${docId === "__paste__" ? "on" : ""}`} onClick={() => setDocId("__paste__")}>
               <span className="doc-title">Incolla un tuo testo…</span>
-              <span className="doc-meta"><span>un'informativa vera, un contratto, un bando: una riga vuota tra le clausole, i titoli su una riga senza punto</span></span>
+              <span className="doc-meta"><span>una riga vuota tra le clausole; titoli su una riga senza punto</span></span>
             </button>
           </div>
           {docId === "__paste__" && (
@@ -262,8 +227,8 @@ function Setup({ r }: { r: R }) {
 
       {step === 2 && (
         <div className="wiz-body" key="s2">
-          <h1>Come presentare il testo</h1>
-          <p className="lead">Parola per parola si misura il tempo, e solo a porzioni. Il corpo risponde 4–8 secondi dopo e viene attribuito con un modello.</p>
+          <h1>Protocollo di lettura</h1>
+          <p className="lead">Tempo per parola solo a porzioni. Con la fascia, le pause tra le clausole migliorano il segnale.</p>
           <div className="modes">
             {READING_MODES.map((m) => (
               <label key={m.id} className={`mode ${reading.mode === m.id ? "on" : ""}`}>
@@ -285,18 +250,18 @@ function Setup({ r }: { r: R }) {
             </label>
           )}
           <label className="check small">
-            <input type="checkbox" checked={reading.restSeconds > 0} onChange={(e) => setReadingOpts({ ...reading, restSeconds: e.target.checked ? 12 : 0 })} /> pausa di fissazione di 12 s tra le clausole: disegno a blocchi, il segnale corporeo si legge meglio
+            <input type="checkbox" checked={reading.restSeconds > 0} onChange={(e) => setReadingOpts({ ...reading, restSeconds: e.target.checked ? 12 : 0 })} /> pausa di fissazione di 12 s tra le clausole (disegno a blocchi)
           </label>
           <label className="check small">
-            <input type="checkbox" checked={reading.recordVoice} onChange={(e) => setReadingOpts({ ...reading, recordVoice: e.target.checked })} /> registra la voce (lettura ad alta voce; resta nel browser)
+            <input type="checkbox" checked={reading.recordVoice} onChange={(e) => setReadingOpts({ ...reading, recordVoice: e.target.checked })} /> registra la voce (lettura ad alta voce)
           </label>
         </div>
       )}
 
       {step === 3 && (
         <div className="wiz-body" key="s3">
-          <h1>Il consenso</h1>
-          <p className="lead">La costituzione della misurazione, applicata a questa sessione.</p>
+          <h1>Consenso del partecipante</h1>
+          <p className="lead">Da far leggere e confermare al partecipante prima di iniziare.</p>
           <div className="drawers" aria-label="I sei articoli">
             {[
               ["Una sola finalità", "Migliorare la comprensibilità del documento. Nessun uso ulteriore: i dati non profilano, non selezionano, non influenzano."],
@@ -306,7 +271,7 @@ function Setup({ r }: { r: R }) {
               ["Nessuno è obbligato", "Puoi leggere senza fascia o chiudere la pagina in ogni momento, senza alcuna conseguenza."],
               ["Il segnale della fascia è un indizio", "Dice che in un passaggio lo sforzo è cresciuto. Non dice se hai capito, non legge pensieri né emozioni."],
             ].map(([t, body], i) => (
-              <details key={t} className="drawer" open>
+              <details key={t} className="drawer">
                 <summary><span className="drawer-lock" aria-hidden="true" /><span className="drawer-num">§ {i + 1}</span> {t}</summary>
                 <p>{body}</p>
               </details>
@@ -328,7 +293,7 @@ function Setup({ r }: { r: R }) {
       )}
 
       <div className="wiz-nav">
-        <button className="ghost" onClick={prev}>← Indietro</button>
+        <button className="ghost" onClick={prev} disabled={step === 0}>← Indietro</button>
         <div className="right">
           {step < STEPS.length - 1 ? (
             <button className="primary big" disabled={!canNext} onClick={next}>
@@ -357,7 +322,7 @@ function RestScreen({ r }: { r: R }) {
           <text x="60" y="84" className="ring-num">{r.restLeft}</text>
         </svg>
       </div>
-      <p className="hint">La pausa dà al modello un riposo tra un blocco di lettura e l'altro: è così che il segnale lento diventa leggibile.</p>
+      <p className="hint">Riposo tra due blocchi di lettura.</p>
     </main>
   );
 }
@@ -379,7 +344,7 @@ function BaselineScreen({ r }: { r: R }) {
   return (
     <main className="screen center">
       <h1>Baseline a riposo</h1>
-      <p className="lead">Occhi aperti, sguardo sul punto, testa ferma. Respira con il cerchio. Non leggere nulla.</p>
+      <p className="lead">Occhi aperti, sguardo sul punto, testa ferma. Non leggere nulla.</p>
       <div className="ring-wrap" aria-live="polite">
         <svg className="ring" viewBox="0 0 120 120" width="220" height="220" aria-label={`${Math.max(left, 0)} secondi rimasti`}>
           <circle cx="60" cy="60" r="44" className="ring-breath" />
@@ -414,7 +379,7 @@ function BaselineScreen({ r }: { r: R }) {
           <span>testa ferma (accelerometro)</span>
         </div>
       </div>
-      <p className="hint">{r.frameCount} campioni raccolti · la baseline è il riferimento di tutta la sessione</p>
+      <p className="hint">{r.frameCount} campioni raccolti</p>
     </main>
   );
 }
@@ -522,8 +487,8 @@ function Reader({ r, doc }: { r: R; doc: Document }) {
         <div className="livebox">
           <Sparkline points={r.live} />
           <span className="hint">
-            ΔHbO dal vivo (µM stimati; filtrato 0,01–0,5 Hz, circolazione superficiale del canale corto sottratta, media mobile 2 s). Il segno «5 s fa» ricorda il ritardo della risposta: quel punto corrisponde a ciò che leggevi 5 secondi prima. Bande rosse: movimenti della testa.
-            {r.heart?.bpm ? ` Battito ♥ ${r.heart.bpm} bpm${r.baseline?.bpm ? ` (a riposo ${r.baseline.bpm})` : ""}: indicatore sistemico, non cognitivo.` : ""}
+            ΔHbO dal vivo (µM stimati, filtrato, canale corto sottratto, media 2 s). «5 s fa»: ritardo della risposta. Bande rosse: movimento.
+            {r.heart?.bpm ? ` ♥ ${r.heart.bpm} bpm${r.baseline?.bpm ? ` (riposo ${r.baseline.bpm})` : ""}.` : ""}
           </span>
         </div>
       )}
@@ -640,10 +605,10 @@ function Results({ r, doc }: { r: R; doc: Document }) {
 
   return (
     <main className="screen">
-      <h1>Risultati della sessione</h1>
+      <h1>Sessione {session.id}</h1>
       <p className="lead">
-        Partecipante <code>{session.participant}</code> · {doc.title}
-        {r.baseline ? ` · baseline su ${r.baseline.sampleCount} campioni` : " · senza fascia"}
+        <code>{session.participant}</code> · {doc.title.replace(" (modello)", "")}
+        {r.baseline ? ` · baseline ${r.baseline.sampleCount} campioni` : " · senza fascia"}
       </p>
 
       {(() => {
@@ -665,7 +630,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
                   <>Il punto in cui il testo perde di più chi legge è <strong>{name}</strong> ({worst.level}, {worst.count} {worst.count === 1 ? "indizio" : "indizi"} convergenti).</>
                 )}
               </p>
-              <p className="hint">{worst.reasons.length ? worst.reasons.join(" · ") : `nessun indizio · LX ${wm.lx.total}`}. Diagnosi del documento, non della persona.</p>
+              <p className="hint">{worst.reasons.length ? worst.reasons.join(" · ") : `nessun indizio · LX ${wm.lx.total}`}</p>
             </div>
           </div>
         );
@@ -829,27 +794,24 @@ function Results({ r, doc }: { r: R; doc: Document }) {
       </table>
       </div>
 
-      <p className="hint">
-        ⚠ = oltre 600 parole al minuto: il tempo esclude la lettura completa. LX = stima euristica dell'LX
-        Complexity Score (0-100; sopra {LX_ACCESSIBILITY_THRESHOLD} la soglia sperimentale di accessibilità; passa
-        il mouse per le quattro dimensioni). Lo sforzo è la variazione media del proxy HbO rispetto alla baseline,
-        in µM stimati (Beer-Lambert a due lunghezze d'onda): confrontabile solo tra clausole della stessa sessione. Nessuna colonna, da sola, dice
-        se la clausola è stata compresa. La colonna Frizione applica la regola della convergenza: ogni sensore
-        conta al massimo un indizio, il corpo da solo non colora mai. Il punteggio non giudica le persone: fa la
-        diagnosi ai documenti.
-      </p>
+      <details className="details">
+        <summary>Legenda e metodo</summary>
+        <p className="hint">
+          ⚠ = oltre 600 parole al minuto. LX = stima euristica dell'LX Complexity Score, 0–100, soglia {LX_ACCESSIBILITY_THRESHOLD}
+          (passa il mouse per le quattro dimensioni). Sforzo = ΔHbO medio rispetto alla baseline, in µM stimati, confrontabile
+          solo dentro la sessione. Frizione = convergenza: ogni sensore conta al massimo un indizio; il corpo da solo non colora.
+        </p>
+      </details>
 
       <section className="card dossier">
-        <span className="tavola-title">Il cantiere · fascicolo di comprensibilità</span>
+        <span className="tavola-title">Fascicolo di comprensibilità</span>
         <p className="hint">
-          Misure, dichiarazioni e test in un PDF con la data: la prova da esibire al posto del click. Contiene la
-          sintesi, la mappa della frizione, risposte e compiti, il metodo dichiarato, la costituzione applicata e
-          l'impronta SHA-256 del JSON di sessione, così che ogni numero sia ricalcolabile.
+          PDF datato con sintesi, mappa, verifica e prova, metodo, costituzione applicata e impronta SHA-256 del JSON.
         </p>
         <div className="row">
           <input
             id="responsible"
-            placeholder="Chi risponde di questo documento (il nome sul cartello)"
+            placeholder="Responsabile del documento (nome sul cartello)"
             value={responsible}
             onChange={(e) => setResponsible(e.target.value)}
           />
