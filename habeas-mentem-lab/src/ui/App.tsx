@@ -10,7 +10,7 @@ import { Sparkline } from "./Sparkline";
 import { Operate, Verify } from "./VerifyOperate";
 import { AggregateScreen } from "./AggregateScreen";
 import { Stepper } from "./Stepper";
-import { FrictionStrip } from "./FrictionStrip";
+import { SnowMap } from "./SnowMap";
 import { DEFAULT_READING, type ReadingOptions } from "./useRecorder";
 import { analyzeSegments, autoDurationMs, READING_MODES, type SegmentMetrics } from "../session/segments";
 import { HRF_DESCRIPTION } from "../session/hrf";
@@ -297,14 +297,22 @@ function Setup({ r }: { r: R }) {
         <div className="wiz-body" key="s3">
           <h1>Il consenso</h1>
           <p className="lead">La costituzione della misurazione, applicata a questa sessione.</p>
-          <ul className="charter">
-            <li><span><strong>Una sola finalità.</strong> Migliorare la comprensibilità del documento. Nessun uso ulteriore: i dati non profilano, non selezionano, non influenzano.</span></li>
-            <li><span><strong>Si misurano i documenti, mai le persone.</strong> Se una clausola perde chi la legge, il difetto è della clausola.</span></li>
-            <li><span><strong>Il minimo necessario.</strong> Tempo, navigazione e, con la fascia, segnali ottici e di movimento. Nessun nome: uno pseudonimo casuale. Nulla va a un server.</span></li>
-            <li><span><strong>Il metodo è pubblico.</strong> Indicatori, formule e soglie sono nel codice; ogni punteggio si ricalcola dai dati esportati.</span></li>
-            <li><span><strong>Nessuno è obbligato.</strong> Puoi leggere senza fascia o chiudere la pagina in ogni momento, senza conseguenze.</span></li>
-            <li><span><strong>Il segnale della fascia è un indizio.</strong> Non dice se hai capito, non legge pensieri né emozioni.</span></li>
-          </ul>
+          <div className="drawers" aria-label="I sei articoli">
+            {[
+              ["Una sola finalità", "Migliorare la comprensibilità del documento. Nessun uso ulteriore: i dati non profilano, non selezionano, non influenzano."],
+              ["Si misurano i documenti, mai le persone", "Se una clausola perde chi la legge, il difetto è della clausola. Nessun esito dice qualcosa sulla tua capacità."],
+              ["Il minimo necessario", "Tempo, navigazione e, con la fascia, segnali ottici e di movimento. Nessun nome: uno pseudonimo casuale. Nulla va a un server: i dati esistono in questa pagina finché non li scarichi."],
+              ["Il metodo è pubblico", "Indicatori, formule e soglie sono nel codice del laboratorio; ogni punteggio si ricalcola dai dati esportati."],
+              ["Nessuno è obbligato", "Puoi leggere senza fascia o chiudere la pagina in ogni momento, senza alcuna conseguenza."],
+              ["Il segnale della fascia è un indizio", "Dice che in un passaggio lo sforzo è cresciuto. Non dice se hai capito, non legge pensieri né emozioni."],
+            ].map(([t, body], i) => (
+              <details key={t} className="drawer" open>
+                <summary><span className="drawer-lock" aria-hidden="true" /><span className="drawer-num">§ {i + 1}</span> {t}</summary>
+                <p>{body}</p>
+              </details>
+            ))}
+          </div>
+          <p className="tavola-caption">«prima i limiti, poi lo strumento»</p>
           <div className="pledge">
             <label className="check">
               <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> Ho letto e accetto di partecipare a questa sessione.
@@ -384,6 +392,13 @@ function BaselineScreen({ r }: { r: R }) {
           <text x="60" y="56" className="ring-plus">+</text>
           <text x="60" y="84" className="ring-num">{Math.max(left, 0)}</text>
         </svg>
+      </div>
+      <div className="level" aria-label="Livella: la testa è ferma quando la bolla sta al centro">
+        <div className="level-tube">
+          <span className="level-mark" />
+          <span className="level-bubble" style={{ left: `calc(50% + ${Math.max(-1, Math.min(1, (q?.tilt ?? 0) * 3)) * 42}%)` }} />
+        </div>
+        <span className="hint">livella: la bolla al centro vuol dire testa ferma e dritta</span>
       </div>
       <div className="quality" aria-label="Qualità del segnale">
         <div className={`q ${state(!!q && q.hz >= 10, !q)}`}>
@@ -702,7 +717,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
 
       {tab === "mappa" && (
         <div className="panel">
-          <FrictionStrip
+          <SnowMap
             items={friction.map((f) => {
               const m = metrics.find((x) => x.clauseId === f.clauseId)!;
               return { clauseId: f.clauseId, index: m.index, heading: m.heading, level: f.level, count: f.count, reasons: f.reasons };
@@ -825,7 +840,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
       </p>
 
       <section className="card dossier">
-        <h2>Il fascicolo</h2>
+        <span className="tavola-title">Il cantiere · fascicolo di comprensibilità</span>
         <p className="hint">
           Misure, dichiarazioni e test in un PDF con la data: la prova da esibire al posto del click. Contiene la
           sintesi, la mappa della frizione, risposte e compiti, il metodo dichiarato, la costituzione applicata e

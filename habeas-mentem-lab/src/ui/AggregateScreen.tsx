@@ -5,7 +5,7 @@ import { AGGREGATE_THRESHOLDS, aggregateSessions, AggregateError, parseSessionEx
 import { download } from "../session/export";
 import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
 import { BOOK_R, calibrate, describeWeights } from "../session/calibrate";
-import { FrictionStrip } from "./FrictionStrip";
+import { SnowMap } from "./SnowMap";
 
 export function AggregateScreen({ onBack }: { onBack: () => void }) {
   const [files, setFiles] = useState<{ name: string; data: SessionExport }[]>([]);
@@ -113,7 +113,7 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
             <strong>{aggregate.sessions} lettori</strong> · {aggregate.documentTitle} · {aggregate.sessionsWithSignal} con segnale
             {aggregate.simulatedSessions > 0 && ` · ${aggregate.simulatedSessions} con fascia simulata`}
           </p>
-          <FrictionStrip
+          <SnowMap
             title="Dove i lettori si perdono"
             items={aggregate.clauses.map((c) => ({
               clauseId: c.clauseId, index: c.index, heading: c.heading, level: c.friction.level,
