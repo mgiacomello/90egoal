@@ -112,7 +112,10 @@ export function SnowMap({ items, title = "Dove il testo si perde" }: { items: Ma
           )}
         </div>
       )}
-      <p className="plain"><span className="plain-label">Che cosa mostra, in parole semplici.</span> Ogni riga è una clausola, nell'ordine di lettura. I trattini sono gli indizi raccolti: tempo, corpo, testo, verifica, prova. Dove si addensano, il testo perde chi legge. Il colore riassume la convergenza degli indizi e non giudica mai la persona: fa la diagnosi al documento.</p>
+      <details className="details">
+        <summary>Come leggere la mappa</summary>
+        <p className="plain">Una riga per clausola, nell'ordine di lettura. I trattini sono gli indizi raccolti (tempo, corpo, testo, verifica, prova); dove si addensano, il testo perde chi legge. Il colore riassume la convergenza degli indizi.</p>
+      </details>
     </section>
   );
 }
