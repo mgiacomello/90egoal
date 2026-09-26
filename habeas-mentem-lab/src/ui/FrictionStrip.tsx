@@ -3,6 +3,7 @@
 // la tessera racconta le ragioni.
 
 import { useState } from "react";
+import type React from "react";
 import type { FrictionLevel } from "../session/friction";
 
 export interface StripItem {
@@ -32,10 +33,11 @@ export function FrictionStrip({ items, title = "Dove il testo si perde" }: { ite
         </span>
       </div>
       <div className="strip" role="list">
-        {items.map((it) => (
+        {items.map((it, idx) => (
           <button
             key={it.clauseId}
             role="listitem"
+            style={{ "--i": idx } as React.CSSProperties}
             className={`tile ${it.level} ${open === it.clauseId ? "open" : ""}`}
             onClick={() => setOpen(open === it.clauseId ? null : it.clauseId)}
             title={`${it.index}. ${it.heading ?? ""} — ${LABEL[it.level]}`}
