@@ -14,7 +14,7 @@
 
 import { jsPDF } from "jspdf";
 import autoTable, { type CellHookData } from "jspdf-autotable";
-import { LX_ACCESSIBILITY_THRESHOLD } from "./lx";
+import { lxThreshold } from "./lx";
 import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
 import type { Document, Session } from "./model";
@@ -25,6 +25,7 @@ import { HRF_DESCRIPTION } from "./hrf";
 import { HEAT, INK, INK_2, MUTED, PAGE, Page, safe } from "./report";
 import { documentAdvice, readClauses } from "./rewrite";
 import type { ClauseHistory } from "./history";
+import type { LabModel } from "./learning";
 
 export interface DossierInput {
   session: Session;
@@ -39,8 +40,10 @@ export interface DossierInput {
   segments?: SegmentMetrics[];
   /** Varianza spiegata dal modello HRF sulle porzioni. */
   modelR2?: number | null;
-  /** Storico locale sullo stesso documento (sessioni precedenti). */
-  history?: { sessions: number; clauses: ClauseHistory[] };
+  /** Storico sullo stesso documento: dall'archivio del team o da questo browser. */
+  history?: { sessions: number; clauses: ClauseHistory[]; source?: "archivio" | "locale" };
+  /** Il modello appreso dall'archivio, se caricato. */
+  model?: LabModel | null;
 }
 
 /** SHA-256 esadecimale, con WebCrypto; in ambienti senza crypto ritorna null. */
@@ -67,14 +70,14 @@ export function dossierSummary(input: DossierInput): string[] {
   const { session, doc, metrics, friction } = input;
   const totalMs = metrics.reduce((s, m) => s + m.dwellMs, 0);
   const tooFast = metrics.filter((m) => m.tooFastToRead).length;
-  const overLx = metrics.filter((m) => m.lx.total > LX_ACCESSIBILITY_THRESHOLD).length;
+  const overLx = metrics.filter((m) => m.lx.total > lxThreshold()).length;
   const lxMean = Math.round(metrics.reduce((s, m) => s + m.lx.total, 0) / Math.max(metrics.length, 1));
   const red = friction.filter((f) => f.level === "rosso").length;
   const yellow = friction.filter((f) => f.level === "giallo").length;
   const lines = [
     `Documento di ${doc.clauses.length} clausole, ${doc.clauses.reduce((s, c) => s + c.wordCount, 0)} parole. Lettura totale ${seconds(totalMs)}.`,
     `Tempo: ${tooFast} clausole su ${metrics.length} viste per un tempo incompatibile con la lettura completa (oltre 600 parole al minuto).`,
-    `Testo: LX Complexity Score medio ${lxMean}/100; ${overLx} clausole sopra la soglia sperimentale di accessibilità (${LX_ACCESSIBILITY_THRESHOLD}).`,
+    `Testo: LX Complexity Score medio ${lxMean}/100; ${overLx} clausole sopra la soglia sperimentale di accessibilità (${lxThreshold()}).`,
   ];
   if (session.answers.length > 0) {
     const ok = session.answers.filter((a) => a.correct).length;
@@ -96,10 +99,10 @@ export function dossierSummary(input: DossierInput): string[] {
   return lines;
 }
 
-const METHOD: string[] = [
+const method = (): string[] => [
   "Tempo: millisecondi per clausola, visite e ritorni; parole al minuto; sopra 600 wpm il tempo esclude la lettura completa.",
   "Corpo (se presente): fascia Mendi, ~25 Hz; baseline a riposo di 30 s; ΔOD per lunghezza d'onda rispetto alla baseline e inversione a due lunghezze d'onda (Beer-Lambert modificata, coefficienti di estinzione HbO/HbR a 660 e 850 nm, L·DPF = 18 cm): indice di sforzo = ΔHbO in µM stimati, media dei canali frontali, filtrato 0,01–0,5 Hz con regressione del canale corto (pulse) per la circolazione superficiale; artefatti = rotazione > 12°/s (giroscopio) o accelerazione oltre 0,15 g da 1 g, esclusi dal modello. Battito e variabilità dal canale pulse sono un indicatore sistemico, riportato a parte e mai usato nella mappa.",
-  `Testo: stima euristica dell'LX Complexity Score (0-100) su quattro strade: lingua, affollamento, ordine, distanza semantica; calibrata sui valori del corpus BCI (Giacomello, Springer 2026); soglia ${LX_ACCESSIBILITY_THRESHOLD}.`,
+  `Testo: stima euristica dell'LX Complexity Score (0-100) su quattro strade: lingua, affollamento, ordine, distanza semantica; calibrata sui valori del corpus BCI (Giacomello, Springer 2026); soglia ${lxThreshold()}.`,
   "Verifica: domande a risposta chiusa dopo la lettura, senza rileggere. Prova operativa: ritrovare la clausola che serve, con il documento riapribile.",
   "Convergenza: ogni sensore alza al massimo un indizio per clausola. Rosso con almeno tre indizi di cui uno da verifica o prova; giallo con due, o con una sola verifica o prova fallita; verde altrimenti. Il corpo da solo non colora mai.",
   "Limiti dichiarati: dati esplorativi di una sola sessione; l'LX è una stima di superficie, non il modello calibrato su EEG/fNIRS; il segnale della fascia è un indizio, non una lettura della mente; nessuna colonna, da sola, dice se una clausola è stata compresa.",
@@ -222,7 +225,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
   const red = friction.filter((f) => f.level === "rosso").length;
   const yellow = friction.filter((f) => f.level === "giallo").length;
   const lxMean = Math.round(metrics.reduce((s, m) => s + m.lx.total, 0) / Math.max(1, metrics.length));
-  const overLx = metrics.filter((m) => m.lx.total > LX_ACCESSIBILITY_THRESHOLD).length;
+  const overLx = metrics.filter((m) => m.lx.total > lxThreshold()).length;
   const tooFast = metrics.filter((m) => m.tooFastToRead).length;
   const rank = { rosso: 2, giallo: 1, verde: 0 } as const;
   const worst = [...friction].sort((a, b) => rank[b.level] - rank[a.level] || b.count - a.count)[0];
@@ -262,7 +265,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     { label: "Lettura", value: `${Math.round(totalMs / 1000)} s`, note: `${tooFast} clausole troppo veloci` },
     ...(hasVerify ? [{ label: "Verifica", value: `${vOk}/${session.answers.length}`, note: "risposte corrette" }] : []),
     ...(hasOperate ? [{ label: "Prova", value: `${oOk}/${session.tasks.length}`, note: "compiti riusciti" }] : []),
-    { label: "Testo", value: `LX ${lxMean}`, note: `${overLx}/${metrics.length} sopra soglia ${LX_ACCESSIBILITY_THRESHOLD}` },
+    { label: "Testo", value: `LX ${lxMean}`, note: `${overLx}/${metrics.length} sopra soglia ${lxThreshold()}` },
     { label: "Frizione", value: `${red} R · ${yellow} G`, note: `${friction.length - red - yellow} verdi` },
   ]);
   pg.section("In sintesi");
@@ -293,7 +296,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
       const f = byId.get(m.clauseId)!;
       return {
         index: m.index, heading: clean(m.heading), dwellMs: m.dwellMs, plausibleMs: m.plausibleReadMs, tooFast: m.tooFastToRead,
-        lx: m.lx.total, lxThreshold: LX_ACCESSIBILITY_THRESHOLD,
+        lx: m.lx.total, lxThreshold: lxThreshold(),
         verify: m.verification.asked ? `${m.verification.correct}/${m.verification.asked}` : "–",
         operate: m.operational.asked ? `${m.operational.correct}/${m.operational.asked}` : "–",
         effort: hasBody ? (m.effortModel?.beta ?? (m.effort.sampleCount ? m.effort.mean : null)) : null,
@@ -310,7 +313,12 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
   pg.section("Lettura dei risultati e proposte di riscrittura");
   pg.bullets(documentAdvice(readings), 9.5);
   if (hist) {
-    pg.p(`Storico locale: ${hist.sessions} ${hist.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} sullo stesso documento in questo browser. Per ogni clausola è indicata la quota di sessioni in cui è stata gialla o rossa.`, 9, INK_2, 3);
+    pg.p(
+      hist.source === "archivio"
+        ? `Archivio del team: ${hist.sessions} ${hist.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} sullo stesso documento, di tutti gli operatori. Per ogni clausola è indicata la quota di sessioni in cui è stata gialla o rossa.`
+        : `Storico locale: ${hist.sessions} ${hist.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} sullo stesso documento in questo browser. Per ogni clausola è indicata la quota di sessioni in cui è stata gialla o rossa.`,
+      9, INK_2, 3,
+    );
   }
   const byPriority = [...readings].sort((a, b) => a.priority - b.priority);
   for (const r of byPriority) {
@@ -346,7 +354,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
       }
     }
     if (r.draft && r.draft.after < r.draft.before) {
-      pg.smallcaps(`Bozza automatica · LX ${r.draft.before} -> ${r.draft.after}${r.draft.after <= LX_ACCESSIBILITY_THRESHOLD && r.draft.before > LX_ACCESSIBILITY_THRESHOLD ? " · sotto la soglia" : ""}`, pg.x0, pg.y, 6, MUTED);
+      pg.smallcaps(`Bozza automatica · LX ${r.draft.before} -> ${r.draft.after}${r.draft.after <= lxThreshold() && r.draft.before > lxThreshold() ? " · sotto la soglia" : ""}`, pg.x0, pg.y, 6, MUTED);
       pg.gap(4);
       pg.p(r.draft.text, 8.5, INK_2, 3, pg.w - 4, pg.x0 + 4);
     }
@@ -391,7 +399,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     didParseCell: frictionColor(head.length - 2),
   });
   pg.y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-  pg.plain(`! = oltre 600 parole al minuto. LX 0-100, soglia ${LX_ACCESSIBILITY_THRESHOLD}; le quattro strade (lingua, affollamento, ordine, distanza semantica) sono nel JSON allegato. beta HRF = sforzo attribuito con il modello della risposta emodinamica (µM stimati, confrontabili solo dentro la sessione) con l'errore standard; HR d = battito medio sulla clausola meno battito a riposo, in bpm, indicatore sistemico. Nessuna colonna, da sola, dice se la clausola è stata compresa.`);
+  pg.plain(`! = oltre 600 parole al minuto. LX 0-100, soglia ${lxThreshold()}; le quattro strade (lingua, affollamento, ordine, distanza semantica) sono nel JSON allegato. beta HRF = sforzo attribuito con il modello della risposta emodinamica (µM stimati, confrontabili solo dentro la sessione) con l'errore standard; HR d = battito medio sulla clausola meno battito a riposo, in bpm, indicatore sistemico. Nessuna colonna, da sola, dice se la clausola è stata compresa.`);
 
   // ── 4. Le quattro strade dell'LX ─────────────────────────────────────────
   pg.section("Tavola 4 · Le quattro strade della complessità");
@@ -512,9 +520,36 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     pg.newPage();
   }
 
+  // ── 7b. Che cosa ha imparato il laboratorio ──────────────────────────────
+  const model = input.model ?? null;
+  if (model && model.sessions > 0) {
+    pg.ensure(110);
+    pg.section("Che cosa ha imparato il laboratorio");
+    const enough = model.sessions >= 5;
+    const roadName: Record<string, string> = { syntactic: "lingua", semantic: "distanza semantica", structural: "ordine", conceptual: "affollamento" };
+    pg.tiles([
+      { label: "Sessioni", value: String(model.sessions), note: `${model.realSessions} con fascia vera · ${model.documents.length} ${model.documents.length === 1 ? "documento" : "documenti"}` },
+      { label: "Pesi LX", value: model.lx.source === "appreso" ? "ricalibrati" : "predefiniti", note: model.lx.r !== null && model.lx.defaultR !== null ? `r ${model.lx.r.toFixed(2)} (predefiniti ${model.lx.defaultR.toFixed(2)})` : model.lx.reason ?? "" },
+      { label: "Soglia LX", value: String(model.lx.threshold), note: model.lx.threshold === 45 ? "come nel libro" : "appresa dai dati" },
+      { label: "Parole lente", value: String(model.words.length), note: "ricorrenti in più sessioni" },
+    ]);
+    const w = model.lx.weights;
+    const pct = (x: number) => `${Math.round(x * 100)}%`;
+    const lines = [
+      `Pesi in vigore in questo fascicolo: lingua ${pct(w.syntactic)}, distanza semantica ${pct(w.semantic)}, ordine ${pct(w.structural)}, affollamento ${pct(w.conceptual)}; soglia ${model.lx.threshold}. Modello calcolato il ${new Date(model.computedAt).toLocaleString("it-IT")} su ${model.lx.clauses} clausole.`,
+    ];
+    const roads = model.roads.filter((r) => r.r !== null).sort((a, b) => (a.r as number) - (b.r as number));
+    if (enough && roads.length && (roads[0].r as number) < -0.2) lines.push(`Strade, dalla più predittiva della perdita del lettore: ${roads.map((r) => `${roadName[r.road]} (r ${(r.r as number).toFixed(2)})`).join(", ")}. Le proposte di riscrittura seguono quest'ordine.`);
+    else lines.push(enough ? "Nessuna strada dell'LX è ancora correlata in modo netto con la perdita del lettore (r sopra -0,20): le proposte seguono l'ordine del libro." : `Con ${model.sessions} sessioni le strade restano nell'ordine del libro: la correlazione per strada si usa da 5 sessioni.`);
+    if (model.words.length) lines.push(`Parole che rallentano i lettori del team: ${model.words.slice(0, 12).map((x) => `«${x.word}» (${x.sessions} sess., z ${x.timeZ >= 0 ? "+" : ""}${x.timeZ.toFixed(1)})`).join(", ")}.`);
+    lines.push(...model.notes.slice(0, 3));
+    pg.bullets(lines.map(safe), 8.5);
+    pg.plain("Il modello è un JSON pubblico calcolato dall'archivio delle sessioni del team, senza intervento manuale: si rifà ogni volta che arrivano sessioni nuove. I pesi appresi sostituiscono quelli del libro solo se migliorano la correlazione con la comprensione misurata di almeno 0,05; la soglia cambia solo se separa la comprensione media di almeno dieci punti. Con poche sessioni il modello resta quello predefinito e lo dice.");
+  }
+
   // ── 8. Metodo, costituzione, responsabile, impronta ──────────────────────
   pg.section("Metodo dichiarato");
-  pg.bullets(METHOD, 8.5);
+  pg.bullets(method(), 8.5);
   pg.section("La costituzione della misurazione, applicata");
   pg.bullets(CONSTITUTION, 8.5);
   pg.ensure(48);
@@ -621,10 +656,10 @@ export async function buildAggregateDossier(input: AggregateDossierInput): Promi
   heading("3. Metodo dichiarato (aggregato)");
   bullets(
     [
-      ...METHOD.slice(0, 4),
+      ...method().slice(0, 4),
       `Convergenza tra lettori: il tempo conta se almeno il ${Math.round(T.timeShare * 100)}% dei lettori è stato troppo veloce o è tornato indietro; la verifica conta con almeno ${T.minAnswers} risposte e accuratezza sotto il ${Math.round(T.verifyAccuracy * 100)}%; la prova con almeno ${T.minAnswers} compiti e riuscita sotto il ${Math.round(T.operateSuccess * 100)}%; il corpo con almeno ${T.minSignalReaders} lettori con segnale e sforzo medio nel terzo più alto. Rosso con almeno tre indizi di cui uno da verifica o prova; giallo con due, o con una sola verifica o prova; verde altrimenti.`,
       "Anonimato: gli pseudonimi delle sessioni non sono riportati; conta solo quanti lettori erano. I dati restano aggregati.",
-      METHOD[5],
+      method()[5],
     ],
     8.5,
   );
@@ -641,7 +676,7 @@ export async function buildAggregateDossier(input: AggregateDossierInput): Promi
           `Pesi attuali: ${describeWeights(c.defaultWeights)} → r = ${fr(c.defaultR)}.`,
           `Pesi ricalibrati su ${c.clauses} clausole e ${c.sessions} lettori: ${describeWeights(c.weights)} → r = ${fr(c.r)}. Nel libro: r = ${BOOK_R.calibration} in calibrazione, ${BOOK_R.validation} in validazione.`,
           c.threshold
-            ? `Soglia osservata: ${c.threshold}/100 (sopra, la comprensione media cala di ${Math.round((c.thresholdDrop ?? 0) * 100)} punti); soglia del libro: ${LX_ACCESSIBILITY_THRESHOLD}.`
+            ? `Soglia osservata: ${c.threshold}/100 (sopra, la comprensione media cala di ${Math.round((c.thresholdDrop ?? 0) * 100)} punti); soglia del libro: ${lxThreshold()}.`
             : "Nessuna soglia netta osservabile con questi dati.",
           ...c.caveats,
         ],

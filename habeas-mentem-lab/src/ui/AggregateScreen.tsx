@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AGGREGATE_THRESHOLDS, aggregateSessions, AggregateError, parseSessionExport, type Aggregate, type SessionExport } from "../session/aggregate";
 import { download } from "../session/export";
-import { LX_ACCESSIBILITY_THRESHOLD } from "../session/lx";
+import { lxThreshold } from "../session/lx";
 import { BOOK_R, calibrate, describeWeights } from "../session/calibrate";
 import { SnowMap } from "./SnowMap";
 
@@ -156,7 +156,7 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
                     <td className={c.tooFastShare >= T.timeShare ? "ko" : ""}>{pct(c.tooFastShare)}</td>
                     <td>{pct(c.returnedShare)}</td>
                     <td>
-                      <span className={`lx ${c.lx.total > LX_ACCESSIBILITY_THRESHOLD ? "lx-high" : "lx-ok"}`}>{c.lx.total}</span>
+                      <span className={`lx ${c.lx.total > lxThreshold() ? "lx-high" : "lx-ok"}`}>{c.lx.total}</span>
                     </td>
                     <td className={c.friction.indicators.verify ? "ko" : c.verification.asked ? "ok" : ""}>
                       {c.verification.asked ? `${c.verification.correct}/${c.verification.asked}` : "—"}
@@ -209,7 +209,7 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
                       <span className="stat-label">Soglia osservata</span>
                       <span className="stat-value">{cal.threshold ?? "—"}</span>
                       <span className="stat-note">
-                        {cal.threshold ? `sopra, la comprensione media cala di ${Math.round((cal.thresholdDrop ?? 0) * 100)} punti` : "nessun taglio netto"} · libro: {LX_ACCESSIBILITY_THRESHOLD}
+                        {cal.threshold ? `sopra, la comprensione media cala di ${Math.round((cal.thresholdDrop ?? 0) * 100)} punti` : "nessun taglio netto"} · libro: {lxThreshold()}
                       </span>
                     </div>
                   </div>

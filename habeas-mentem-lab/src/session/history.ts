@@ -7,6 +7,7 @@
 
 import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
+import type { LabModel } from "./learning";
 
 export interface HistoryRecord {
   documentId: string;
@@ -47,10 +48,38 @@ export interface ClauseHistory {
   sessions: number;
   lostShare: number;
   verifyWrongShare: number;
+  /** Tempo mediano per parola nelle sessioni archiviate (solo dall'archivio). */
+  msPerWordMedian?: number | null;
 }
 
-/** Storico per clausola sullo stesso documento, escludendo la sessione corrente. */
-export function historyFor(documentId: string, excludeSessionId: string, history = loadHistory()): { sessions: number; clauses: ClauseHistory[] } {
+export interface History {
+  sessions: number;
+  clauses: ClauseHistory[];
+  /** Da dove vengono i numeri: l'archivio del team o solo questo browser. */
+  source: "archivio" | "locale";
+}
+
+/**
+ * Storico per clausola sullo stesso documento. Se il modello appreso
+ * dall'archivio conosce il documento, vale quello (è la storia di tutto il
+ * team, calcolata prima di questa sessione); altrimenti lo storico locale,
+ * escludendo la sessione corrente.
+ */
+export function historyFor(documentId: string, excludeSessionId: string, history = loadHistory(), model: LabModel | null = null): History {
+  const archived = model?.documents.find((d) => d.documentId === documentId);
+  if (archived && archived.sessions > 0) {
+    return {
+      source: "archivio",
+      sessions: archived.sessions,
+      clauses: archived.clauses.map((c) => ({
+        clauseId: c.clauseId,
+        sessions: c.readers,
+        lostShare: c.lostShare,
+        verifyWrongShare: c.verifyAccuracy === null ? 0 : 1 - c.verifyAccuracy,
+        msPerWordMedian: c.msPerWordMedian,
+      })),
+    };
+  }
   const mine = history.filter((r) => r.documentId === documentId && r.sessionId !== excludeSessionId);
   const ids = new Set(mine.flatMap((r) => r.clauses.map((c) => c.id)));
   const clauses = [...ids].map((id) => {
@@ -62,5 +91,5 @@ export function historyFor(documentId: string, excludeSessionId: string, history
       verifyWrongShare: rows.length ? rows.filter((c) => c.verifyWrong).length / rows.length : 0,
     };
   });
-  return { sessions: mine.length, clauses };
+  return { source: "locale", sessions: mine.length, clauses };
 }

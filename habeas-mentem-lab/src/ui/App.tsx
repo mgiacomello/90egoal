@@ -3,7 +3,9 @@ import { createPortal } from "react-dom";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
 import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
 import { clausesCsv, download, framesCsv, segmentsCsv, sessionJson, vitalsCsv } from "../session/export";
-import { LX_ACCESSIBILITY_THRESHOLD, lxScore } from "../session/lx";
+import { lxThreshold, lxScore, setLxModel } from "../session/lx";
+import { archiveInfo, archiveKey, flushQueue, loadModel, queuedCount, setArchiveKey, uploadSession, type ArchiveInfo, type UploadOutcome } from "../session/archive";
+import type { LabModel } from "../session/learning";
 import { clauseMetrics } from "../session/metrics";
 import type { Document } from "../session/model";
 import { Sparkline } from "./Sparkline";
@@ -14,16 +16,48 @@ import { SnowMap } from "./SnowMap";
 import { DEFAULT_READING, type ReadingOptions } from "./useRecorder";
 import { analyzeSegments, autoDurationMs, READING_MODES, type SegmentMetrics } from "../session/segments";
 import { HRF_DESCRIPTION } from "../session/hrf";
-import { documentAdvice, readClauses } from "../session/rewrite";
+import { documentAdvice, readClauses, setLearnedModel } from "../session/rewrite";
 import { historyFor, recordSession } from "../session/history";
 import { frictionMap } from "../session/friction";
 import { useRecorder } from "./useRecorder";
 
 const BASELINE_SECONDS = 30;
 
+/** L'archivio del team e il modello appreso, condivisi tra le schermate. */
+export interface LabContext {
+  model: LabModel | null;
+  modelFromCache: boolean;
+  archive: ArchiveInfo | null;
+  refresh: () => void;
+}
+
 export function App() {
   const r = useRecorder();
   const [mode, setMode] = useState<"session" | "aggregate">("session");
+  const [model, setModel] = useState<LabModel | null>(null);
+  const [modelFromCache, setModelFromCache] = useState(false);
+  const [archive, setArchive] = useState<ArchiveInfo | null>(null);
+  const [tick, setTick] = useState(0);
+  // All'avvio: il modello appreso entra in LX e nelle proposte; le sessioni
+  // rimaste in coda partono; lo stato dell'archivio va in schermata.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const m = await loadModel();
+      if (!alive) return;
+      setModel(m.model);
+      setModelFromCache(m.fromCache);
+      setLxModel(m.model ? { weights: m.model.lx.weights, threshold: m.model.lx.threshold, source: m.model.lx.source } : null);
+      setLearnedModel(m.model);
+      await flushQueue();
+      const info = await archiveInfo();
+      if (alive) setArchive(info);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tick]);
+  const lab: LabContext = { model, modelFromCache, archive, refresh: () => setTick((t) => t + 1) };
   return (
     <div className="app">
       <header className="topbar">
@@ -69,7 +103,7 @@ export function App() {
       )}
 
       {r.phase === "setup" && mode === "aggregate" && <AggregateScreen onBack={() => setMode("session")} />}
-      {r.phase === "setup" && mode === "session" && <Setup r={r} />}
+      {r.phase === "setup" && mode === "session" && <Setup r={r} lab={lab} />}
       {r.phase === "baseline" && <BaselineScreen r={r} />}
       {r.phase === "reading" && r.document && <Reader r={r} doc={r.document} />}
       {r.phase === "rest" && <RestScreen r={r} />}
@@ -79,10 +113,10 @@ export function App() {
       {r.phase === "operate" && r.document && (
         <Operate doc={r.document} onComplete={r.completeTask} onDone={r.finishOperate} />
       )}
-      {r.phase === "results" && r.document && r.session && <Results r={r} doc={r.document} />}
+      {r.phase === "results" && r.document && r.session && <Results r={r} doc={r.document} lab={lab} />}
 
       <footer className="foot">
-        Habeas Mentem Lab · uso interno · i dati restano in questo browser finché non vengono scaricati.
+        Habeas Mentem Lab · uso interno · il tracciato resta in questo browser; nell'archivio del team vanno solo i risultati per clausola, senza nomi.
       </footer>
     </div>
   );
@@ -90,7 +124,60 @@ export function App() {
 
 type R = ReturnType<typeof useRecorder>;
 
-function Setup({ r }: { r: R }) {
+function ArchivePanel({ lab }: { lab: LabContext }) {
+  const [key, setKey] = useState(archiveKey());
+  const [saved, setSaved] = useState(false);
+  const a = lab.archive;
+  const m = lab.model;
+  const state = !a ? "controllo…" : !a.reachable ? "non raggiungibile" : !a.configured ? "non configurato" : !a.authorized ? "chiave non accettata" : "attivo";
+  const queued = queuedCount();
+  return (
+    <details className="drawer archive" open={!!a && (!a.authorized || !a.configured)}>
+      <summary>
+        <span className="drawer-lock" aria-hidden="true" />
+        <span className="drawer-num">§ 7</span> Archivio del team e apprendimento
+        <span className={`pill ${a?.authorized && a.configured ? "ok" : ""}`} style={{ marginLeft: "auto" }}>{state}</span>
+      </summary>
+      <div className="archive-body">
+        <p>
+          {a?.configured && a.authorized
+            ? `${a.sessions} ${a.sessions === 1 ? "sessione archiviata" : "sessioni archiviate"} su ${a.documents} ${a.documents === 1 ? "documento" : "documenti"}.`
+            : a?.message ?? "Verifica in corso."}
+          {m && m.sessions > 0 && (
+            <> Modello appreso da {m.sessions} sessioni ({new Date(m.computedAt).toLocaleDateString("it-IT")}{lab.modelFromCache ? ", copia locale" : ""}): LX {m.lx.source === "appreso" ? `ricalibrato, soglia ${m.lx.threshold}` : "predefinito"}{m.words.length ? `, ${m.words.length} parole lente` : ""}.</>
+          )}
+          {!m && a?.configured && a.authorized && <> Nessun modello ancora: si forma da solo con le prime sessioni.</>}
+          {queued > 0 && <> {queued} {queued === 1 ? "sessione in coda" : "sessioni in coda"}, parte appena la rete torna.</>}
+        </p>
+        <div className="archive-key">
+          <input
+            type="password"
+            placeholder="chiave del team (se richiesta)"
+            value={key}
+            autoComplete="off"
+            onChange={(e) => {
+              setKey(e.target.value);
+              setSaved(false);
+            }}
+          />
+          <button
+            className="ghost"
+            onClick={() => {
+              setArchiveKey(key);
+              setSaved(true);
+              lab.refresh();
+            }}
+          >
+            {saved ? "salvata" : "salva"}
+          </button>
+        </div>
+        <p className="hint">Ogni sessione con fascia viene archiviata alla fine, senza pseudonimo né tracciato grezzo: solo risultati per clausola e per porzione. Il laboratorio ricalcola da solo pesi e soglia dell'LX, lo storico per clausola e le parole lente ogni volta che arrivano sessioni nuove.</p>
+      </div>
+    </details>
+  );
+}
+
+function Setup({ r, lab }: { r: R; lab: LabContext }) {
   const [docId, setDocId] = useState(DOCUMENTS[0].id);
   const [pasteTitle, setPasteTitle] = useState("");
   const [pasteText, setPasteText] = useState("");
@@ -202,7 +289,7 @@ function Setup({ r }: { r: R }) {
                   <span className="doc-meta">
                     <span>{d.clauses.length} clausole</span>
                     <span>~{i.minutes} min</span>
-                    <span className={`lx ${i.lx > LX_ACCESSIBILITY_THRESHOLD ? "lx-high" : "lx-ok"}`} title="LX medio stimato">LX {i.lx}</span>
+                    <span className={`lx ${i.lx > lxThreshold() ? "lx-high" : "lx-ok"}`} title="LX medio stimato">LX {i.lx}</span>
                   </span>
                 </button>
               );
@@ -268,7 +355,7 @@ function Setup({ r }: { r: R }) {
             {[
               ["Una sola finalità", "Migliorare la comprensibilità del documento. Nessun uso ulteriore: i dati non profilano, non selezionano, non influenzano."],
               ["Si misurano i documenti, mai le persone", "Se una clausola perde chi la legge, il difetto è della clausola. Nessun esito dice qualcosa sulla tua capacità."],
-              ["Il minimo necessario", "Tempo, navigazione e, con la fascia, segnali ottici e di movimento. Nessun nome: uno pseudonimo casuale. Nulla va a un server: i dati esistono in questa pagina finché non li scarichi."],
+              ["Il minimo necessario", "Tempo, navigazione e, con la fascia, segnali ottici e di movimento. Nessun nome: uno pseudonimo casuale. Il tracciato resta in questa pagina finché non viene scaricato; nell'archivio del team vanno solo i risultati per clausola, senza pseudonimo, per migliorare il documento e il metodo."],
               ["Il metodo è pubblico", "Indicatori, formule e soglie sono nel codice del laboratorio; ogni punteggio si ricalcola dai dati esportati."],
               ["Nessuno è obbligato", "Puoi leggere senza fascia o chiudere la pagina in ogni momento, senza alcuna conseguenza."],
               ["Il segnale della fascia è un indizio", "Dice che in un passaggio lo sforzo è cresciuto. Non dice se hai capito, non legge pensieri né emozioni."],
@@ -279,6 +366,7 @@ function Setup({ r }: { r: R }) {
               </details>
             ))}
           </div>
+          <ArchivePanel lab={lab} />
           <p className="tavola-caption">«prima i limiti, poi lo strumento»</p>
           <div className="pledge">
             <label className="check">
@@ -555,7 +643,7 @@ function Count({ n }: { n: number }) {
   return <>{useCountUp(n)}</>;
 }
 
-function Results({ r, doc }: { r: R; doc: Document }) {
+function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
   const session = r.session!;
   const metrics = useMemo(() => clauseMetrics(session, doc.clauses), [session, doc]);
   const friction = useMemo(() => frictionMap(metrics), [metrics]);
@@ -575,10 +663,24 @@ function Results({ r, doc }: { r: R; doc: Document }) {
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
   const [tab, setTab] = useState<"mappa" | "parole" | "riscrittura" | "dati">("mappa");
   const readings = useMemo(() => readClauses(doc.clauses, metrics, friction), [doc, metrics, friction]);
-  const history = useMemo(() => historyFor(doc.id, session.id), [doc.id, session.id]);
+  const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model), [doc.id, session.id, lab.model]);
   useEffect(() => {
     recordSession(doc.id, session.id, session.createdAt, metrics, friction);
   }, [doc.id, session.id, session.createdAt, metrics, friction]);
+  // Archivio: le sessioni con fascia vera partono da sole; quelle simulate solo su richiesta.
+  const simulated = !!session.device?.simulated;
+  const [archiveState, setArchiveState] = useState<{ outcome: UploadOutcome | "invio" | null; error: string | null }>({ outcome: null, error: null });
+  const archiveNow = async () => {
+    setArchiveState({ outcome: "invio", error: null });
+    const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
+    const res = await uploadSession(session.id, json);
+    setArchiveState(res);
+    if (res.outcome === "archiviata") lab.refresh();
+  };
+  useEffect(() => {
+    if (!simulated && lab.archive?.configured && lab.archive.authorized) void archiveNow();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id, simulated, lab.archive?.configured, lab.archive?.authorized]);
   // Il modulo PDF è un chunk separato: lo scarichiamo appena arriviamo ai
   // risultati, così se nel frattempo il sito è stato ripubblicato (e i vecchi
   // chunk non esistono più) ce l'abbiamo già.
@@ -591,7 +693,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
     try {
       const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
       const { buildDossier } = await import("../session/dossier");
-      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows, modelR2: segmentAnalysis.modelR2, history });
+      const blob = await buildDossier({ session, doc, metrics, friction, sessionJson: json, responsible, segments: segmentRows, modelR2: segmentAnalysis.modelR2, history, model: lab.model });
       const name = `${stamp}-fascicolo.pdf`;
       if (dossierUrl) URL.revokeObjectURL(dossierUrl.url);
       // Il link resta: se il browser blocca il download automatico, un clic diretto funziona sempre.
@@ -616,6 +718,17 @@ function Results({ r, doc }: { r: R; doc: Document }) {
       <p className="lead">
         <code>{session.participant}</code> · {doc.title.replace(" (modello)", "")}
         {r.baseline ? ` · baseline ${r.baseline.sampleCount} campioni` : " · senza fascia"}
+      </p>
+      <p className="hint archive-line">
+        {archiveState.outcome === "invio" && "Archivio del team: invio in corso…"}
+        {archiveState.outcome === "archiviata" && "Archivio del team: sessione archiviata. Il modello si aggiorna da solo alla prossima apertura."}
+        {archiveState.outcome === "già archiviata" && "Archivio del team: sessione già archiviata."}
+        {archiveState.outcome === "in coda" && `Archivio del team: rete assente, sessione in coda (${archiveState.error ?? ""}).`}
+        {archiveState.outcome === "rifiutata" && `Archivio del team: sessione rifiutata (${archiveState.error ?? ""}).`}
+        {archiveState.outcome === null && simulated && lab.archive?.configured && lab.archive.authorized && (
+          <>Sessione simulata: non va in archivio da sola. <button className="linklike" onClick={() => void archiveNow()}>Archivia comunque</button></>
+        )}
+        {archiveState.outcome === null && !simulated && lab.archive && !(lab.archive.configured && lab.archive.authorized) && `Archivio del team non attivo (${lab.archive.message ?? "vedi impostazioni"}): la sessione resta solo qui.`}
       </p>
 
       {(() => {
@@ -665,8 +778,8 @@ function Results({ r, doc }: { r: R; doc: Document }) {
         )}
         <div className="tile-stat">
           <span className="stat-label">Testo</span>
-          <span className="stat-value">{metrics.filter((m) => m.lx.total > LX_ACCESSIBILITY_THRESHOLD).length}<small> / {metrics.length}</small></span>
-          <span className="stat-note">clausole con LX sopra {LX_ACCESSIBILITY_THRESHOLD}</span>
+          <span className="stat-value">{metrics.filter((m) => m.lx.total > lxThreshold()).length}<small> / {metrics.length}</small></span>
+          <span className="stat-note">clausole con LX sopra {lxThreshold()}</span>
         </div>
         <div className="tile-stat">
           <span className="stat-label">Frizione</span>
@@ -695,7 +808,11 @@ function Results({ r, doc }: { r: R; doc: Document }) {
             <ul className="charter">
               {documentAdvice(readings).map((a, i) => <li key={i}><span>{a}</span></li>)}
             </ul>
-            {history.sessions > 0 && <p className="hint">Storico locale: {history.sessions} {history.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} su questo documento in questo browser.</p>}
+            {history.sessions > 0 && (
+              <p className="hint">
+                {history.source === "archivio" ? "Archivio del team" : "Storico locale"}: {history.sessions} {history.sessions === 1 ? "sessione precedente" : "sessioni precedenti"} su questo documento{history.source === "archivio" ? "" : " in questo browser"}.
+              </p>
+            )}
           </section>
           {[...readings].sort((a, b) => a.priority - b.priority).map((r) => {
             const h = history.clauses.find((c) => c.clauseId === r.clauseId);
@@ -819,7 +936,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
               <td>{m.returns}</td>
               <td>
                 <span
-                  className={`lx ${m.lx.total > LX_ACCESSIBILITY_THRESHOLD ? "lx-high" : "lx-ok"}`}
+                  className={`lx ${m.lx.total > lxThreshold() ? "lx-high" : "lx-ok"}`}
                   title={`Lingua ${m.lx.syntactic} · Affollamento ${m.lx.conceptual} · Ordine ${m.lx.structural} · Distanza semantica ${m.lx.semantic}\n${m.lx.details.avgSentenceLength} parole/frase (obiettivo 22), ${m.lx.details.subordinatesPerSentence} subordinate/periodo, passive ${Math.round(m.lx.details.passiveRatio * 100)}%\n${m.lx.details.technicalTermsPer600} termini tecnici ogni 600 parole, ${Math.round(m.lx.details.undefinedShare * 100)}% senza definizione, ${m.lx.details.citations} rinvii normativi`}
                 >
                   {m.lx.total}
@@ -865,7 +982,7 @@ function Results({ r, doc }: { r: R; doc: Document }) {
       <details className="details">
         <summary>Legenda e metodo</summary>
         <p className="hint">
-          ⚠ = oltre 600 parole al minuto. LX = stima euristica dell'LX Complexity Score, 0–100, soglia {LX_ACCESSIBILITY_THRESHOLD}
+          ⚠ = oltre 600 parole al minuto. LX = stima euristica dell'LX Complexity Score, 0–100, soglia {lxThreshold()}
           (passa il mouse per le quattro dimensioni). Sforzo = ΔHbO medio rispetto alla baseline, in µM stimati, confrontabile
           solo dentro la sessione. Frizione = convergenza: ogni sensore conta al massimo un indizio; il corpo da solo non colora.
         </p>

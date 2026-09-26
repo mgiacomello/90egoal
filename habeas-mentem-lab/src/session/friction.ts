@@ -14,7 +14,7 @@
 // documento, non della lettura.
 
 import type { ClauseMetrics } from "./metrics";
-import { LX_ACCESSIBILITY_THRESHOLD } from "./lx";
+import { lxThreshold } from "./lx";
 
 export type FrictionLevel = "verde" | "giallo" | "rosso";
 
@@ -50,7 +50,7 @@ export function frictionMap(metrics: ClauseMetrics[]): Friction[] {
     const indicators: FrictionIndicators = {
       time: m.tooFastToRead || m.returns >= 2,
       body: m.effort.sampleCount > 0 && efforts.length >= 3 && m.effort.mean >= bodyThreshold && m.effort.mean > 0,
-      text: m.lx.total > LX_ACCESSIBILITY_THRESHOLD,
+      text: m.lx.total > lxThreshold(),
       verify: m.verification.asked > 0 && m.verification.correct < m.verification.asked,
       operate: m.operational.asked > 0 && m.operational.correct < m.operational.asked,
     };

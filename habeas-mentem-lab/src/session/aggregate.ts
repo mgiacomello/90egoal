@@ -10,7 +10,7 @@
 // calcola, per clausola, dove i lettori si perdono. Gli pseudonimi non
 // vengono riportati: conta solo quanti erano.
 
-import { LX_ACCESSIBILITY_THRESHOLD, type LxScore } from "./lx";
+import { lxThreshold, type LxScore } from "./lx";
 import type { Friction, FrictionIndicators, FrictionLevel } from "./friction";
 import type { ClauseMetrics } from "./metrics";
 import type { Clause } from "./model";
@@ -160,7 +160,7 @@ export function aggregateSessions(exports: SessionExport[]): Aggregate {
     const indicators: FrictionIndicators = {
       time: c.readers > 0 && (c.tooFastShare >= T.timeShare || c.returnedShare >= T.timeShare),
       body: c.effort.mean !== null && c.effort.readersWithSignal >= T.minSignalReaders && efforts.length >= 3 && c.effort.mean >= bodyThreshold && c.effort.mean > 0,
-      text: c.lx.total > LX_ACCESSIBILITY_THRESHOLD,
+      text: c.lx.total > lxThreshold(),
       verify: c.verification.asked >= T.minAnswers && (c.verification.accuracy as number) < T.verifyAccuracy,
       operate: c.operational.asked >= T.minAnswers && (c.operational.success as number) < T.operateSuccess,
     };

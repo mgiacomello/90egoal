@@ -7,10 +7,36 @@
 // un giurista, e ogni bozza automatica viene rimisurata con lo stesso LX,
 // così il fascicolo dice quanto si guadagnerebbe, non quanto si spera.
 
-import { lxScore, LX_ACCESSIBILITY_THRESHOLD, LX_TARGET_SENTENCE_LENGTH, splitSentences, technicalTerms, type LxScore } from "./lx";
+import { lxScore, lxThreshold, LX_TARGET_SENTENCE_LENGTH, splitSentences, technicalTerms, type LxScore } from "./lx";
 import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
 import type { Clause } from "./model";
+import { roadOrder, type LabModel, type LearnedWord, type Road } from "./learning";
+
+// Il modello appreso dall'archivio (learning.ts): parole che rallentano i
+// lettori del team e ordine delle strade più predittive. Senza archivio le
+// proposte restano quelle delle regole dichiarate.
+let learned: LabModel | null = null;
+export function setLearnedModel(model: LabModel | null): void {
+  learned = model;
+}
+export function learnedModel(): LabModel | null {
+  return learned;
+}
+
+const KIND_ROAD: Record<Proposal["kind"], Road> = {
+  spezza: "syntactic", attivo: "syntactic", nominale: "syntactic",
+  parola: "semantic", definisci: "semantic",
+  elenco: "structural", ordine: "structural",
+  rinvii: "conceptual",
+};
+
+/** Le parole lente dell'archivio presenti in questo testo. */
+export function learnedWordsIn(text: string, model: LabModel | null = learned): LearnedWord[] {
+  if (!model) return [];
+  const low = text.toLowerCase();
+  return model.words.filter((w) => new RegExp(`(^|[^a-zà-ù])${w.word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^a-zà-ù]|$)`).test(low));
+}
 
 export interface Proposal {
   /** Tipo di intervento. */
@@ -266,7 +292,25 @@ export function proposalsFor(clause: Clause, lx: LxScore): Proposal[] {
     out.push({ kind: "ordine", title: "La cifra che conta arriva tardi", before: `Il primo dato concreto (durata, importo) compare dopo il ${Math.round((firstNumberAt / text.length) * 100)}% del testo`, after: "Aprire con la conseguenza per chi legge: «Conserviamo i segnali per 24 mesi. Poi…», e mettere dopo le eccezioni.", why: "Chi legge cerca la risposta alla propria domanda: metterla prima riduce ritorni e tempo." });
   }
 
-  return out;
+  // 9. Parole che l'archivio ha visto rallentare i lettori (modello appreso).
+  const already = new Set(out.filter((p) => p.kind === "parola" || p.kind === "definisci").map((p) => p.before.toLowerCase()));
+  for (const w of learnedWordsIn(text).filter((w) => ![...already].some((b) => b.includes(w.word))).slice(0, 3)) {
+    const def = Object.entries(DEFINITIONS).find(([k]) => k.includes(w.word))?.[1];
+    out.push({
+      kind: "parola",
+      title: `«${w.word}» rallenta i lettori (archivio)`,
+      before: w.word,
+      after: def ? `spiegarla alla prima occorrenza: «…, cioè ${def}»` : "sostituirla con una parola comune, o spiegarla alla prima occorrenza",
+      why: `Nell'archivio del team le porzioni con «${w.word}» sono state lette più lentamente della media in ${w.sessions} sessioni (z tempo ${w.timeZ >= 0 ? "+" : ""}${w.timeZ.toFixed(1)}${w.bodyZ !== null ? `, z sforzo ${w.bodyZ >= 0 ? "+" : ""}${w.bodyZ.toFixed(1)}` : ""}).`,
+    });
+  }
+
+  // Ordine: prima le strade che, nei dati del team, predicono di più la perdita del lettore.
+  const order = roadOrder(learned);
+  return out
+    .map((p, i) => ({ p, i }))
+    .sort((a, b) => order.indexOf(KIND_ROAD[a.p.kind]) - order.indexOf(KIND_ROAD[b.p.kind]) || a.i - b.i)
+    .map(({ p }) => p);
 }
 
 /** Bozza automatica: solo le sostituzioni sicure e i periodi spezzati; rimisurata con lo stesso LX. */
@@ -308,8 +352,8 @@ export function interpret(m: ClauseMetrics, f: Friction): string[] {
     else out.push("Corpo: sforzo nella norma della sessione.");
     if (m.effort.motionArtifactRatio > 0.3) out.push(`Attenzione: ${Math.round(m.effort.motionArtifactRatio * 100)}% dei campioni con movimento della testa, esclusi; il dato corporeo qui è debole.`);
   }
-  if (ind.text) out.push(`Testo: LX ${m.lx.total}, sopra la soglia ${LX_ACCESSIBILITY_THRESHOLD}. Nel corpus del libro, sopra questa soglia la comprensione non cala: crolla, per la maggioranza dei lettori.`);
-  else out.push(`Testo: LX ${m.lx.total}, sotto la soglia ${LX_ACCESSIBILITY_THRESHOLD}: il testo, da solo, non spiega la frizione.`);
+  if (ind.text) out.push(`Testo: LX ${m.lx.total}, sopra la soglia ${lxThreshold()}. Nel corpus del libro, sopra questa soglia la comprensione non cala: crolla, per la maggioranza dei lettori.`);
+  else out.push(`Testo: LX ${m.lx.total}, sotto la soglia ${lxThreshold()}: il testo, da solo, non spiega la frizione.`);
   if (m.verification.asked) out.push(ind.verify ? `Verifica: ${m.verification.correct}/${m.verification.asked} corrette. La comprensione dichiarata è mancata: è l'indizio che pesa di più.` : `Verifica: ${m.verification.correct}/${m.verification.asked} corrette.`);
   if (m.operational.asked) out.push(ind.operate ? `Prova operativa: ${m.operational.correct}/${m.operational.asked} riusciti. Chi doveva ritrovare questa clausola non l'ha trovata: un problema di ordine e di titoli.` : `Prova operativa: ${m.operational.correct}/${m.operational.asked} riusciti.`);
   if (m.operational.timesChosenWrongly) out.push(`Scelta per errore ${m.operational.timesChosenWrongly} ${m.operational.timesChosenWrongly === 1 ? "volta" : "volte"} al posto di un'altra: il titolo promette qualcosa che sta altrove.`);
@@ -356,11 +400,21 @@ export function documentAdvice(readings: ClauseReading[]): string[] {
   const gains = readings.filter((r) => r.draft && r.draft.after < r.draft.before);
   if (gains.length) {
     const avg = Math.round(gains.reduce((s, r) => s + (r.draft!.before - r.draft!.after), 0) / gains.length);
-    out.push(`Le sole sostituzioni automatiche (parole piane, periodi spezzati) abbassano l'LX in media di ${avg} punti su ${gains.length} clausole; ${readings.filter((r) => r.draft && r.draft.after <= LX_ACCESSIBILITY_THRESHOLD && r.draft.before > LX_ACCESSIBILITY_THRESHOLD).length} scenderebbero sotto la soglia.`);
+    out.push(`Le sole sostituzioni automatiche (parole piane, periodi spezzati) abbassano l'LX in media di ${avg} punti su ${gains.length} clausole; ${readings.filter((r) => r.draft && r.draft.after <= lxThreshold() && r.draft.before > lxThreshold()).length} scenderebbero sotto la soglia.`);
   }
   const roads = readings.filter((r) => r.leadRoad).map((r) => r.leadRoad!.road);
   const top = ["lingua", "affollamento", "ordine", "distanza semantica"].map((road) => ({ road, n: roads.filter((x) => x === road).length })).sort((a, b) => b.n - a.n)[0];
   if (top && top.n) out.push(`La strada che pesa di più nel documento è ${top.road === "lingua" ? "la lingua: periodi lunghi e passivi" : top.road === "affollamento" ? "l'affollamento: troppi rinvii per cento parole" : top.road === "ordine" ? "l'ordine: incisi e rinvii interni" : "la distanza semantica: termini tecnici non definiti"} (${top.n} clausole su ${readings.length}).`);
+  if (learned && learned.sessions > 0) {
+    const roadName: Record<Road, string> = { syntactic: "la lingua", semantic: "la distanza semantica", structural: "l'ordine", conceptual: "l'affollamento" };
+    const best = learned.roads.filter((r) => r.r !== null).sort((a, b) => (a.r as number) - (b.r as number))[0];
+    const parts = [`Archivio del team: ${learned.sessions} ${learned.sessions === 1 ? "sessione" : "sessioni"} su ${learned.documents.length} ${learned.documents.length === 1 ? "documento" : "documenti"}`];
+    if (learned.lx.source === "appreso") parts.push(`pesi LX ricalibrati (r ${learned.lx.r?.toFixed(2)} contro ${learned.lx.defaultR?.toFixed(2)} predefiniti), soglia ${learned.lx.threshold}`);
+    else parts.push(`pesi LX predefiniti, ${(learned.lx.reason ?? "la ricalibrazione non migliora la correlazione").replace(/\.$/, "").replace(/^\w/, (c) => c.toLowerCase())}`);
+    if (best && learned.sessions >= 5 && (best.r as number) < -0.2) parts.push(`la strada che più predice la perdita del lettore è ${roadName[best.road]} (r ${(best.r as number).toFixed(2)}): le proposte di quel tipo vengono prima`);
+    if (learned.words.length) parts.push(`${learned.words.length} parole lente ricorrenti, segnalate dove compaiono`);
+    out.push(parts.join("; ") + ".");
+  }
   out.push("Le bozze automatiche sono un punto di partenza da rivedere da un giurista: misurano quanto si guadagna, non sostituiscono la riscrittura.");
   return out;
 }
