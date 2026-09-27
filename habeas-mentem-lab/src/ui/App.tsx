@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
 import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
@@ -19,7 +19,7 @@ import { HRF_DESCRIPTION } from "../session/hrf";
 import { documentAdvice, readClauses, setLearnedModel } from "../session/rewrite";
 import { historyFor, recordSession } from "../session/history";
 import { frictionMap } from "../session/friction";
-import { criticalPoints, readersPhrase, POPULATION_MIN_READERS, type CriticalPoints } from "../session/critical";
+import { criticalPoints, readersPhrase, POPULATION_MIN_READERS, POPULATION_SOLID_READERS, type CriticalPoints } from "../session/critical";
 import { useRecorder } from "./useRecorder";
 
 const BASELINE_SECONDS = 30;
@@ -59,6 +59,13 @@ export function App() {
     };
   }, [tick]);
   const lab: LabContext = { model, modelFromCache, archive, refresh: () => setTick((t) => t + 1) };
+  // Tornando alla schermata iniziale dopo una sessione, il modello si ricarica:
+  // così la sessione successiva vede anche l'ultima archiviata.
+  const prevPhase = useRef(r.phase);
+  useEffect(() => {
+    if (prevPhase.current === "results" && r.phase === "setup") setTick((t) => t + 1);
+    prevPhase.current = r.phase;
+  }, [r.phase]);
   return (
     <div className="app">
       <header className="topbar">
@@ -677,7 +684,8 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
     const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
     const res = await uploadSession(session.id, json);
     setArchiveState(res);
-    if (res.outcome === "archiviata") lab.refresh();
+    // Il modello NON si ricarica qui: i conteggi di popolazione di questa
+    // schermata devono restare quelli dei lettori precedenti, senza questo.
   };
   useEffect(() => {
     if (!simulated && lab.archive?.configured && lab.archive.authorized) void archiveNow();
@@ -1120,7 +1128,7 @@ function CriticalPanel({ critical, onMore }: { critical: CriticalPoints; onMore:
       <span className="tavola-title">Punti critici</span>
       <p className="hint">
         {withPop
-          ? `Questa sessione e ${c.readers} lettori in archivio su questo documento (${c.segmentedReaders} a porzioni). Ordine: prima ciò che perde più lettori.`
+          ? `Questa sessione e ${c.readers} lettori precedenti in archivio su questo documento (${c.segmentedReaders} a porzioni${c.readers < POPULATION_SOLID_READERS ? `; sotto i ${POPULATION_SOLID_READERS} lettori del libro il dato è esplorativo` : ""}). Ordine: prima ciò che perde più lettori.`
           : c.readers > 0
             ? `Questa sessione; in archivio ${c.readers} ${c.readers === 1 ? "lettore" : "lettori"}, troppo pochi per un dato di popolazione (servono ${POPULATION_MIN_READERS}).`
             : "Solo questa sessione: nessun lettore in archivio su questo documento. I conteggi di popolazione compaiono dalla terza sessione."}

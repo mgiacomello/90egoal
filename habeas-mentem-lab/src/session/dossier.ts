@@ -26,7 +26,7 @@ import { HEAT, INK, INK_2, MUTED, PAGE, Page, safe } from "./report";
 import { documentAdvice, readClauses } from "./rewrite";
 import type { ClauseHistory } from "./history";
 import type { LabModel } from "./learning";
-import { criticalPoints, POPULATION_MIN_READERS } from "./critical";
+import { criticalPoints, POPULATION_MIN_READERS, POPULATION_SOLID_READERS } from "./critical";
 
 export interface DossierInput {
   session: Session;
@@ -112,7 +112,7 @@ const method = (): string[] => [
 const CONSTITUTION: string[] = [
   "1. Una sola finalità: migliorare la comprensibilità del documento e provarne l'adeguatezza. Nessun uso secondario.",
   "2. Si misurano i documenti, mai le persone: nessun esito individuale fonda valutazioni sulla persona misurata.",
-  "3. Il sensore meno invasivo, i dati minimi: pseudonimo casuale, nessuna rete, strumenti neurofisiologici solo in laboratorio con consenso pieno.",
+  "3. Il sensore meno invasivo, i dati minimi: pseudonimo casuale; il tracciato resta nel browser di chi misura; nell'archivio del team entrano solo risultati per clausola e per porzione, senza pseudonimo, trattati in forma aggregata; strumenti neurofisiologici solo in laboratorio con consenso pieno.",
   "4. Il metodo è pubblico: indicatori, formule e soglie sono dichiarati; ogni punteggio è ricalcolabile dai dati esportati.",
   "5. Nessuno è obbligato a essere misurato: partecipazione volontaria e revocabile, senza conseguenze.",
   "6. Chi misura accetta di essere misurato: il metodo dichiara in anticipo i propri limiti e i risultati che lo smentirebbero.",
@@ -415,7 +415,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     columnStyles: { 1: { cellWidth: 40 } },
   });
   pg.y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
-  pg.plain("Le quattro strade sono le dimensioni dell'LX Complexity Score: la lingua (lunghezza dei periodi, subordinate, passivi), l'affollamento (termini tecnici e rinvii per cento parole), l'ordine (dove stanno le cose che contano) e la distanza semantica (termini usati senza essere definiti). Per riprogettare una clausola si parte dalla strada con il valore più alto.");
+  pg.plain("Le quattro strade sono le dimensioni dell'LX Complexity Score: la lingua (lunghezza dei periodi, subordinate, passivi), l'affollamento (quanti concetti giuridici distinti lo stesso periodo pretende di tenere in mente), l'ordine (dove stanno le cose che contano) e la distanza semantica (termini usati senza essere definiti). Per riprogettare una clausola si parte dalla strada con il valore più alto.");
 
   // ── 5. Il corpo ──────────────────────────────────────────────────────────
   if (hasBody) {
@@ -529,7 +529,7 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     pg.section(`Tavola ${hasBody ? 7 : 6} · Dove il documento perde i lettori`);
     pg.p(
       withPop
-        ? `${crit.readers} lettori in archivio su questo documento, ${crit.segmentedReaders} a porzioni. Il colore è la quota di lettori per cui ogni porzione è stata lenta rispetto alla loro sessione (z > 1): neutro sotto il 15%, rame dal 15%, dal 30%, dal 50%; grigio dove i lettori sono meno di ${POPULATION_MIN_READERS}. Sotto, le frasi e le parole con il punteggio peggiore e la sostituzione proposta.`
+        ? `${crit.readers} lettori precedenti in archivio su questo documento, ${crit.segmentedReaders} a porzioni${crit.readers < POPULATION_SOLID_READERS ? ` (sotto i ${POPULATION_SOLID_READERS} lettori del libro: dato esplorativo)` : ""}. Il colore è la quota di lettori per cui ogni porzione è stata lenta rispetto alla loro sessione (z > 1): neutro sotto il 15%, rame dal 15%, dal 30%, dal 50%; grigio dove i lettori sono meno di ${POPULATION_MIN_READERS}. Sotto, le frasi e le parole con il punteggio peggiore e la sostituzione proposta.`
         : crit.readers > 0
           ? `${crit.readers} ${crit.readers === 1 ? "lettore" : "lettori"} in archivio su questo documento: troppo pochi per un dato di popolazione (servono ${POPULATION_MIN_READERS}). Il colore qui è il tempo di questa sessione. I conteggi «N lettori su M» compaiono dalla terza sessione.`
           : "Nessun lettore in archivio su questo documento: il colore è il tempo di questa sessione. Con più sessioni questa tavola dirà, porzione per porzione, quanti lettori hanno rallentato.",
@@ -616,7 +616,8 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     if (enough && roads.length && (roads[0].r as number) < -0.2) lines.push(`Strade, dalla più predittiva della perdita del lettore: ${roads.map((r) => `${roadName[r.road]} (r ${(r.r as number).toFixed(2)})`).join(", ")}. Le proposte di riscrittura seguono quest'ordine.`);
     else lines.push(enough ? "Nessuna strada dell'LX è ancora correlata in modo netto con la perdita del lettore (r sopra -0,20): le proposte seguono l'ordine del libro." : `Con ${model.sessions} sessioni le strade restano nell'ordine del libro: la correlazione per strada si usa da 5 sessioni.`);
     if (model.words.length) lines.push(`Parole che rallentano i lettori del team: ${model.words.slice(0, 12).map((x) => `«${x.word}» (${x.sessions} sess., z ${x.timeZ >= 0 ? "+" : ""}${x.timeZ.toFixed(1)})`).join(", ")}.`);
-    lines.push(...model.notes.slice(0, 3));
+    lines.push(...model.notes.filter((n) => !n.startsWith("Che cosa smentirebbe")).slice(0, 3));
+    lines.push(...model.notes.filter((n) => n.startsWith("Che cosa smentirebbe")));
     pg.bullets(lines.map(safe), 8.5);
     pg.plain("Il modello è un JSON pubblico calcolato dall'archivio delle sessioni del team, senza intervento manuale: si rifà ogni volta che arrivano sessioni nuove. I pesi appresi sostituiscono quelli del libro solo se migliorano la correlazione con la comprensione misurata di almeno 0,05; la soglia cambia solo se separa la comprensione media di almeno dieci punti. Con poche sessioni il modello resta quello predefinito e lo dice.");
   }

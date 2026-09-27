@@ -12,10 +12,12 @@ import type { Clause } from "./model";
 import type { SegmentMetrics } from "./segments";
 import { lxScore } from "./lx";
 import { autoDraft, DEFINITIONS, PLAIN_WORDS, proposalsFor, type Proposal } from "./rewrite";
-import { contentWords, sentenceOfSegments, type DocumentModel, type LabModel, type LearnedWord, type SegmentPrior } from "./learning";
+import { contentWords, sentenceOfSegments, SENTENCE_SLOW, type DocumentModel, type LabModel, type LearnedWord, type SegmentPrior } from "./learning";
 
-/** Lettori minimi perché il dato di popolazione conti da solo. */
+/** Lettori minimi perché il dato di popolazione venga mostrato. */
 export const POPULATION_MIN_READERS = 3;
+/** «Un cronometro e cinque lettori veri» (Habeas Mentem): sotto, il dato è esplorativo e lo dice. */
+export const POPULATION_SOLID_READERS = 5;
 
 export interface Population {
   readers: number;
@@ -141,7 +143,7 @@ export function criticalPoints(
         const zs = list.map((s) => s.z as number);
         const z = zs.reduce((a, b) => a + b, 0) / zs.length;
         const words = list.reduce((n, s) => n + s.wordCount, 0);
-        session = { z, msPerWord: list.reduce((n, s) => n + s.dwellMs, 0) / Math.max(1, words), slow: z > 0.5 || zs.some((x) => x > 1.5) };
+        session = { z, msPerWord: list.reduce((n, s) => n + s.dwellMs, 0) / Math.max(1, words), slow: z > SENTENCE_SLOW.meanZ || zs.some((x) => x > SENTENCE_SLOW.anyZ) };
       }
       const p = pop?.sentences.find((x) => x.clauseId === c.id && x.index === k) ?? null;
       const population = p ? { readers: p.readers, slow: p.slowReaders, share: p.slowShare, msPerWordMedian: p.msPerWordMedian } : null;
@@ -240,5 +242,5 @@ export function readersPhrase(p: Population | { lost: number; readers: number } 
   if (!p) return null;
   const n = "slow" in p ? p.slow : p.lost;
   if (p.readers < POPULATION_MIN_READERS) return `${p.readers} ${p.readers === 1 ? "lettore" : "lettori"} in archivio: troppo pochi per un dato di popolazione`;
-  return `${n} ${n === 1 ? "lettore" : "lettori"} su ${p.readers} ${what} (${Math.round((n / p.readers) * 100)}%)`;
+  return `${n} ${n === 1 ? "lettore" : "lettori"} su ${p.readers} ${what} (${Math.round((n / p.readers) * 100)}%)${p.readers < POPULATION_SOLID_READERS ? ", esplorativo sotto cinque lettori" : ""}`;
 }

@@ -415,7 +415,7 @@ export function documentAdvice(readings: ClauseReading[]): string[] {
   }
   const roads = readings.filter((r) => r.leadRoad).map((r) => r.leadRoad!.road);
   const top = ["lingua", "affollamento", "ordine", "distanza semantica"].map((road) => ({ road, n: roads.filter((x) => x === road).length })).sort((a, b) => b.n - a.n)[0];
-  if (top && top.n) out.push(`La strada che pesa di più nel documento è ${top.road === "lingua" ? "la lingua: periodi lunghi e passivi" : top.road === "affollamento" ? "l'affollamento: troppi rinvii per cento parole" : top.road === "ordine" ? "l'ordine: incisi e rinvii interni" : "la distanza semantica: termini tecnici non definiti"} (${top.n} clausole su ${readings.length}).`);
+  if (top && top.n) out.push(`La strada che pesa di più nel documento è ${top.road === "lingua" ? "la lingua: periodi lunghi e passivi" : top.road === "affollamento" ? "l'affollamento: troppi concetti giuridici nello stesso periodo" : top.road === "ordine" ? "l'ordine: incisi e rinvii interni" : "la distanza semantica: termini tecnici non definiti"} (${top.n} clausole su ${readings.length}).`);
   if (learned && learned.sessions > 0) {
     const roadName: Record<Road, string> = { syntactic: "la lingua", semantic: "la distanza semantica", structural: "l'ordine", conceptual: "l'affollamento" };
     const best = learned.roads.filter((r) => r.r !== null).sort((a, b) => (a.r as number) - (b.r as number))[0];

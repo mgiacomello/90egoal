@@ -34,7 +34,7 @@ giallo con due indizi, o con una sola verifica o prova fallita; verde
 altrimenti. Il corpo da solo non colora mai.
 
 Uscita: CSV per clausola, CSV dei campioni grezzi, JSON della sessione.
-Tutto resta nel browser finché non viene scaricato. Nessun server.
+Il tracciato resta nel browser finché non viene scaricato; nell'archivio del team (vedi sotto) vanno solo risultati per clausola e per porzione, senza pseudonimo.
 
 ## Avvio
 
@@ -147,6 +147,11 @@ che quei valori restituiscano 72 e 68 come nel libro. È una stima di
 superficie calcolata nel browser, non il modello NLC calibrato su EEG/fNIRS
 (pannello di 100 lettori, r = −0,71 in calibrazione e −0,68 in validazione).
 Il punteggio non giudica le persone: fa la diagnosi ai documenti.
+Le altre due strade seguono *Habeas Mentem*: l'**ordine** conta incisi e
+rinvii interni (dove stanno le cose che contano); l'**affollamento** conta,
+periodo per periodo, quanti concetti giuridici distinti (termini tecnici,
+rinvii normativi, voci di elenco) il testo pretende di tenere in mente
+insieme: «cinque istituti in tre righe» valgono 70 punti.
 
 ## L'archivio del team e l'apprendimento
 

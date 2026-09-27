@@ -133,6 +133,16 @@ export interface LabModel {
   notes: string[];
 }
 
+/**
+ * Art. 6 della costituzione: «il programma dichiara in anticipo i risultati che
+ * lo smentirebbero». Restano nel modello, sempre, e nel fascicolo.
+ */
+export const FALSIFIERS = [
+  "Che cosa smentirebbe il metodo: con almeno 30 lettori e 6 documenti, una correlazione tra LX e comprensione misurata sopra -0,30 (il libro: -0,71 e -0,68).",
+  "Che cosa smentirebbe la soglia: nessun taglio dell'LX che separi la comprensione media di almeno dieci punti percentuali, con almeno 30 lettori.",
+  "Che cosa smentirebbe le parole lente: parole segnalate che, riscritte o definite, non riducono il tempo per parola nelle sessioni successive.",
+];
+
 export const EMPTY_MODEL: LabModel = {
   schema: MODEL_SCHEMA,
   computedAt: new Date(0).toISOString(),
@@ -415,6 +425,7 @@ export function learn(exports: SessionExport[], now = new Date()): LabModel {
 
   const words = learnWords(exports);
   if (words.length === 0) notes.push("Nessuna parola lenta ricorrente: servono porzioni misurate in almeno tre sessioni.");
+  notes.push(...FALSIFIERS);
 
   return {
     schema: MODEL_SCHEMA,
