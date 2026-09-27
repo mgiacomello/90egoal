@@ -177,6 +177,18 @@ ricalcola un modello pubblico e lo salva in `lab_models`:
 - **le parole lente**: parole che ricorrono nelle porzioni lette più lentamente
   della media in almeno tre sessioni, segnalate nelle proposte dove compaiono.
 
+**Dove il documento perde i lettori.** Alla fine di ogni sessione la
+schermata dei risultati apre con i *punti critici* (`src/session/critical.ts`):
+le clausole, le frasi e le parole con il punteggio peggiore, in questa
+sessione e in tutti i lettori dell'archivio sullo stesso documento, sempre
+con il denominatore («37 lettori su 52 hanno rallentato qui») e con la
+sostituzione proposta dalle regole di `rewrite.ts`, rimisurata con l'LX. La
+scheda «Dove perde i lettori» mostra l'intero documento porzione per porzione,
+colorato per quota di lettori lenti (dal 15%, 30%, 50%; grigio sotto i 3
+lettori), con la tabella delle frasi peggiori. La stessa tavola entra nel
+fascicolo. Il fascicolo aggregato può caricare le sessioni direttamente
+dall'archivio, documento per documento.
+
 Il laboratorio carica il modello all'avvio (`src/session/archive.ts`), lo
 applica a LX e proposte (`setLxModel`, `setLearnedModel`) e lo riporta nel
 fascicolo («Che cosa ha imparato il laboratorio»). Senza rete vale l'ultimo

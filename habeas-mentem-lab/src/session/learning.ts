@@ -18,7 +18,8 @@
 
 import { aggregateSessions, type Aggregate, type SessionExport } from "./aggregate";
 import { calibrate, comprehensionPoints, pearson, DEFAULT_WEIGHTS, type LxWeights } from "./calibrate";
-import { LX_ACCESSIBILITY_THRESHOLD } from "./lx";
+import { LX_ACCESSIBILITY_THRESHOLD, lxScore, splitSentences } from "./lx";
+import type { Clause } from "./model";
 import type { FrictionLevel } from "./friction";
 import type { SegmentMetrics } from "./segments";
 
@@ -42,15 +43,56 @@ export interface ClausePrior {
   level: FrictionLevel;
 }
 
+/** Una porzione del documento vista da tutti i lettori che l'hanno letta a porzioni. */
+export interface SegmentPrior {
+  segmentId: string;
+  clauseId: string;
+  index: number;
+  text: string;
+  /** Lettori che hanno letto la porzione con tempo misurato. */
+  readers: number;
+  /** Lettori per cui la porzione è stata lenta (z > 1) o molto lenta (z > 2) rispetto alla loro sessione. */
+  slowReaders: number;
+  verySlowReaders: number;
+  slowShare: number;
+  msPerWordMedian: number | null;
+  /** Scarto medio del tempo (z) e, se misurato con fascia vera, del segnale HRF. */
+  timeZ: number;
+  bodyZ: number | null;
+}
+
+/** Una frase (periodo) del documento, ricostruita dalle porzioni. */
+export interface SentencePrior {
+  clauseId: string;
+  clauseIndex: number;
+  /** Posizione della frase nella clausola (0-based). */
+  index: number;
+  text: string;
+  wordCount: number;
+  readers: number;
+  /** Lettori per cui la frase è stata lenta: media z delle sue porzioni sopra 0,5 o una porzione sopra 1,5. */
+  slowReaders: number;
+  slowShare: number;
+  msPerWordMedian: number | null;
+  timeZ: number;
+  lx: number;
+}
+
 export interface DocumentModel {
   documentId: string;
   documentTitle: string;
   sessions: number;
   realSessions: number;
   sessionsWithSignal: number;
+  /** Sessioni lette a porzioni, con tempi per parola. */
+  segmentedSessions: number;
   firstSession: number;
   lastSession: number;
   clauses: ClausePrior[];
+  segments: SegmentPrior[];
+  sentences: SentencePrior[];
+  /** Parole lente in questo documento (soglie del documento: almeno 2 lettori). */
+  words: LearnedWord[];
 }
 
 export interface LearnedWord {
@@ -110,7 +152,7 @@ const STOPWORDS = new Set([
   "hanno", "abbiamo", "avere", "potrà", "potrai", "puoi", "possono", "possiamo", "viene", "vengono", "stato", "stata", "stati",
 ]);
 
-function tokens(text: string): string[] {
+export function contentWords(text: string): string[] {
   return text
     .toLowerCase()
     .replace(/[^a-zà-ù'’\s-]/g, " ")
@@ -129,14 +171,14 @@ function median(xs: number[]): number | null {
 export const WORD_MINIMUMS = { sessions: 3, timeZ: 0.5, keep: 30 };
 
 /** Le parole che ricorrono nelle porzioni lente, in più sessioni. */
-export function learnWords(exports: SessionExport[]): LearnedWord[] {
+export function learnWords(exports: SessionExport[], minimums = WORD_MINIMUMS): LearnedWord[] {
   const acc = new Map<string, { sessions: Set<string>; z: number[]; body: number[]; slow: number }>();
   for (const e of exports) {
     const segs = (e as SessionExport & { segments?: SegmentMetrics[] }).segments ?? [];
     for (const s of segs) {
       if (s.z === null || s.dwellMs <= 0) continue;
       const seen = new Set<string>();
-      for (const w of tokens(s.text)) {
+      for (const w of contentWords(s.text)) {
         if (seen.has(w)) continue;
         seen.add(w);
         const a = acc.get(w) ?? { sessions: new Set(), z: [], body: [], slow: 0 };
@@ -150,7 +192,7 @@ export function learnWords(exports: SessionExport[]): LearnedWord[] {
   }
   const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
   return [...acc.entries()]
-    .filter(([, a]) => a.sessions.size >= WORD_MINIMUMS.sessions)
+    .filter(([, a]) => a.sessions.size >= minimums.sessions)
     .map(([word, a]) => ({
       word,
       sessions: a.sessions.size,
@@ -159,12 +201,119 @@ export function learnWords(exports: SessionExport[]): LearnedWord[] {
       bodyZ: a.body.length >= 3 ? mean(a.body) : null,
       slowShare: a.slow / a.z.length,
     }))
-    .filter((w) => w.timeZ >= WORD_MINIMUMS.timeZ)
+    .filter((w) => w.timeZ >= minimums.timeZ)
     .sort((a, b) => b.timeZ * Math.log1p(b.sessions) - a.timeZ * Math.log1p(a.sessions))
-    .slice(0, WORD_MINIMUMS.keep);
+    .slice(0, minimums.keep);
+}
+
+export const SENTENCE_SLOW = { meanZ: 0.5, anyZ: 1.5 };
+
+/** A quale frase della clausola appartiene ogni porzione: per conteggio cumulato di parole. */
+export function sentenceOfSegments(clause: Clause, segments: { index: number; wordCount: number }[]): { sentences: string[]; bySegmentIndex: number[] } {
+  const sentences = splitSentences(clause.text);
+  if (sentences.length <= 1) return { sentences: sentences.length ? sentences : [clause.text], bySegmentIndex: segments.map(() => 0) };
+  const bounds: number[] = [];
+  let acc = 0;
+  for (const st of sentences) {
+    acc += st.split(/\s+/).filter(Boolean).length;
+    bounds.push(acc);
+  }
+  const total = clause.text.split(/\s+/).filter(Boolean).length;
+  const scale = bounds[bounds.length - 1] > 0 ? total / bounds[bounds.length - 1] : 1;
+  const ordered = [...segments].sort((a, b) => a.index - b.index);
+  const startWord = new Map<number, number>();
+  let w = 0;
+  for (const sg of ordered) {
+    startWord.set(sg.index, w);
+    w += sg.wordCount;
+  }
+  return {
+    sentences,
+    bySegmentIndex: segments.map((sg) => {
+      const mid = (startWord.get(sg.index) ?? 0) + sg.wordCount / 2;
+      const k = bounds.findIndex((b) => mid < b * scale);
+      return k === -1 ? sentences.length - 1 : k;
+    }),
+  };
+}
+
+/** Porzioni e frasi del documento viste da tutti i lettori. */
+export function learnSegments(exports: SessionExport[], clauses: Clause[]): { segments: SegmentPrior[]; sentences: SentencePrior[]; segmentedSessions: number } {
+  const perSegment = new Map<string, { seg: SegmentMetrics; z: number[]; body: number[]; ms: number[] }>();
+  const perSentence = new Map<string, { clause: Clause; index: number; text: string; wordCount: number; readers: number; slow: number; z: number[]; ms: number[] }>();
+  let segmented = 0;
+  for (const e of exports) {
+    const segs = ((e as SessionExport & { segments?: SegmentMetrics[] }).segments ?? []).filter((s) => s.z !== null && s.msPerWord !== null);
+    if (segs.length === 0) continue;
+    segmented++;
+    const real = !e.session.device?.simulated;
+    for (const s of segs) {
+      const a = perSegment.get(s.segmentId) ?? { seg: s, z: [], body: [], ms: [] };
+      a.z.push(s.z as number);
+      a.ms.push(s.msPerWord as number);
+      if (real && s.model && s.model.z !== null) a.body.push(s.model.z);
+      perSegment.set(s.segmentId, a);
+    }
+    // Frasi: per ogni clausola, le porzioni di questo lettore raggruppate per frase.
+    for (const c of clauses) {
+      const mine = segs.filter((s) => s.clauseId === c.id);
+      if (!mine.length) continue;
+      const { sentences, bySegmentIndex } = sentenceOfSegments(c, mine);
+      const groups = new Map<number, SegmentMetrics[]>();
+      mine.forEach((s, i) => groups.set(bySegmentIndex[i], [...(groups.get(bySegmentIndex[i]) ?? []), s]));
+      for (const [k, list] of groups) {
+        const key = `${c.id}#${k}`;
+        const text = sentences[k] ?? c.text;
+        const a = perSentence.get(key) ?? { clause: c, index: k, text, wordCount: text.split(/\s+/).filter(Boolean).length, readers: 0, slow: 0, z: [], ms: [] };
+        const zs = list.map((s) => s.z as number);
+        const meanZ = zs.reduce((x, y) => x + y, 0) / zs.length;
+        const words = list.reduce((n, s) => n + s.wordCount, 0);
+        const ms = list.reduce((n, s) => n + s.dwellMs, 0) / Math.max(1, words);
+        a.readers++;
+        if (meanZ > SENTENCE_SLOW.meanZ || zs.some((z) => z > SENTENCE_SLOW.anyZ)) a.slow++;
+        a.z.push(meanZ);
+        a.ms.push(ms);
+        perSentence.set(key, a);
+      }
+    }
+  }
+  const mean = (xs: number[]) => (xs.length ? xs.reduce((s, x) => s + x, 0) / xs.length : 0);
+  const clauseIndex = new Map(clauses.map((c) => [c.id, c.index]));
+  const segments: SegmentPrior[] = [...perSegment.values()]
+    .map(({ seg, z, body, ms }) => ({
+      segmentId: seg.segmentId,
+      clauseId: seg.clauseId,
+      index: seg.index,
+      text: seg.text,
+      readers: z.length,
+      slowReaders: z.filter((x) => x > 1).length,
+      verySlowReaders: z.filter((x) => x > 2).length,
+      slowShare: z.filter((x) => x > 1).length / z.length,
+      msPerWordMedian: median(ms),
+      timeZ: mean(z),
+      bodyZ: body.length >= 3 ? mean(body) : null,
+    }))
+    .sort((a, b) => (clauseIndex.get(a.clauseId) ?? 0) - (clauseIndex.get(b.clauseId) ?? 0) || a.index - b.index);
+  const sentences: SentencePrior[] = [...perSentence.values()]
+    .map((a) => ({
+      clauseId: a.clause.id,
+      clauseIndex: a.clause.index,
+      index: a.index,
+      text: a.text,
+      wordCount: a.wordCount,
+      readers: a.readers,
+      slowReaders: a.slow,
+      slowShare: a.slow / a.readers,
+      msPerWordMedian: median(a.ms),
+      timeZ: mean(a.z),
+      lx: lxScore(a.text).total,
+    }))
+    .sort((a, b) => a.clauseIndex - b.clauseIndex || a.index - b.index);
+  return { segments, sentences, segmentedSessions: segmented };
 }
 
 function documentModel(exports: SessionExport[], a: Aggregate): DocumentModel {
+  const learnedSegs = learnSegments(exports, exports[0].clauses);
   const segsByClause = new Map<string, number[]>();
   for (const e of exports) {
     for (const s of (e as SessionExport & { segments?: SegmentMetrics[] }).segments ?? []) {
@@ -178,8 +327,12 @@ function documentModel(exports: SessionExport[], a: Aggregate): DocumentModel {
     sessions: a.sessions,
     realSessions: a.sessions - a.simulatedSessions,
     sessionsWithSignal: a.sessionsWithSignal,
+    segmentedSessions: learnedSegs.segmentedSessions,
     firstSession: a.firstSession,
     lastSession: a.lastSession,
+    segments: learnedSegs.segments,
+    sentences: learnedSegs.sentences,
+    words: learnWords(exports, { sessions: 2, timeZ: 0.5, keep: 25 }),
     clauses: a.clauses.map((c) => ({
       clauseId: c.clauseId,
       index: c.index,

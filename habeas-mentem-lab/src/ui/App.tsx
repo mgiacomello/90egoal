@@ -19,6 +19,7 @@ import { HRF_DESCRIPTION } from "../session/hrf";
 import { documentAdvice, readClauses, setLearnedModel } from "../session/rewrite";
 import { historyFor, recordSession } from "../session/history";
 import { frictionMap } from "../session/friction";
+import { criticalPoints, readersPhrase, POPULATION_MIN_READERS, type CriticalPoints } from "../session/critical";
 import { useRecorder } from "./useRecorder";
 
 const BASELINE_SECONDS = 30;
@@ -661,9 +662,10 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
   const [building, setBuilding] = useState(false);
   const [dossierError, setDossierError] = useState<string | null>(null);
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
-  const [tab, setTab] = useState<"mappa" | "parole" | "riscrittura" | "dati">("mappa");
+  const [tab, setTab] = useState<"mappa" | "parole" | "popolazione" | "riscrittura" | "dati">("mappa");
   const readings = useMemo(() => readClauses(doc.clauses, metrics, friction), [doc, metrics, friction]);
   const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model), [doc.id, session.id, lab.model]);
+  const critical = useMemo(() => criticalPoints(doc.clauses, metrics, friction, segmentRows, lab.model, doc.id), [doc, metrics, friction, segmentRows, lab.model]);
   useEffect(() => {
     recordSession(doc.id, session.id, session.createdAt, metrics, friction);
   }, [doc.id, session.id, session.createdAt, metrics, friction]);
@@ -756,6 +758,8 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
         );
       })()}
 
+      <CriticalPanel critical={critical} onMore={() => setTab("popolazione")} />
+
       <div className="board">
         <div className="tile-stat">
           <span className="stat-label">Lettura</span>
@@ -797,6 +801,7 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
         {segmentRows.length > 0 && (
           <button className={`tab ${tab === "parole" ? "on" : ""}`} role="tab" aria-selected={tab === "parole"} onClick={() => setTab("parole")}>Parola per parola</button>
         )}
+        <button className={`tab ${tab === "popolazione" ? "on" : ""}`} role="tab" aria-selected={tab === "popolazione"} onClick={() => setTab("popolazione")}>Dove perde i lettori</button>
         <button className={`tab ${tab === "riscrittura" ? "on" : ""}`} role="tab" aria-selected={tab === "riscrittura"} onClick={() => setTab("riscrittura")}>Lettura e riscrittura</button>
         <button className={`tab ${tab === "dati" ? "on" : ""}`} role="tab" aria-selected={tab === "dati"} onClick={() => setTab("dati")}>Tabella e dati</button>
       </div>
@@ -875,6 +880,8 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
           />
         </div>
       )}
+
+      {tab === "popolazione" && <PopulationView critical={critical} doc={doc} />}
 
       {tab === "parole" && segmentRows.length > 0 && (
         <div className="panel">
@@ -1098,6 +1105,153 @@ function WordView({ rows, clauses, hasBody, r2 }: { rows: SegmentMetrics[]; clau
           </div>
         );
       })}
+    </section>
+  );
+}
+
+const fmtPct = (x: number) => `${Math.round(x * 100)}%`;
+
+/** I tre punti peggiori per grana: clausole, frasi, parole. Sempre con sostituzione e conteggio dei lettori. */
+function CriticalPanel({ critical, onMore }: { critical: CriticalPoints; onMore: () => void }) {
+  const c = critical;
+  const withPop = c.readers >= POPULATION_MIN_READERS;
+  return (
+    <section className="tavola critical">
+      <span className="tavola-title">Punti critici</span>
+      <p className="hint">
+        {withPop
+          ? `Questa sessione e ${c.readers} lettori in archivio su questo documento (${c.segmentedReaders} a porzioni). Ordine: prima ciò che perde più lettori.`
+          : c.readers > 0
+            ? `Questa sessione; in archivio ${c.readers} ${c.readers === 1 ? "lettore" : "lettori"}, troppo pochi per un dato di popolazione (servono ${POPULATION_MIN_READERS}).`
+            : "Solo questa sessione: nessun lettore in archivio su questo documento. I conteggi di popolazione compaiono dalla terza sessione."}
+      </p>
+      <div className="critical-grid">
+        <div className="critical-col">
+          <h3>Clausole</h3>
+          {c.clauses.slice(0, 3).map((k) => (
+            <div key={k.clauseId} className={`critical-item ${k.level}`}>
+              <div className="critical-head">
+                <span className="clause-num">{k.index}</span>
+                <span className={`friction ${k.level}`}>{k.level}</span>
+                <span className="critical-title">{k.heading?.replace(/^\d+[.)]\s*/, "") ?? `clausola ${k.index}`}</span>
+              </div>
+              {k.population && <p className="critical-pop">{readersPhrase({ readers: k.population.readers, lost: k.population.lost }, "si sono persi qui")}{k.population.verifyAccuracy !== null && k.population.readers >= POPULATION_MIN_READERS ? ` · verifica corretta nel ${fmtPct(k.population.verifyAccuracy)}` : ""}</p>}
+              <p className="critical-session">{k.reasons.length ? k.reasons.join(" · ") : `nessun indizio · LX ${k.lx}`}</p>
+              {k.proposal && <p className="critical-fix"><em>Proposta:</em> {k.proposal.title}{k.draft && k.draft.after < k.draft.before ? ` · bozza automatica LX ${k.draft.before} → ${k.draft.after}` : ""}</p>}
+            </div>
+          ))}
+        </div>
+        <div className="critical-col">
+          <h3>Frasi</h3>
+          {c.sentences.slice(0, 3).map((k) => (
+            <div key={`${k.clauseId}#${k.index}`} className="critical-item">
+              <div className="critical-head">
+                <span className="clause-num">{k.clauseIndex}</span>
+                <span className="critical-title quote">«{k.text.length > 110 ? k.text.slice(0, 110) + "…" : k.text}»</span>
+              </div>
+              {k.population && <p className="critical-pop">{readersPhrase(k.population)}{k.population.msPerWordMedian ? ` · ${Math.round(k.population.msPerWordMedian)} ms/parola mediani` : ""}</p>}
+              <p className="critical-session">
+                {k.session ? `questa sessione: ${Math.round(k.session.msPerWord)} ms/parola, z ${k.session.z >= 0 ? "+" : ""}${k.session.z.toFixed(1)}${k.session.slow ? " (lenta)" : ""}` : "questa sessione: letta a clausola intera"} · {k.wordCount} parole · LX {k.lx}
+              </p>
+              {k.draft && k.draft.after < k.draft.before ? (
+                <p className="critical-fix"><em>Sostituire con:</em> «{k.draft.text}» <span className="hint">LX {k.draft.before} → {k.draft.after}</span></p>
+              ) : k.proposal ? (
+                <p className="critical-fix"><em>Proposta:</em> {k.proposal.title}: {k.proposal.after}</p>
+              ) : null}
+            </div>
+          ))}
+          {c.sentences.length === 0 && <p className="hint">Nessuna frase misurata: servono letture a porzioni.</p>}
+        </div>
+        <div className="critical-col">
+          <h3>Parole</h3>
+          {c.words.slice(0, 4).map((k) => (
+            <div key={k.word} className="critical-item">
+              <div className="critical-head"><span className="critical-title word">«{k.word}»</span></div>
+              {k.population && <p className="critical-pop">{k.population.scope === "documento" ? "su questo documento" : "in tutto l'archivio"}: lenta in {k.population.sessions} {k.population.sessions === 1 ? "sessione" : "sessioni"} (z {k.population.timeZ >= 0 ? "+" : ""}{k.population.timeZ.toFixed(1)}, {fmtPct(k.population.slowShare)} delle porzioni)</p>}
+              {k.session && <p className="critical-session">questa sessione: in {k.session.segments} {k.session.segments === 1 ? "porzione lenta" : "porzioni lente"} (z {k.session.z >= 0 ? "+" : ""}{k.session.z.toFixed(1)})</p>}
+              <p className="critical-fix"><em>Sostituire con:</em> {k.proposal.after}</p>
+            </div>
+          ))}
+          {c.words.length === 0 && <p className="hint">Nessuna parola lenta: servono letture a porzioni, in questa sessione o in archivio.</p>}
+        </div>
+      </div>
+      <button className="linklike" onClick={onMore}>Vedi tutto il documento, porzione per porzione →</button>
+    </section>
+  );
+}
+
+/** Il documento intero colorato per quanti lettori hanno rallentato su ogni porzione; questa sessione in contorno. */
+function PopulationView({ critical, doc }: { critical: CriticalPoints; doc: Document }) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [layer, setLayer] = useState<"popolazione" | "sessione">(critical.segmentedReaders >= POPULATION_MIN_READERS ? "popolazione" : "sessione");
+  const c = critical;
+  const anyPop = c.heat.some((h) => h.populationHeat !== null);
+  return (
+    <section className="card wordview population">
+      <div className="row between">
+        <span className="tavola-title">Dove il documento perde i lettori</span>
+        <div className="row">
+          <button className={layer === "popolazione" ? "primary" : ""} onClick={() => setLayer("popolazione")} disabled={!anyPop}>Tutti i lettori ({c.segmentedReaders})</button>
+          <button className={layer === "sessione" ? "primary" : ""} onClick={() => setLayer("sessione")}>Questa sessione</button>
+        </div>
+      </div>
+      <p className="hint">
+        {layer === "popolazione"
+          ? `Colore: quota di lettori per cui la porzione è stata lenta rispetto alla loro sessione (z > 1). Neutro sotto il 15%, rame dal 15%, dal 30%, dal 50%. Grigio: meno di ${POPULATION_MIN_READERS} lettori. Clicca una porzione per i numeri.`
+          : "Colore: tempo per parola di questa sessione rispetto alla sua media. Clicca una porzione per i numeri."}
+      </p>
+      <div className="legend">
+        {(layer === "popolazione" ? ["—", "sotto 15%", "15% +", "30% +", "50% +"] : ["veloce", "nella norma", "lento", "molto lento", "fermo"]).map((l, i) => (i === 0 && layer === "popolazione" ? null : <span key={l} className={`heat h${i}`}>{l}</span>))}
+        <span className="heat hx-pop">pochi lettori</span>
+      </div>
+      {doc.clauses.map((cl) => {
+        const mine = c.heat.filter((h) => h.clauseId === cl.id);
+        const pc = c.clauses.find((k) => k.clauseId === cl.id);
+        return (
+          <div key={cl.id} className="wordclause">
+            <span className="clause-num">{cl.index}</span>
+            <p>
+              <span className="pop-heading">{cl.heading?.replace(/^\d+[.)]\s*/, "")}{pc?.population && pc.population.readers >= POPULATION_MIN_READERS ? ` · ${readersPhrase({ readers: pc.population.readers, lost: pc.population.lost }, "persi")}` : ""}</span>
+              <br />
+              {mine.map((h) => {
+                const heat = layer === "popolazione" ? h.populationHeat : h.sessionHeat;
+                const cls = heat === null ? "hx-pop" : `h${heat}`;
+                return (
+                  <span key={h.segmentId} className={`heat ${cls} ${open === h.segmentId ? "open" : ""}`} onClick={() => setOpen(open === h.segmentId ? null : h.segmentId)}>
+                    {h.text}{" "}
+                    {open === h.segmentId && (
+                      <span className="portion-detail">
+                        {h.population ? `${h.population.slowReaders} su ${h.population.readers} lettori lenti qui (${fmtPct(h.population.slowShare)}) · ${h.population.msPerWordMedian ? Math.round(h.population.msPerWordMedian) : "—"} ms/parola mediani${h.population.bodyZ !== null ? ` · sforzo z ${h.population.bodyZ >= 0 ? "+" : ""}${h.population.bodyZ.toFixed(1)}` : ""}` : "nessun lettore a porzioni in archivio"}
+                        {h.sessionHeat !== null && ` · questa sessione: ${["veloce", "nella norma", "lenta", "molto lenta", "ferma"][h.sessionHeat]}`}
+                      </span>
+                    )}
+                  </span>
+                );
+              })}
+            </p>
+          </div>
+        );
+      })}
+      <div className="table-wrap" style={{ marginTop: 18 }}>
+        <table className="metrics">
+          <thead>
+            <tr><th>Cl.</th><th>Frase</th><th>Lettori lenti</th><th>ms/parola</th><th>Questa sessione</th><th>LX</th><th>Sostituzione proposta</th></tr>
+          </thead>
+          <tbody>
+            {c.sentences.map((k) => (
+              <tr key={`${k.clauseId}#${k.index}`}>
+                <td>{k.clauseIndex}</td>
+                <td style={{ maxWidth: 320 }}>{k.text}</td>
+                <td>{k.population ? (k.population.readers >= POPULATION_MIN_READERS ? `${k.population.slow} su ${k.population.readers} (${fmtPct(k.population.share)})` : `${k.population.readers} lettori: pochi`) : "—"}</td>
+                <td>{k.population?.msPerWordMedian ? Math.round(k.population.msPerWordMedian) : "—"}</td>
+                <td>{k.session ? `${Math.round(k.session.msPerWord)} ms · z ${k.session.z >= 0 ? "+" : ""}${k.session.z.toFixed(1)}` : "—"}</td>
+                <td><span className={`lx ${k.lx > lxThreshold() ? "lx-high" : "lx-ok"}`}>{k.lx}</span></td>
+                <td style={{ maxWidth: 360 }}>{k.draft && k.draft.after < k.draft.before ? <>«{k.draft.text}» <span className="hint">LX {k.draft.before} → {k.draft.after}</span></> : k.proposal ? `${k.proposal.title}: ${k.proposal.after}` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

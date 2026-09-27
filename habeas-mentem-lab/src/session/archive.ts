@@ -153,3 +153,35 @@ export function cachedModel(): LabModel | null {
   const cached = read<unknown>(MODEL_STORAGE, null);
   return isLabModel(cached) ? cached : null;
 }
+
+export interface ArchiveDocument {
+  documentId: string;
+  documentTitle: string;
+  sessions: number;
+  real: number;
+  withSignal: number;
+  last: string;
+}
+
+/** I documenti in archivio, con quante sessioni ciascuno. */
+export async function archiveDocuments(): Promise<ArchiveDocument[]> {
+  try {
+    const res = await fetch(`${ARCHIVE_ENDPOINTS.sessions}?summary=1`, { headers: headers(), cache: "no-store" });
+    if (!res.ok) return [];
+    const body = (await res.json()) as { byDocument?: ArchiveDocument[] };
+    return body.byDocument ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Le sessioni archiviate di un documento (esportazioni senza tracciato), per il fascicolo aggregato. */
+export async function archiveSessions(documentId: string): Promise<unknown[]> {
+  const res = await fetch(`${ARCHIVE_ENDPOINTS.sessions}?document=${encodeURIComponent(documentId)}`, { headers: headers(), cache: "no-store" });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(body.error ?? `Errore ${res.status}`);
+  }
+  const body = (await res.json()) as { sessions?: unknown[] };
+  return body.sessions ?? [];
+}

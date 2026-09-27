@@ -400,3 +400,26 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus); out
 .archive-line:empty { display: none; }
 .archive-line { margin: -6px 0 12px; }
 @media (max-width: 640px) { .drawer.archive .archive-body { padding-left: 14px; } }
+
+/* Punti critici (risultati) e vista di popolazione */
+.critical .hint { margin-bottom: 10px; }
+.critical-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--hair); }
+.critical-col { padding: 10px 14px 6px; border-right: 1px solid var(--hair-2); min-width: 0; }
+.critical-col:last-child { border-right: 0; }
+.critical-col h3 { font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; font-weight: 600; }
+.critical-item { padding: 8px 0 10px; border-bottom: 1px dashed var(--line); animation: rise 320ms var(--ease) both; }
+.critical-item:last-child { border-bottom: 0; }
+.critical-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.critical-title { font-family: var(--serif); font-size: 15px; line-height: 1.35; }
+.critical-title.quote { font-style: italic; font-size: 14px; color: var(--ink-2); }
+.critical-title.word { font-size: 17px; }
+.critical-pop { margin: 5px 0 0; font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--bad-ink); }
+.critical-item.verde .critical-pop { color: var(--ink-2); }
+.critical-session { margin: 3px 0 0; font-family: var(--sans); font-size: 12px; color: var(--muted); }
+.critical-fix { margin: 6px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--ink); }
+.critical-fix em { font-family: var(--sans); font-style: normal; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+.critical > .linklike { margin-top: 12px; }
+.row.between { justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.heat.hx-pop { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.pop-heading { font-family: var(--sans); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+@media (max-width: 760px) { .critical-grid { grid-template-columns: 1fr; } .critical-col { border-right: 0; border-bottom: 1px solid var(--hair-2); } }
