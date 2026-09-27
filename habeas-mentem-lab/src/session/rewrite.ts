@@ -69,7 +69,14 @@ export interface ClauseReading {
 
 /** Glossario: locuzioni giuridiche frequenti e la resa piana. */
 export const PLAIN_WORDS: [RegExp, string, string][] = [
-  [/\bai sensi (dell'|dello |della |del |dei |degli |delle |di )/gi, "secondo $1", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi dell'/gi, "secondo l'", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi dello /gi, "secondo lo ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi della /gi, "secondo la ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi del /gi, "secondo il ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi dei /gi, "secondo i ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi degli /gi, "secondo gli ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi delle /gi, "secondo le ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
+  [/\bai sensi di /gi, "secondo ", "«ai sensi di» è un rinvio: «secondo» dice la stessa cosa"],
   [/\bnonché(?![a-zà-ù])/gi, "e", "«nonché» è una congiunzione rara: «e» basta"],
   [/\bovvero\b/gi, "oppure", "«ovvero» in italiano comune vuol dire «cioè»: qui significa «oppure», meglio dirlo"],
   [/\bqualora\b/gi, "se", "«qualora» è «se»"],
@@ -192,7 +199,11 @@ function cap(s: string): string {
 
 /** Dopo un punto la frase riparte con la maiuscola (ma non gli indirizzi web). */
 function fixSentenceStarts(text: string): string {
-  return text.replace(/([.!?])\s+([a-zà-ù])(?![a-z]*\.[a-z])/g, (_, p, ch) => `${p} ${ch.toUpperCase()}`).replace(/^\s*([a-zà-ù])/, (m) => m.toUpperCase());
+  return text
+    .replace(/(^|[^a-zà-ù])(art|artt|lett|par|n|cfr|d\.lgs|lgs|p|pp|es|comma)\.\s+([a-zà-ù])/gi, (m) => m.replace(/\.\s+/, ".\u0000"))
+    .replace(/([.!?])\s+([a-zà-ù])(?![a-z]*\.[a-z])/g, (_, p, ch) => `${p} ${ch.toUpperCase()}`)
+    .replace(/\u0000/g, " ")
+    .replace(/^\s*([a-zà-ù])/, (m) => m.toUpperCase());
 }
 
 /** Punto migliore in cui spezzare un periodo lungo: «;», «:», oppure una giuntura di senso vicino alla metà. */

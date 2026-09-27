@@ -26,6 +26,7 @@ import { HEAT, INK, INK_2, MUTED, PAGE, Page, safe } from "./report";
 import { documentAdvice, readClauses } from "./rewrite";
 import type { ClauseHistory } from "./history";
 import type { LabModel } from "./learning";
+import { criticalPoints, POPULATION_MIN_READERS } from "./critical";
 
 export interface DossierInput {
   session: Session;
@@ -518,6 +519,79 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
     pg.plain("La verifica misura la comprensione dichiarata: domande a risposta chiusa dopo la lettura, senza rileggere. La prova operativa misura la comprensione in atto: ritrovare la clausola che serve, con il documento riapribile. Sono i due indizi che pesano di più nella convergenza.");
   } else {
     pg.newPage();
+  }
+
+  // ── 7a. Dove il documento perde i lettori (punti critici) ─────────────────
+  {
+    const crit = criticalPoints(doc.clauses, metrics, friction, segs, input.model ?? null, doc.id, 8);
+    const withPop = crit.segmentedReaders >= POPULATION_MIN_READERS;
+    pg.newPage();
+    pg.section(`Tavola ${hasBody ? 7 : 6} · Dove il documento perde i lettori`);
+    pg.p(
+      withPop
+        ? `${crit.readers} lettori in archivio su questo documento, ${crit.segmentedReaders} a porzioni. Il colore è la quota di lettori per cui ogni porzione è stata lenta rispetto alla loro sessione (z > 1): neutro sotto il 15%, rame dal 15%, dal 30%, dal 50%; grigio dove i lettori sono meno di ${POPULATION_MIN_READERS}. Sotto, le frasi e le parole con il punteggio peggiore e la sostituzione proposta.`
+        : crit.readers > 0
+          ? `${crit.readers} ${crit.readers === 1 ? "lettore" : "lettori"} in archivio su questo documento: troppo pochi per un dato di popolazione (servono ${POPULATION_MIN_READERS}). Il colore qui è il tempo di questa sessione. I conteggi «N lettori su M» compaiono dalla terza sessione.`
+          : "Nessun lettore in archivio su questo documento: il colore è il tempo di questa sessione. Con più sessioni questa tavola dirà, porzione per porzione, quanti lettori hanno rallentato.",
+      9.5, INK_2, 4,
+    );
+    const lx0 = pg.x0;
+    (withPop ? ["", "sotto 15%", "15% +", "30% +", "50% +"] : ["veloce", "nella norma", "lento", "molto lento", "fermo"]).forEach((l, i) => {
+      if (!l) return;
+      pdf.setFillColor(...HEAT[i]);
+      pdf.rect(lx0 + i * 32, pg.y - 3, 4, 3.2, "F");
+      pdf.setFont("helvetica", "normal").setFontSize(6.5).setTextColor(...MUTED);
+      pdf.text(l, lx0 + i * 32 + 5.5, pg.y - 0.4);
+    });
+    pg.gap(5);
+    for (const c of doc.clauses) {
+      const mine = crit.heat.filter((h) => h.clauseId === c.id);
+      if (!mine.length) continue;
+      const pc = crit.clauses.find((k) => k.clauseId === c.id);
+      pg.ensure(14);
+      const head = (clean(c.heading) ?? "").slice(0, 48);
+      pg.smallcaps(`${c.index}. ${head}${head.length < (clean(c.heading) ?? "").length ? "…" : ""}${pc?.population && pc.population.readers >= POPULATION_MIN_READERS ? ` · ${pc.population.lost} su ${pc.population.readers} persi` : ""}`, pg.x0, pg.y, 6.5, MUTED);
+      pg.gap(5);
+      pg.heatText(mine.map((h) => ({ text: h.text, heat: withPop ? h.populationHeat : h.sessionHeat, msPerWord: null })));
+    }
+    pg.gap(2);
+    if (crit.sentences.length) {
+      pg.section("Le frasi che perdono più lettori, e come sostituirle");
+      autoTable(pdf, {
+        startY: pg.y,
+        head: [["Cl.", "Frase", withPop ? "Lettori lenti" : "Questa sessione", "LX", "Sostituzione proposta"]],
+        body: crit.sentences.map((k) => [
+          k.clauseIndex,
+          safe(k.text),
+          k.population && k.population.readers >= POPULATION_MIN_READERS
+            ? `${k.population.slow} su ${k.population.readers} (${Math.round(k.population.share * 100)}%)${k.population.msPerWordMedian ? ` · ${Math.round(k.population.msPerWordMedian)} ms/parola` : ""}`
+            : k.session ? `${Math.round(k.session.msPerWord)} ms/parola · z ${k.session.z >= 0 ? "+" : ""}${k.session.z.toFixed(1)}` : "—",
+          k.lx,
+          safe(k.draft && k.draft.after < k.draft.before ? `${k.draft.text} (LX ${k.draft.before} → ${k.draft.after})` : k.proposal ? `${k.proposal.title}: ${k.proposal.after}` : "—"),
+        ]),
+        ...TABLE_STYLE,
+        columnStyles: { 1: { cellWidth: 58 }, 2: { cellWidth: 30 }, 4: { cellWidth: 62 } },
+      });
+      pg.y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+    }
+    if (crit.words.length) {
+      pg.ensure(30);
+      pg.section("Le parole che rallentano, e con che cosa sostituirle");
+      autoTable(pdf, {
+        startY: pg.y,
+        head: [["Parola", "Nell'archivio", "In questa sessione", "Sostituzione proposta"]],
+        body: crit.words.map((k) => [
+          k.word,
+          k.population ? `${k.population.scope === "documento" ? "questo documento" : "tutto l'archivio"}: lenta in ${k.population.sessions} sess. (z ${k.population.timeZ >= 0 ? "+" : ""}${k.population.timeZ.toFixed(1)})` : "—",
+          k.session ? `${k.session.segments} porzioni lente (z ${k.session.z >= 0 ? "+" : ""}${k.session.z.toFixed(1)})` : "—",
+          safe(k.proposal.after),
+        ]),
+        ...TABLE_STYLE,
+        columnStyles: { 0: { cellWidth: 30 }, 3: { cellWidth: 70 } },
+      });
+      pg.y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+    }
+    pg.plain("Questa tavola è la validazione del metodo e la diagnosi per chi scrive: dice dove i lettori, non uno ma molti, hanno rallentato o si sono persi, con il denominatore sempre visibile. Le sostituzioni sono bozze calcolate con regole dichiarate e rimisurate con lo stesso LX: un punto di partenza per il giurista, non un testo finale.");
   }
 
   // ── 7b. Che cosa ha imparato il laboratorio ──────────────────────────────

@@ -1,6 +1,8 @@
 // Fascicolo aggregato: importa i JSON di più sessioni sullo stesso documento.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { archiveDocuments, archiveSessions, type ArchiveDocument } from "../session/archive";
+import { usableExports } from "../session/learning";
 import { AGGREGATE_THRESHOLDS, aggregateSessions, AggregateError, parseSessionExport, type Aggregate, type SessionExport } from "../session/aggregate";
 import { download } from "../session/export";
 import { lxThreshold } from "../session/lx";
@@ -13,6 +15,25 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
   const [aggregate, setAggregate] = useState<Aggregate | null>(null);
   const [responsible, setResponsible] = useState("");
   const [building, setBuilding] = useState(false);
+  const [archived, setArchived] = useState<ArchiveDocument[] | null>(null);
+  const [loading, setLoading] = useState<string | null>(null);
+  useEffect(() => {
+    archiveDocuments().then(setArchived);
+  }, []);
+
+  const loadFromArchive = async (d: ArchiveDocument) => {
+    setLoading(d.documentId);
+    setErrors([]);
+    try {
+      const list = usableExports(await archiveSessions(d.documentId)).map((data) => ({ name: `archivio/${data.session.id}`, data }));
+      setFiles(list);
+      recompute(list);
+    } catch (e) {
+      setErrors([`Archivio: ${e instanceof Error ? e.message : String(e)}`]);
+    } finally {
+      setLoading(null);
+    }
+  };
 
   const addFiles = async (list: FileList | null) => {
     if (!list) return;
@@ -85,7 +106,23 @@ export function AggregateScreen({ onBack }: { onBack: () => void }) {
       </p>
 
       <section className="card">
-        <h2>Sessioni</h2>
+        <h2>Dall'archivio del team</h2>
+        {archived === null && <p className="hint">Controllo l'archivio…</p>}
+        {archived !== null && archived.length === 0 && <p className="hint">Nessun documento in archivio (o archivio non raggiungibile da qui). Sotto puoi importare i JSON a mano.</p>}
+        {archived !== null && archived.length > 0 && (
+          <ul className="files">
+            {archived.map((d) => (
+              <li key={d.documentId}>
+                <strong>{d.documentTitle.replace(" (modello)", "")}</strong> · {d.sessions} {d.sessions === 1 ? "sessione" : "sessioni"} ({d.real} con fascia vera, {d.withSignal} con segnale) · ultima {new Date(d.last).toLocaleDateString("it-IT")}{" "}
+                <button disabled={loading !== null} onClick={() => void loadFromArchive(d)}>{loading === d.documentId ? "carico…" : "Carica"}</button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Oppure dai file</h2>
         <input id="aggregate-files" type="file" accept="application/json,.json" multiple onChange={(e) => addFiles(e.target.files)} />
         {files.length > 0 && (
           <ul className="files">
