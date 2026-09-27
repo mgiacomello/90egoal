@@ -7,7 +7,7 @@
 
 import type { Friction } from "./friction";
 import type { ClauseMetrics } from "./metrics";
-import type { LabModel } from "./learning";
+import { documentVersion, type LabModel } from "./learning";
 
 export interface HistoryRecord {
   documentId: string;
@@ -65,15 +65,15 @@ export interface History {
  * team, calcolata prima di questa sessione); altrimenti lo storico locale,
  * escludendo la sessione corrente.
  */
-export function historyFor(documentId: string, excludeSessionId: string, history = loadHistory(), model: LabModel | null = null): History {
-  const archived = model?.documents.find((d) => d.documentId === documentId);
+export function historyFor(documentId: string, excludeSessionId: string, history = loadHistory(), model: LabModel | null = null, docClauses: { id: string; text: string }[] | null = null): History {
+  const archived = model?.documents.find((d) => d.documentId === documentId && (!docClauses || d.version === documentVersion(docClauses)));
   if (archived && archived.sessions > 0) {
     return {
       source: "archivio",
       sessions: archived.sessions,
       clauses: archived.clauses.map((c) => ({
         clauseId: c.clauseId,
-        sessions: c.readers,
+        sessions: c.sessions,
         lostShare: c.lostShare,
         verifyWrongShare: c.verifyAccuracy === null ? 0 : 1 - c.verifyAccuracy,
         msPerWordMedian: c.msPerWordMedian,

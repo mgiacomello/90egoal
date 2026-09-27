@@ -31,6 +31,15 @@ const KIND_ROAD: Record<Proposal["kind"], Road> = {
   rinvii: "conceptual",
 };
 
+/** Definizione per una singola parola: chiave uguale, o radice (chiave di una parola sola che la parola continua). */
+export function definitionFor(word: string): string | undefined {
+  const w = word.toLowerCase();
+  const exact = DEFINITIONS[w];
+  if (exact) return exact;
+  const stem = Object.entries(DEFINITIONS).find(([k]) => !k.includes(" ") && w.startsWith(k) && k.length >= 5);
+  return stem?.[1];
+}
+
 /** Le parole lente dell'archivio presenti in questo testo. */
 export function learnedWordsIn(text: string, model: LabModel | null = learned): LearnedWord[] {
   if (!model) return [];
@@ -107,7 +116,7 @@ export const PLAIN_WORDS: [RegExp, string, string][] = [
   [/\bcostituisce presa d'atto\b/gi, "vale come presa d'atto", "meno formale, stesso significato"],
   [/\bl'interessato\b/gi, "la persona", "«interessato» nel GDPR è la persona a cui i dati si riferiscono: dirlo"],
   [/\bin caso di\b/gi, "se c'è", "«in caso di» spesso è «se»"],
-  [/\beventual[ei]\b/gi, "possibil$1", "«eventuale» è «possibile»"],
+  [/\beventual([ei])\b/gi, "possibil$1", "«eventuale» è «possibile»"],
   [/\bammontare\b/gi, "importo", "«ammontare» è «importo»"],
   [/\bcorrispettivo\b/gi, "prezzo", "«corrispettivo» è «prezzo»"],
   [/\bonere\b/gi, "costo", "«onere» è «costo» (o «obbligo»)"],
@@ -306,7 +315,7 @@ export function proposalsFor(clause: Clause, lx: LxScore): Proposal[] {
   // 9. Parole che l'archivio ha visto rallentare i lettori (modello appreso).
   const already = new Set(out.filter((p) => p.kind === "parola" || p.kind === "definisci").map((p) => p.before.toLowerCase()));
   for (const w of learnedWordsIn(text).filter((w) => ![...already].some((b) => b.includes(w.word))).slice(0, 3)) {
-    const def = Object.entries(DEFINITIONS).find(([k]) => k.includes(w.word))?.[1];
+    const def = definitionFor(w.word);
     out.push({
       kind: "parola",
       title: `«${w.word}» rallenta i lettori (archivio)`,

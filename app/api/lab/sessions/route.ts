@@ -21,7 +21,8 @@ export async function POST(req: Request) {
   if (!db) return json(NOT_CONFIGURED, 503)
 
   const text = await req.text()
-  if (text.length > MAX_PAYLOAD_BYTES) return json({ error: `Sessione troppo grande (${Math.round(text.length / 1024)} kB, massimo ${Math.round(MAX_PAYLOAD_BYTES / 1024)} kB).` }, 413)
+  const bytes = Buffer.byteLength(text, 'utf8')
+  if (bytes > MAX_PAYLOAD_BYTES) return json({ error: `Sessione troppo grande (${Math.round(bytes / 1024)} kB, massimo ${Math.round(MAX_PAYLOAD_BYTES / 1024)} kB).` }, 413)
   let raw: unknown
   try {
     raw = JSON.parse(text)

@@ -179,7 +179,7 @@ function ArchivePanel({ lab }: { lab: LabContext }) {
             {saved ? "salvata" : "salva"}
           </button>
         </div>
-        <p className="hint">Ogni sessione con fascia viene archiviata alla fine, senza pseudonimo né tracciato grezzo: solo risultati per clausola e per porzione. Il laboratorio ricalcola da solo pesi e soglia dell'LX, lo storico per clausola e le parole lente ogni volta che arrivano sessioni nuove.</p>
+        <p className="hint">Ogni sessione vera, con o senza fascia, viene archiviata alla fine, senza pseudonimo né tracciato grezzo: solo risultati per clausola e per porzione. Il laboratorio ricalcola da solo pesi e soglia dell'LX, lo storico per clausola e le parole lente ogni volta che arrivano sessioni nuove.</p>
       </div>
     </details>
   );
@@ -671,7 +671,7 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
   const [tab, setTab] = useState<"mappa" | "parole" | "popolazione" | "riscrittura" | "dati">("mappa");
   const readings = useMemo(() => readClauses(doc.clauses, metrics, friction), [doc, metrics, friction]);
-  const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model), [doc.id, session.id, lab.model]);
+  const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model, doc.clauses), [doc, session.id, lab.model]);
   const critical = useMemo(() => criticalPoints(doc.clauses, metrics, friction, segmentRows, lab.model, doc.id), [doc, metrics, friction, segmentRows, lab.model]);
   useEffect(() => {
     recordSession(doc.id, session.id, session.createdAt, metrics, friction);

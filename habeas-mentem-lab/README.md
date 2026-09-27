@@ -206,7 +206,11 @@ Supabase già presenti, impostare `LAB_TEAM_KEY` (la chiave che il team
 inserisce nel passo Consenso, § 7) e, consigliata, `SUPABASE_SERVICE_ROLE_KEY`
 (così le tabelle restano chiuse a chi non passa dalle API). Con
 `CRON_SECRET` il cron è autenticato; senza, il ricalcolo avviene comunque
-all'apertura del laboratorio.
+all'apertura del laboratorio. Attenzione: senza `SUPABASE_SERVICE_ROLE_KEY`
+il sito usa la chiave anon (pubblica) con le policy della migrazione, e chi
+la possiede può leggere e scrivere le tabelle direttamente: la chiave del
+team protegge davvero solo con la service role. Senza chiave del team il
+modello resta leggibile (è il metodo), ma senza i testi di porzioni e frasi.
 
 ## La costituzione della misurazione, applicata
 
