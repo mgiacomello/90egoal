@@ -134,11 +134,16 @@ export function queuedCount(): number {
 /** Il modello appreso: dalla rete se possibile, altrimenti l'ultimo ricevuto. */
 export async function loadModel(): Promise<{ model: LabModel | null; fromCache: boolean }> {
   try {
-    const res = await fetch(ARCHIVE_ENDPOINTS.model, { cache: "no-store" });
+    const res = await fetch(ARCHIVE_ENDPOINTS.model, { cache: "no-store", headers: headers() });
     if (res.ok) {
-      const body = (await res.json()) as { model?: unknown };
+      const body = (await res.json()) as { model?: unknown; configured?: boolean };
       if (isLabModel(body.model)) {
-        write(MODEL_STORAGE, body.model);
+        // Un archivio momentaneamente non configurato non cancella l'ultimo modello buono.
+        if (body.configured !== false && body.model.sessions > 0) write(MODEL_STORAGE, body.model);
+        else if (body.model.sessions === 0) {
+          const cached = read<unknown>(MODEL_STORAGE, null);
+          if (isLabModel(cached) && cached.sessions > 0) return { model: cached, fromCache: true };
+        }
         return { model: body.model, fromCache: false };
       }
     }

@@ -17,7 +17,7 @@ function fakeAggregate(sessions: number, nClauses: number): Aggregate {
       verification: { asked: sessions, correct: Math.round(sessions * comprehension), accuracy: comprehension },
       operational: { asked: 0, correct: 0, success: null, timesChosenWrongly: 0 },
       effort: { mean: null, readersWithSignal: 0 },
-      lostShare: 0,
+      lostCount: 0, lostShare: 0,
       friction: { level: "verde", indicators: { time: false, body: false, text: false, verify: false, operate: false }, count: 0, reasons: [] },
     };
   });

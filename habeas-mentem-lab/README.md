@@ -34,7 +34,7 @@ giallo con due indizi, o con una sola verifica o prova fallita; verde
 altrimenti. Il corpo da solo non colora mai.
 
 Uscita: CSV per clausola, CSV dei campioni grezzi, JSON della sessione.
-Tutto resta nel browser finché non viene scaricato. Nessun server.
+Il tracciato resta nel browser finché non viene scaricato; nell'archivio del team (vedi sotto) vanno solo risultati per clausola e per porzione, senza pseudonimo.
 
 ## Avvio
 
@@ -147,6 +147,11 @@ che quei valori restituiscano 72 e 68 come nel libro. È una stima di
 superficie calcolata nel browser, non il modello NLC calibrato su EEG/fNIRS
 (pannello di 100 lettori, r = −0,71 in calibrazione e −0,68 in validazione).
 Il punteggio non giudica le persone: fa la diagnosi ai documenti.
+Le altre due strade seguono *Habeas Mentem*: l'**ordine** conta incisi e
+rinvii interni (dove stanno le cose che contano); l'**affollamento** conta,
+periodo per periodo, quanti concetti giuridici distinti (termini tecnici,
+rinvii normativi, voci di elenco) il testo pretende di tenere in mente
+insieme: «cinque istituti in tre righe» valgono 70 punti.
 
 ## L'archivio del team e l'apprendimento
 
@@ -201,7 +206,39 @@ Supabase già presenti, impostare `LAB_TEAM_KEY` (la chiave che il team
 inserisce nel passo Consenso, § 7) e, consigliata, `SUPABASE_SERVICE_ROLE_KEY`
 (così le tabelle restano chiuse a chi non passa dalle API). Con
 `CRON_SECRET` il cron è autenticato; senza, il ricalcolo avviene comunque
-all'apertura del laboratorio.
+all'apertura del laboratorio. Attenzione: senza `SUPABASE_SERVICE_ROLE_KEY`
+il sito usa la chiave anon (pubblica) con le policy della migrazione, e chi
+la possiede può leggere e scrivere le tabelle direttamente: la chiave del
+team protegge davvero solo con la service role. Senza chiave del team il
+modello resta leggibile (è il metodo), ma senza i testi di porzioni e frasi.
+
+## La prefazione di Floridi, alla prova
+
+Nella prefazione a *Mente e Tecnologia* (Springer, 2026, pp. VII-X) Luciano
+Floridi formula tesi che il laboratorio può misurare. `src/session/preface.ts`
+le cita alla lettera e le traduce in indicatori, ciascuno con il dato della
+sessione, quello dell'archivio del team e ciò che lo smentirebbe; la scheda
+«Assunzioni alla prova» e una tavola del fascicolo li mostrano, e lo stato
+cambia da solo con le sessioni nuove:
+
+1. «Il consenso si dà sulle parole di un documento, non sulle inferenze che il
+   segnale rende possibili» → accuratezza delle domande con tema `inferenza`
+   contro gli altri temi (`cessione`, `diritti`, `durata`, `base`). Le domande
+   dei documenti modello portano il tema; l'informativa neurotech ne ha due
+   dedicate (che cosa viene ricavato dai segnali, a chi può andare).
+2. «La correttezza formale del documento non cambia la sostanza» → elementi
+   dell'art. 13 GDPR presenti nel testo contro la quota di risposte esatte su
+   cessione e inferenze.
+3. «Uno o due su mille aprono il contratto; 244 ore l'anno» → minuti spesi
+   contro minuti plausibili a 250 parole al minuto, clausole scorse.
+4. «Quell'attività è al più un correlato dello stato mentale» → correlazione,
+   nell'archivio, tra sforzo medio per clausola e comprensione misurata
+   (`model.body.r`); la regola «il corpo da solo non colora» è la conseguenza.
+5. «Il regolatore deve guardare all'inferenza: il sensore spiega perché la
+   posta è alta, non dove intervenire» → da quali sensori vengono i colori
+   della mappa.
+6. «Tarato […] con una tecnologia dello stesso tipo» → correlazione LX e
+   comprensione sull'archivio, contro −0,71 e −0,68 del libro.
 
 ## La costituzione della misurazione, applicata
 

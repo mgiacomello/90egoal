@@ -24,7 +24,7 @@ export interface LxScore {
   semantic: number;
   /** L'ordine: incisi, parentesi, rinvii interni che spostano le cose altrove. */
   structural: number;
-  /** L'affollamento: rinvii normativi e concetti giuridici per 100 parole. */
+  /** L'affollamento: quanti concetti giuridici distinti (termini tecnici, rinvii normativi, voci di elenco) lo stesso periodo pretende di tenere in mente insieme. */
   conceptual: number;
   /** Media pesata: le due componenti principali del libro pesano di più. */
   total: number;
@@ -39,6 +39,9 @@ export interface LxScore {
     undefinedTerms: number;
     citations: number;
     parentheticals: number;
+    /** Concetti distinti per periodo, in media e nel periodo più affollato. */
+    conceptsPerSentence: number;
+    maxConceptsInSentence: number;
   };
 }
 
@@ -148,8 +151,21 @@ export function lxScore(text: string): LxScore {
   const semantic = clamp((technicalTermsPer600 / CORPUS.termsPer600) * 40 + (undefinedShare / CORPUS.undefinedShare) * 28);
   // L'ordine: incisi e rinvii interni per 100 parole.
   const structural = clamp(((parentheticals + internalRefs) / wordCount) * 100 * 14 + (avgSentenceLength > 35 ? 15 : 0));
-  // L'affollamento: rinvii normativi per 100 parole.
-  const conceptual = clamp((citations / wordCount) * 100 * 16);
+  // L'affollamento (Habeas Mentem, «le quattro dimensioni»): «quanti concetti
+  // giuridici diversi il testo pretende che teniate in mente nello stesso
+  // momento»; «un periodo può essere grammaticalmente limpido e pretendere
+  // cinque istituti in tre righe». Per ogni periodo si contano i concetti
+  // distinti: termini tecnici, rinvii normativi, voci di elenco. Cinque per
+  // periodo in media valgono 70 punti; il periodo più affollato aggiunge fino
+  // a 30 (otto concetti).
+  const ENUM_ITEM = /\(([a-z]|[ivx]+)\)/gi;
+  const perSentence = (sentences.length ? sentences : [text]).map((st) => {
+    const terms = new Set(technicalTerms(st).found.map((t) => t.toLowerCase()));
+    return terms.size + count(CITATION, st) + count(ENUM_ITEM, st);
+  });
+  const conceptsPerSentence = perSentence.reduce((a, b) => a + b, 0) / Math.max(1, perSentence.length);
+  const maxConceptsInSentence = Math.max(0, ...perSentence);
+  const conceptual = clamp((conceptsPerSentence / 5) * 70 + (maxConceptsInSentence / 8) * 30);
 
   const w = activeWeights;
   const total = clamp(syntactic * w.syntactic + semantic * w.semantic + structural * w.structural + conceptual * w.conceptual);
@@ -165,6 +181,8 @@ export function lxScore(text: string): LxScore {
       technicalTerms: found.length,
       undefinedTerms: undefinedTerms.length,
       citations, parentheticals,
+      conceptsPerSentence: Math.round(conceptsPerSentence * 10) / 10,
+      maxConceptsInSentence,
     },
   };
 }

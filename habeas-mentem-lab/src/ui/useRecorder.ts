@@ -462,6 +462,7 @@ export function useRecorder() {
         clauseId: question.clauseId,
         chosenIndex,
         correct: chosenIndex === question.correctIndex,
+        theme: question.theme,
         timestamp: Date.now(),
         ms,
       });

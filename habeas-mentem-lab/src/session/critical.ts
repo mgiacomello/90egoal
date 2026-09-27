@@ -11,11 +11,13 @@ import type { ClauseMetrics } from "./metrics";
 import type { Clause } from "./model";
 import type { SegmentMetrics } from "./segments";
 import { lxScore } from "./lx";
-import { autoDraft, DEFINITIONS, PLAIN_WORDS, proposalsFor, type Proposal } from "./rewrite";
-import { contentWords, sentenceOfSegments, type DocumentModel, type LabModel, type LearnedWord, type SegmentPrior } from "./learning";
+import { autoDraft, definitionFor, PLAIN_WORDS, proposalsFor, type Proposal } from "./rewrite";
+import { contentWords, documentVersion, sentenceOfSegments, SENTENCE_SLOW, type DocumentModel, type LabModel, type LearnedWord, type SegmentPrior } from "./learning";
 
-/** Lettori minimi perché il dato di popolazione conti da solo. */
+/** Lettori minimi perché il dato di popolazione venga mostrato. */
 export const POPULATION_MIN_READERS = 3;
+/** «Un cronometro e cinque lettori veri» (Habeas Mentem): sotto, il dato è esplorativo e lo dice. */
+export const POPULATION_SOLID_READERS = 5;
 
 export interface Population {
   readers: number;
@@ -90,8 +92,8 @@ export function wordProposal(word: string): { after: string; why: string } {
     const m = word.match(new RegExp(re.source, re.flags.replace("g", "")));
     if (m && m[0].length >= word.length - 1) return { after: word.replace(new RegExp(re.source, re.flags.replace("g", "")), rep), why };
   }
-  const def = Object.entries(DEFINITIONS).find(([k]) => k.includes(word) || word.includes(k));
-  if (def) return { after: `${word}, cioè ${def[1]}`, why: "Termine tecnico: definirlo alla prima occorrenza, in una riga." };
+  const def = definitionFor(word);
+  if (def) return { after: `${word}, cioè ${def}`, why: "Termine tecnico: definirlo alla prima occorrenza, in una riga." };
   return { after: "una parola comune, o la stessa parola spiegata alla prima occorrenza", why: "Nessuna resa piana nel glossario: decide il giurista, il laboratorio rimisura." };
 }
 
@@ -108,7 +110,8 @@ export function criticalPoints(
   documentId: string,
   limit = 5,
 ): CriticalPoints {
-  const pop: DocumentModel | null = model?.documents.find((d) => d.documentId === documentId && d.clauses.length === clauses.length) ?? null;
+  const version = documentVersion(clauses);
+  const pop: DocumentModel | null = model?.documents.find((d) => d.documentId === documentId && d.version === version) ?? null;
   const readers = pop?.sessions ?? 0;
   const segmentedReaders = pop?.segmentedSessions ?? 0;
   const rank = { rosso: 1, giallo: 0.6, verde: 0 } as const;
@@ -118,7 +121,7 @@ export function criticalPoints(
     const f = friction.find((x) => x.clauseId === m.clauseId)!;
     const c = clauses.find((x) => x.id === m.clauseId)!;
     const p = pop?.clauses.find((x) => x.clauseId === m.clauseId) ?? null;
-    const population = p && p.readers > 0 ? { readers: p.readers, lost: Math.round(p.lostShare * p.readers), lostShare: p.lostShare, verifyAccuracy: p.verifyAccuracy } : null;
+    const population = p && p.sessions > 0 ? { readers: p.sessions, lost: p.lost, lostShare: p.lostShare, verifyAccuracy: p.verifyAccuracy } : null;
     const sessionScore = rank[f.level] * 0.7 + Math.min(1, f.count / 4) * 0.3;
     const score = population && population.readers >= POPULATION_MIN_READERS ? 0.4 * sessionScore + 0.6 * population.lostShare : sessionScore + (m.lx.total / 100) * 0.1;
     const draft = autoDraft(c);
@@ -132,7 +135,7 @@ export function criticalPoints(
   const sentenceMap = new Map<string, CriticalSentence>();
   for (const c of clauses) {
     const mine = segments.filter((s) => s.clauseId === c.id && s.z !== null && s.msPerWord !== null);
-    const { sentences, bySegmentIndex } = sentenceOfSegments(c, mine.length ? mine : [{ index: 0, wordCount: c.wordCount }]);
+    const { sentences, bySegmentIndex } = sentenceOfSegments(c, mine);
     sentences.forEach((text, k) => {
       const key = `${c.id}#${k}`;
       const list = mine.filter((_, i) => bySegmentIndex[i] === k);
@@ -141,7 +144,7 @@ export function criticalPoints(
         const zs = list.map((s) => s.z as number);
         const z = zs.reduce((a, b) => a + b, 0) / zs.length;
         const words = list.reduce((n, s) => n + s.wordCount, 0);
-        session = { z, msPerWord: list.reduce((n, s) => n + s.dwellMs, 0) / Math.max(1, words), slow: z > 0.5 || zs.some((x) => x > 1.5) };
+        session = { z, msPerWord: list.reduce((n, s) => n + s.dwellMs, 0) / Math.max(1, words), slow: z > SENTENCE_SLOW.meanZ || zs.some((x) => x > SENTENCE_SLOW.anyZ) };
       }
       const p = pop?.sentences.find((x) => x.clauseId === c.id && x.index === k) ?? null;
       const population = p ? { readers: p.readers, slow: p.slowReaders, share: p.slowShare, msPerWordMedian: p.msPerWordMedian } : null;
@@ -240,5 +243,5 @@ export function readersPhrase(p: Population | { lost: number; readers: number } 
   if (!p) return null;
   const n = "slow" in p ? p.slow : p.lost;
   if (p.readers < POPULATION_MIN_READERS) return `${p.readers} ${p.readers === 1 ? "lettore" : "lettori"} in archivio: troppo pochi per un dato di popolazione`;
-  return `${n} ${n === 1 ? "lettore" : "lettori"} su ${p.readers} ${what} (${Math.round((n / p.readers) * 100)}%)`;
+  return `${n} ${n === 1 ? "lettore" : "lettori"} su ${p.readers} ${what} (${Math.round((n / p.readers) * 100)}%)${p.readers < POPULATION_SOLID_READERS ? ", esplorativo sotto cinque lettori" : ""}`;
 }

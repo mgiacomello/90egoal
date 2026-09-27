@@ -25,7 +25,7 @@ export interface SessionExport {
     documentTitle: string;
     device: { name: string; simulated: boolean } | null;
     createdAt: number;
-    answers: { clauseId: string; correct: boolean }[];
+    answers: { clauseId: string; correct: boolean; theme?: string }[];
     tasks: { clauseId: string; chosenClauseId: string; correct: boolean }[];
   };
   clauses: Clause[];
@@ -50,7 +50,8 @@ export interface AggregateClause {
   operational: { asked: number; correct: number; success: number | null; timesChosenWrongly: number };
   /** Sforzo medio tra i lettori con segnale, e quanti erano. */
   effort: { mean: number | null; readersWithSignal: number };
-  /** Quota di lettori per cui la clausola era gialla o rossa nella propria sessione. */
+  /** Sessioni in cui la clausola era gialla o rossa, e la quota su tutte le sessioni. */
+  lostCount: number;
   lostShare: number;
   friction: { level: FrictionLevel; indicators: FrictionIndicators; count: number; reasons: string[] };
 }
@@ -145,6 +146,7 @@ export function aggregateSessions(exports: SessionExport[]): Aggregate {
       verification: { asked: vAsked, correct: vCorrect, accuracy: vAsked ? vCorrect / vAsked : null },
       operational: { asked: oAsked, correct: oCorrect, success: oAsked ? oCorrect / oAsked : null, timesChosenWrongly: oWrong },
       effort: { mean: effortMean, readersWithSignal: signalRows.length },
+      lostCount: lost,
       lostShare: exports.length ? lost / exports.length : 0,
       friction: { level: "verde", indicators: { time: false, body: false, text: false, verify: false, operate: false }, count: 0, reasons: [] },
     };

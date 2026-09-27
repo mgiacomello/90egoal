@@ -17,12 +17,25 @@ export interface Clause {
 }
 
 /** Domanda di comprensione a risposta chiusa, legata a una clausola (sensore "verifica"). */
+/**
+ * Tema della domanda, per mettere alla prova le tesi della prefazione di
+ * Floridi (Mente e Tecnologia, pp. VII-X): «il consenso si dà sulle parole di
+ * un documento, non sulle inferenze che il segnale rende possibili».
+ *   inferenza  che cosa il titolare ricava dai dati (stati, classificazioni, profili)
+ *   cessione   che cosa viene ceduto e a chi (dati, destinatari, usi)
+ *   diritti    come si esercita un diritto (revoca, recesso, reclamo)
+ *   durata     per quanto tempo (conservazione, termini)
+ *   base       su quale base giuridica o a quali condizioni
+ */
+export type QuestionTheme = "inferenza" | "cessione" | "diritti" | "durata" | "base";
+
 export interface Question {
   id: string;
   clauseId: string;
   prompt: string;
   options: string[];
   correctIndex: number;
+  theme?: QuestionTheme;
 }
 
 /** Compito pratico: trovare la clausola che serve (sensore "prova operativa"). */
@@ -49,6 +62,7 @@ export interface AnswerRecord {
   clauseId: string;
   chosenIndex: number;
   correct: boolean;
+  theme?: QuestionTheme;
   timestamp: number;
   /** Tempo impiegato a rispondere (ms). */
   ms: number;

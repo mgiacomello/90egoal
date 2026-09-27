@@ -31,6 +31,15 @@ const KIND_ROAD: Record<Proposal["kind"], Road> = {
   rinvii: "conceptual",
 };
 
+/** Definizione per una singola parola: chiave uguale, o radice (chiave di una parola sola che la parola continua). */
+export function definitionFor(word: string): string | undefined {
+  const w = word.toLowerCase();
+  const exact = DEFINITIONS[w];
+  if (exact) return exact;
+  const stem = Object.entries(DEFINITIONS).find(([k]) => !k.includes(" ") && w.startsWith(k) && k.length >= 5);
+  return stem?.[1];
+}
+
 /** Le parole lente dell'archivio presenti in questo testo. */
 export function learnedWordsIn(text: string, model: LabModel | null = learned): LearnedWord[] {
   if (!model) return [];
@@ -107,7 +116,7 @@ export const PLAIN_WORDS: [RegExp, string, string][] = [
   [/\bcostituisce presa d'atto\b/gi, "vale come presa d'atto", "meno formale, stesso significato"],
   [/\bl'interessato\b/gi, "la persona", "«interessato» nel GDPR è la persona a cui i dati si riferiscono: dirlo"],
   [/\bin caso di\b/gi, "se c'è", "«in caso di» spesso è «se»"],
-  [/\beventual[ei]\b/gi, "possibil$1", "«eventuale» è «possibile»"],
+  [/\beventual([ei])\b/gi, "possibil$1", "«eventuale» è «possibile»"],
   [/\bammontare\b/gi, "importo", "«ammontare» è «importo»"],
   [/\bcorrispettivo\b/gi, "prezzo", "«corrispettivo» è «prezzo»"],
   [/\bonere\b/gi, "costo", "«onere» è «costo» (o «obbligo»)"],
@@ -306,7 +315,7 @@ export function proposalsFor(clause: Clause, lx: LxScore): Proposal[] {
   // 9. Parole che l'archivio ha visto rallentare i lettori (modello appreso).
   const already = new Set(out.filter((p) => p.kind === "parola" || p.kind === "definisci").map((p) => p.before.toLowerCase()));
   for (const w of learnedWordsIn(text).filter((w) => ![...already].some((b) => b.includes(w.word))).slice(0, 3)) {
-    const def = Object.entries(DEFINITIONS).find(([k]) => k.includes(w.word))?.[1];
+    const def = definitionFor(w.word);
     out.push({
       kind: "parola",
       title: `«${w.word}» rallenta i lettori (archivio)`,
@@ -415,7 +424,7 @@ export function documentAdvice(readings: ClauseReading[]): string[] {
   }
   const roads = readings.filter((r) => r.leadRoad).map((r) => r.leadRoad!.road);
   const top = ["lingua", "affollamento", "ordine", "distanza semantica"].map((road) => ({ road, n: roads.filter((x) => x === road).length })).sort((a, b) => b.n - a.n)[0];
-  if (top && top.n) out.push(`La strada che pesa di più nel documento è ${top.road === "lingua" ? "la lingua: periodi lunghi e passivi" : top.road === "affollamento" ? "l'affollamento: troppi rinvii per cento parole" : top.road === "ordine" ? "l'ordine: incisi e rinvii interni" : "la distanza semantica: termini tecnici non definiti"} (${top.n} clausole su ${readings.length}).`);
+  if (top && top.n) out.push(`La strada che pesa di più nel documento è ${top.road === "lingua" ? "la lingua: periodi lunghi e passivi" : top.road === "affollamento" ? "l'affollamento: troppi concetti giuridici nello stesso periodo" : top.road === "ordine" ? "l'ordine: incisi e rinvii interni" : "la distanza semantica: termini tecnici non definiti"} (${top.n} clausole su ${readings.length}).`);
   if (learned && learned.sessions > 0) {
     const roadName: Record<Road, string> = { syntactic: "la lingua", semantic: "la distanza semantica", structural: "l'ordine", conceptual: "l'affollamento" };
     const best = learned.roads.filter((r) => r.r !== null).sort((a, b) => (a.r as number) - (b.r as number))[0];

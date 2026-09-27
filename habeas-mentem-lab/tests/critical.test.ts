@@ -113,3 +113,48 @@ describe("punti critici", () => {
     expect(readersPhrase({ readers: 2, slow: 2, share: 1 })).toMatch(/troppo pochi/);
   });
 });
+
+describe("correzioni dalla revisione", () => {
+  it("«eventuale» diventa «possibile», non «possibil$1»", async () => {
+    const { autoDraft, definitionFor } = await import("../src/session/rewrite");
+    const d = autoDraft({ id: "x", index: 1, heading: null, text: "Le eventuali modifiche e l'eventuale revoca saranno comunicate.", wordCount: 9 });
+    expect(d?.text ?? "").not.toContain("$1");
+    expect(d?.text ?? "").toContain("possibili");
+    expect(definitionFor("trattamento")).toBeUndefined();
+    expect(definitionFor("titolare del trattamento")).toBeDefined();
+  });
+
+  it("una porzione non letta non sposta le frasi delle successive", () => {
+    const segs = splitIntoSegments(clauses[1]);
+    const full = sentenceOfSegments(clauses[1], segs);
+    const withoutSecond = sentenceOfSegments(clauses[1], segs.filter((_, i) => i !== 1));
+    expect(withoutSecond.bySegmentIndex).toEqual(full.bySegmentIndex.filter((_, i) => i !== 1));
+  });
+
+  it("i conteggi «persi» usano tutte le sessioni come denominatore", () => {
+    const model = learn(Array.from({ length: 6 }, (_, i) => session(i)));
+    const c2 = model.documents[0].clauses.find((c) => c.clauseId === "c2")!;
+    expect(c2.sessions).toBe(6);
+    expect(c2.lost).toBe(Math.round(c2.lostShare * 6));
+    const metrics = clauses.map((c) => metric(c));
+    const crit = criticalPoints(clauses, metrics, frictionMap(metrics), segments(), model, "doc-crit");
+    expect(crit.clauses.find((k) => k.clauseId === "c2")!.population).toEqual(expect.objectContaining({ readers: 6, lost: c2.lost }));
+  });
+
+  it("sessioni di versioni diverse dello stesso documento non si mescolano", () => {
+    const changed = clauses.map((c) => (c.id === "c1" ? { ...c, text: c.text + " Una parola in più." } : c));
+    const model = learn(Array.from({ length: 4 }, (_, i) => session(i)));
+    const metrics = changed.map((c) => metric(c));
+    const crit = criticalPoints(changed, metrics, frictionMap(metrics), [], model, "doc-crit");
+    expect(crit.readers).toBe(0);
+    expect(model.sessions).toBe(4);
+  });
+
+  it("usableExports rifiuta porzioni malformate e id mancanti", async () => {
+    const { usableExports } = await import("../src/session/learning");
+    const good = session(1);
+    const badSeg = { ...good, segments: [{}] };
+    const noId = { ...good, session: { ...good.session, id: undefined } };
+    expect(usableExports([good, badSeg, noId])).toHaveLength(1);
+  });
+});

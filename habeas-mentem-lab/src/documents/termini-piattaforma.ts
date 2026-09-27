@@ -49,6 +49,7 @@ import type { Question, Task } from "../session/model";
 export const terminiQuestions: Question[] = [
   {
     id: "q1",
+    theme: "diritti",
     clauseId: "c3",
     prompt: "Lumen vuole aumentare il prezzo del tuo piano. Che cosa deve fare e che cosa puoi fare tu?",
     options: [
@@ -61,6 +62,7 @@ export const terminiQuestions: Question[] = [
   },
   {
     id: "q2",
+    theme: "diritti",
     clauseId: "c4",
     prompt: "Hai comprato il piano Pro da 5 giorni, l'hai già usato e vuoi tornare indietro. Che cosa prevede il contratto?",
     options: [
@@ -73,6 +75,7 @@ export const terminiQuestions: Question[] = [
   },
   {
     id: "q3",
+    theme: "cessione",
     clauseId: "c5",
     prompt: "Lumen può usare i tuoi documenti per addestrare modelli di intelligenza artificiale?",
     options: [

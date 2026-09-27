@@ -21,7 +21,7 @@ import { calibrate, comprehensionPoints, pearson, DEFAULT_WEIGHTS, type LxWeight
 import { LX_ACCESSIBILITY_THRESHOLD, lxScore, splitSentences } from "./lx";
 import type { Clause } from "./model";
 import type { FrictionLevel } from "./friction";
-import type { SegmentMetrics } from "./segments";
+import { splitIntoSegments, type SegmentMetrics } from "./segments";
 
 export const MODEL_SCHEMA = "habeas-mentem-lab/model/v1";
 
@@ -29,8 +29,11 @@ export interface ClausePrior {
   clauseId: string;
   index: number;
   heading: string | null;
+  /** Sessioni del documento, e quante hanno aperto la clausola. */
+  sessions: number;
   readers: number;
-  /** Quota di sessioni in cui la clausola è stata gialla o rossa. */
+  /** Sessioni in cui la clausola è stata gialla o rossa, e la quota su tutte le sessioni. */
+  lost: number;
   lostShare: number;
   tooFastShare: number;
   returnedShare: number;
@@ -80,6 +83,8 @@ export interface SentencePrior {
 
 export interface DocumentModel {
   documentId: string;
+  /** Impronta del testo (clausole): sessioni di versioni diverse non si mescolano. */
+  version: string;
   documentTitle: string;
   sessions: number;
   realSessions: number;
@@ -129,9 +134,27 @@ export interface LabModel {
   };
   /** Correlazione tra ogni strada dell'LX e la comprensione: più negativa, più la strada pesa. */
   roads: { road: Road; r: number | null; points: number }[];
+  /**
+   * Il corpo da solo: correlazione tra sforzo medio per clausola e comprensione
+   * misurata, sulle clausole con abbastanza lettori con segnale. Floridi:
+   * «quell'attività è al più un correlato dello stato mentale».
+   */
+  body: { r: number | null; clauses: number; readers: number };
+  /** Accuratezza delle domande per tema (inferenza, cessione, diritti, durata, base), su tutte le sessioni. */
+  themes: { theme: string; asked: number; correct: number; accuracy: number }[];
   words: LearnedWord[];
   notes: string[];
 }
+
+/**
+ * Art. 6 della costituzione: «il programma dichiara in anticipo i risultati che
+ * lo smentirebbero». Restano nel modello, sempre, e nel fascicolo.
+ */
+export const FALSIFIERS = [
+  "Che cosa smentirebbe il metodo: con almeno 30 lettori e 6 documenti, una correlazione tra LX e comprensione misurata sopra -0,30 (il libro: -0,71 e -0,68).",
+  "Che cosa smentirebbe la soglia: nessun taglio dell'LX che separi la comprensione media di almeno dieci punti percentuali, con almeno 30 lettori.",
+  "Che cosa smentirebbe le parole lente: parole segnalate che, riscritte o definite, non riducono il tempo per parola nelle sessioni successive.",
+];
 
 export const EMPTY_MODEL: LabModel = {
   schema: MODEL_SCHEMA,
@@ -140,6 +163,8 @@ export const EMPTY_MODEL: LabModel = {
   documents: [],
   lx: { source: "predefinito", weights: DEFAULT_WEIGHTS, threshold: LX_ACCESSIBILITY_THRESHOLD, r: null, defaultR: null, sessions: 0, clauses: 0, reason: "Nessuna sessione in archivio." },
   roads: [],
+  body: { r: null, clauses: 0, readers: 0 },
+  themes: [],
   words: [],
   notes: [],
 };
@@ -220,10 +245,11 @@ export function sentenceOfSegments(clause: Clause, segments: { index: number; wo
   }
   const total = clause.text.split(/\s+/).filter(Boolean).length;
   const scale = bounds[bounds.length - 1] > 0 ? total / bounds[bounds.length - 1] : 1;
-  const ordered = [...segments].sort((a, b) => a.index - b.index);
+  // Le posizioni vengono dalla segmentazione canonica della clausola (deterministica),
+  // non dalle sole porzioni misurate: una porzione non letta non sposta le altre.
   const startWord = new Map<number, number>();
   let w = 0;
-  for (const sg of ordered) {
+  for (const sg of splitIntoSegments(clause)) {
     startWord.set(sg.index, w);
     w += sg.wordCount;
   }
@@ -323,6 +349,7 @@ function documentModel(exports: SessionExport[], a: Aggregate): DocumentModel {
   }
   return {
     documentId: a.documentId,
+    version: documentVersion(exports[0].clauses),
     documentTitle: a.documentTitle,
     sessions: a.sessions,
     realSessions: a.sessions - a.simulatedSessions,
@@ -337,7 +364,9 @@ function documentModel(exports: SessionExport[], a: Aggregate): DocumentModel {
       clauseId: c.clauseId,
       index: c.index,
       heading: c.heading,
+      sessions: a.sessions,
       readers: c.readers,
+      lost: c.lostCount,
       lostShare: c.lostShare,
       tooFastShare: c.tooFastShare,
       returnedShare: c.returnedShare,
@@ -351,14 +380,22 @@ function documentModel(exports: SessionExport[], a: Aggregate): DocumentModel {
   };
 }
 
+/** Impronta breve del testo di un documento (djb2 sulle clausole): cambia se cambia una parola. */
+export function documentVersion(clauses: { id: string; text: string }[]): string {
+  let h = 5381;
+  const src = clauses.map((c) => `${c.id}\u0001${c.text}`).join("\u0002");
+  for (let i = 0; i < src.length; i++) h = ((h << 5) + h + src.charCodeAt(i)) | 0;
+  return `${clauses.length}-${(h >>> 0).toString(16)}`;
+}
+
 /** Raggruppa le sessioni per documento, scartando quelle non aggregabili (documento cambiato). */
 export function groupByDocument(exports: SessionExport[]): Map<string, SessionExport[]> {
   const groups = new Map<string, SessionExport[]>();
   for (const e of exports) {
-    const key = `${e.session.documentId}/${e.clauses.length}`;
+    const key = `${e.session.documentId}/${documentVersion(e.clauses)}`;
     groups.set(key, [...(groups.get(key) ?? []), e]);
   }
-  // Se lo stesso documento esiste in versioni con numero di clausole diverso, vale la più recente.
+  // Se lo stesso documento esiste in versioni con testo diverso, vale la più recente.
   const byDoc = new Map<string, SessionExport[]>();
   for (const list of groups.values()) {
     const id = list[0].session.documentId;
@@ -406,6 +443,25 @@ export function learn(exports: SessionExport[], now = new Date()): LabModel {
     points: points.length,
   }));
 
+  // Il corpo da solo: sforzo medio contro comprensione, dove ci sono lettori con segnale.
+  const bodyPoints = pooled.clauses.filter((c) => c.effort.mean !== null && c.effort.readersWithSignal >= 3 && c.readers > 0);
+  const compOf = new Map(points.map((p) => [p.clauseId, p.comprehension]));
+  const body = {
+    r: pearson(bodyPoints.map((c) => c.effort.mean as number), bodyPoints.map((c) => compOf.get(c.clauseId) ?? 0)),
+    clauses: bodyPoints.length,
+    readers: pooled.sessionsWithSignal,
+  };
+  // Temi delle domande, su tutte le sessioni.
+  const themeAcc = new Map<string, { asked: number; correct: number }>();
+  for (const e of exports) for (const a of e.session.answers ?? []) {
+    const t = a.theme ?? "altro";
+    const cur = themeAcc.get(t) ?? { asked: 0, correct: 0 };
+    cur.asked++;
+    if (a.correct) cur.correct++;
+    themeAcc.set(t, cur);
+  }
+  const themes = [...themeAcc.entries()].map(([theme, v]) => ({ theme, ...v, accuracy: v.correct / v.asked })).sort((a, b) => a.accuracy - b.accuracy);
+
   // I pesi appresi valgono solo se migliorano davvero la correlazione, e non di un soffio.
   const learned = cal.eligible && cal.r !== null && cal.defaultR !== null && cal.r < cal.defaultR - 0.05;
   const threshold = learned && cal.threshold !== null && (cal.thresholdDrop ?? 0) >= 0.1 ? cal.threshold : LX_ACCESSIBILITY_THRESHOLD;
@@ -415,12 +471,13 @@ export function learn(exports: SessionExport[], now = new Date()): LabModel {
 
   const words = learnWords(exports);
   if (words.length === 0) notes.push("Nessuna parola lenta ricorrente: servono porzioni misurate in almeno tre sessioni.");
+  notes.push(...FALSIFIERS);
 
   return {
     schema: MODEL_SCHEMA,
     computedAt: now.toISOString(),
-    sessions: exports.length,
-    realSessions: exports.filter((e) => !e.session.device?.simulated).length,
+    sessions: used,
+    realSessions: documents.reduce((s, d) => s + d.realSessions, 0),
     sessionsWithSignal: pooled.sessionsWithSignal,
     documents,
     lx: {
@@ -434,6 +491,8 @@ export function learn(exports: SessionExport[], now = new Date()): LabModel {
       reason: cal.reason,
     },
     roads,
+    body,
+    themes,
     words,
     notes,
   };
@@ -457,8 +516,21 @@ export function isLabModel(x: unknown): x is LabModel {
 /** Le sessioni ricevute dall'archivio possono essere più vecchie dello schema: si accettano solo quelle leggibili. */
 export function usableExports(rows: unknown[]): SessionExport[] {
   return rows.filter((r): r is SessionExport => {
-    const d = r as Partial<SessionExport> | null;
-    return !!d && d.schema === "habeas-mentem-lab/session/v1" && !!d.session && Array.isArray(d.metrics) && Array.isArray(d.clauses);
+    const d = r as Partial<SessionExport> & { segments?: unknown } | null;
+    if (!d || d.schema !== "habeas-mentem-lab/session/v1" || !d.session || !Array.isArray(d.metrics) || !Array.isArray(d.clauses)) return false;
+    const s = d.session as Partial<SessionExport["session"]>;
+    if (typeof s.id !== "string" || typeof s.documentId !== "string") return false;
+    if (!d.clauses.every((c) => c && typeof (c as Clause).id === "string" && typeof (c as Clause).text === "string")) return false;
+    if (!d.metrics.every((m) => m && typeof m.clauseId === "string" && m.lx && typeof m.lx.total === "number")) return false;
+    if (d.segments !== undefined) {
+      if (!Array.isArray(d.segments)) return false;
+      const okSeg = (x: unknown) => {
+        const g = x as Partial<SegmentMetrics> | null;
+        return !!g && typeof g.segmentId === "string" && typeof g.clauseId === "string" && typeof g.text === "string" && typeof g.index === "number" && typeof g.wordCount === "number" && typeof g.dwellMs === "number" && (g.z === null || typeof g.z === "number") && (g.msPerWord === null || typeof g.msPerWord === "number");
+      };
+      if (!d.segments.every(okSeg)) return false;
+    }
+    return true;
   });
 }
 
@@ -475,7 +547,7 @@ export function archivable(raw: unknown): SessionExport | null {
     device: s.device ? { name: String(s.device.name ?? ""), simulated: !!s.device.simulated } : null,
     createdAt: Number(s.createdAt) || Date.now(),
     reading: (s as { reading?: unknown }).reading,
-    answers: Array.isArray(s.answers) ? s.answers.map((a) => ({ clauseId: String(a.clauseId), correct: !!a.correct })) : [],
+    answers: Array.isArray(s.answers) ? s.answers.map((a) => ({ clauseId: String(a.clauseId), correct: !!a.correct, ...(typeof a.theme === "string" ? { theme: a.theme } : {}) })) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.map((t) => ({ clauseId: String(t.clauseId), chosenClauseId: String(t.chosenClauseId), correct: !!t.correct })) : [],
   };
   return {

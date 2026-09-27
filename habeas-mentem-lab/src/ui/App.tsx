@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { DOCUMENTS, documentFromPastedText } from "../documents";
 import { diagnoseBluetooth, isWebBluetoothAvailable, type BluetoothDiagnosis } from "../mendi/webbluetooth";
@@ -19,7 +19,8 @@ import { HRF_DESCRIPTION } from "../session/hrf";
 import { documentAdvice, readClauses, setLearnedModel } from "../session/rewrite";
 import { historyFor, recordSession } from "../session/history";
 import { frictionMap } from "../session/friction";
-import { criticalPoints, readersPhrase, POPULATION_MIN_READERS, type CriticalPoints } from "../session/critical";
+import { prefaceAssumptions, type Assumption } from "../session/preface";
+import { criticalPoints, readersPhrase, POPULATION_MIN_READERS, POPULATION_SOLID_READERS, type CriticalPoints } from "../session/critical";
 import { useRecorder } from "./useRecorder";
 
 const BASELINE_SECONDS = 30;
@@ -59,6 +60,13 @@ export function App() {
     };
   }, [tick]);
   const lab: LabContext = { model, modelFromCache, archive, refresh: () => setTick((t) => t + 1) };
+  // Tornando alla schermata iniziale dopo una sessione, il modello si ricarica:
+  // così la sessione successiva vede anche l'ultima archiviata.
+  const prevPhase = useRef(r.phase);
+  useEffect(() => {
+    if (prevPhase.current === "results" && r.phase === "setup") setTick((t) => t + 1);
+    prevPhase.current = r.phase;
+  }, [r.phase]);
   return (
     <div className="app">
       <header className="topbar">
@@ -172,7 +180,7 @@ function ArchivePanel({ lab }: { lab: LabContext }) {
             {saved ? "salvata" : "salva"}
           </button>
         </div>
-        <p className="hint">Ogni sessione con fascia viene archiviata alla fine, senza pseudonimo né tracciato grezzo: solo risultati per clausola e per porzione. Il laboratorio ricalcola da solo pesi e soglia dell'LX, lo storico per clausola e le parole lente ogni volta che arrivano sessioni nuove.</p>
+        <p className="hint">Ogni sessione vera, con o senza fascia, viene archiviata alla fine, senza pseudonimo né tracciato grezzo: solo risultati per clausola e per porzione. Il laboratorio ricalcola da solo pesi e soglia dell'LX, lo storico per clausola e le parole lente ogni volta che arrivano sessioni nuove.</p>
       </div>
     </details>
   );
@@ -662,10 +670,11 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
   const [building, setBuilding] = useState(false);
   const [dossierError, setDossierError] = useState<string | null>(null);
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
-  const [tab, setTab] = useState<"mappa" | "parole" | "popolazione" | "riscrittura" | "dati">("mappa");
+  const [tab, setTab] = useState<"mappa" | "parole" | "popolazione" | "riscrittura" | "assunzioni" | "dati">("mappa");
   const readings = useMemo(() => readClauses(doc.clauses, metrics, friction), [doc, metrics, friction]);
-  const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model), [doc.id, session.id, lab.model]);
+  const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model, doc.clauses), [doc, session.id, lab.model]);
   const critical = useMemo(() => criticalPoints(doc.clauses, metrics, friction, segmentRows, lab.model, doc.id), [doc, metrics, friction, segmentRows, lab.model]);
+  const assumptions = useMemo(() => prefaceAssumptions({ doc, session, metrics, friction, model: lab.model }), [doc, session, metrics, friction, lab.model]);
   useEffect(() => {
     recordSession(doc.id, session.id, session.createdAt, metrics, friction);
   }, [doc.id, session.id, session.createdAt, metrics, friction]);
@@ -677,7 +686,8 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
     const json = sessionJson(session, doc.clauses, metrics, friction, segmentRows);
     const res = await uploadSession(session.id, json);
     setArchiveState(res);
-    if (res.outcome === "archiviata") lab.refresh();
+    // Il modello NON si ricarica qui: i conteggi di popolazione di questa
+    // schermata devono restare quelli dei lettori precedenti, senza questo.
   };
   useEffect(() => {
     if (!simulated && lab.archive?.configured && lab.archive.authorized) void archiveNow();
@@ -803,6 +813,7 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
         )}
         <button className={`tab ${tab === "popolazione" ? "on" : ""}`} role="tab" aria-selected={tab === "popolazione"} onClick={() => setTab("popolazione")}>Dove perde i lettori</button>
         <button className={`tab ${tab === "riscrittura" ? "on" : ""}`} role="tab" aria-selected={tab === "riscrittura"} onClick={() => setTab("riscrittura")}>Lettura e riscrittura</button>
+        <button className={`tab ${tab === "assunzioni" ? "on" : ""}`} role="tab" aria-selected={tab === "assunzioni"} onClick={() => setTab("assunzioni")}>Assunzioni alla prova</button>
         <button className={`tab ${tab === "dati" ? "on" : ""}`} role="tab" aria-selected={tab === "dati"} onClick={() => setTab("dati")}>Tabella e dati</button>
       </div>
 
@@ -882,6 +893,7 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
       )}
 
       {tab === "popolazione" && <PopulationView critical={critical} doc={doc} />}
+      {tab === "assunzioni" && <AssumptionsView items={assumptions} />}
 
       {tab === "parole" && segmentRows.length > 0 && (
         <div className="panel">
@@ -1120,7 +1132,7 @@ function CriticalPanel({ critical, onMore }: { critical: CriticalPoints; onMore:
       <span className="tavola-title">Punti critici</span>
       <p className="hint">
         {withPop
-          ? `Questa sessione e ${c.readers} lettori in archivio su questo documento (${c.segmentedReaders} a porzioni). Ordine: prima ciò che perde più lettori.`
+          ? `Questa sessione e ${c.readers} lettori precedenti in archivio su questo documento (${c.segmentedReaders} a porzioni${c.readers < POPULATION_SOLID_READERS ? `; sotto i ${POPULATION_SOLID_READERS} lettori del libro il dato è esplorativo` : ""}). Ordine: prima ciò che perde più lettori.`
           : c.readers > 0
             ? `Questa sessione; in archivio ${c.readers} ${c.readers === 1 ? "lettore" : "lettori"}, troppo pochi per un dato di popolazione (servono ${POPULATION_MIN_READERS}).`
             : "Solo questa sessione: nessun lettore in archivio su questo documento. I conteggi di popolazione compaiono dalla terza sessione."}
@@ -1252,6 +1264,41 @@ function PopulationView({ critical, doc }: { critical: CriticalPoints; doc: Docu
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/** Le tesi della prefazione di Floridi, ciascuna con il suo indicatore, misurata qui e sull'archivio. */
+function AssumptionsView({ items }: { items: Assumption[] }) {
+  return (
+    <section className="tavola assumptions">
+      <span className="tavola-title">Le assunzioni della prefazione, alla prova</span>
+      <p className="hint">
+        Sei tesi della prefazione di Luciano Floridi a «Mente e Tecnologia» (Springer, 2026), citate alla lettera e tradotte in un indicatore. Per ognuna: il dato di questa sessione, quello dell'archivio del team, e che cosa la smentirebbe. Lo stato cambia da solo con le sessioni nuove.
+      </p>
+      {items.map((a, i) => (
+        <article key={a.id} className={`assumption ${a.status.replace(/\s+/g, "-")}`}>
+          <div className="assumption-head">
+            <span className="clause-num">{i + 1}</span>
+            <span className={`status-pill ${a.status.replace(/\s+/g, "-")}`}>{a.status}</span>
+            <span className="assumption-claim">{a.claim}</span>
+          </div>
+          <blockquote>«{a.quote}» <cite>{a.source}</cite></blockquote>
+          <p className="assumption-indicator"><em>Indicatore</em> {a.indicator}</p>
+          <div className="assumption-data">
+            <div>
+              <span className="stat-label">Questa sessione</span>
+              {a.session ? <><span className="stat-value small">{a.session.value}</span><span className="stat-note">{a.session.detail}</span></> : <span className="stat-note">non misurabile in una sessione</span>}
+            </div>
+            <div>
+              <span className="stat-label">Archivio del team</span>
+              {a.population ? <><span className="stat-value small">{a.population.value}</span><span className="stat-note">{a.population.detail}</span></> : <span className="stat-note">nessun dato ancora</span>}
+            </div>
+          </div>
+          <p className="assumption-verdict">{a.verdict}</p>
+          <p className="hint"><em>Che cosa la smentirebbe:</em> {a.falsifier}</p>
+        </article>
+      ))}
     </section>
   );
 }
