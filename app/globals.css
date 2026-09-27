@@ -292,6 +292,12 @@
   border-radius: 8px;
   font-weight: 600;
 }
+.tag-static.is-pending {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.75);
+}
+
 .tag-static.is-miss {
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(255, 255, 255, 0.10);

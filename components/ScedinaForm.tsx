@@ -10,6 +10,7 @@ import TeamPicker from '@/components/TeamPicker'
 import GoalStatsPanel from '@/components/GoalStatsPanel'
 import { stadiumImage } from '@/lib/stadiums'
 import { logEvent } from '@/lib/track'
+import { nomeBreve } from '@/lib/teams'
 
 const MAX_MINUTI = 13
 
@@ -24,7 +25,7 @@ interface Props {
 export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goalStats, teamStats }: Props) {
   const router = useRouter()
 
-  const isKnockout = schedina.fase !== 'gironi'
+  const isKnockout = schedina.fase === 'eliminazione'
 
   const [minuti, setMinuti] = useState<number[]>(pronosticoEsistente?.minuti ?? [])
   const [recupero, setRecupero] = useState<'primo' | 'secondo' | null>(pronosticoEsistente?.recupero ?? null)
@@ -36,14 +37,17 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
   const [saved, setSaved] = useState(false)
 
   // --- Tracciamento tempi (per le statistiche admin) ---
-  const openedAt = useRef<number>(Date.now())
+  const openedAt = useRef<number>(0)
   const marked = useRef<Set<string>>(new Set())
   function mark(name: string) {
     if (marked.current.has(name)) return
     marked.current.add(name)
     logEvent(name, { schedina_id: schedina.id, ms: Date.now() - openedAt.current })
   }
-  useEffect(() => { logEvent('form_open', { schedina_id: schedina.id }) }, [])
+  useEffect(() => {
+    openedAt.current = Date.now()
+    logEvent('form_open', { schedina_id: schedina.id })
+  }, [schedina.id])
   useEffect(() => { if (minuti.length === MAX_MINUTI) mark('minutes_done') }, [minuti])
   useEffect(() => { if (recupero) mark('recupero_set') }, [recupero])
   useEffect(() => { if (firstGoal) mark('first_team_set') }, [firstGoal])
@@ -86,7 +90,9 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
 
     const { error: dbError } = await supabase.from('pronostici').insert(payload)
 
-    if (dbError) setError('Errore nell\'invio. Riprova.')
+    if (dbError) setError(new Date() > new Date(schedina.deadline)
+      ? 'La schedina è chiusa: il calcio d\'inizio è già passato.'
+      : 'Errore nell\'invio. Riprova.')
     else {
       logEvent('submit', { schedina_id: schedina.id, ms: Date.now() - openedAt.current })
       setSaved(true)
@@ -124,7 +130,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           </button>
 
           <div className="absolute bottom-0 inset-x-0 p-5">
-            <h1 className="font-display font-bold text-3xl sm:text-4xl drop-shadow-lg">{schedina.nome.replace(' — Mondiali FIFA 2026', '')}</h1>
+            <h1 className="font-display font-bold text-3xl sm:text-4xl drop-shadow-lg">{nomeBreve(schedina.nome)}</h1>
             <p className="text-sm mt-1 text-white/70">
               Scadenza <span className="text-[var(--gold)] font-medium">{new Date(schedina.deadline).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })} · {new Date(schedina.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
             </p>
@@ -140,8 +146,9 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
         <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
           {schedina.partite.map((p: Partita, i: number) => (
             <div key={i} className="flex items-center gap-2 text-sm">
-              <span className="text-xs text-[var(--muted)] w-11 shrink-0 tabular-nums">
-                {new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+              <span className="text-xs text-[var(--muted)] w-11 shrink-0 tabular-nums leading-tight">
+                {p.ora ?? new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                {p.competizione && <span className="block text-[9px]">{p.competizione}</span>}
               </span>
               <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
               <span className="text-white/85">{p.home}</span>

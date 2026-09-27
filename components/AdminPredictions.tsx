@@ -1,4 +1,5 @@
 import { Schedina, Risultato, ClassificaRow, MatchDetail } from '@/lib/types'
+import { nomeBreve } from '@/lib/teams'
 
 interface Props {
   schedine: Schedina[]
@@ -29,7 +30,7 @@ export default function AdminPredictions({ schedine, risultatiMap, classifica }:
           // leader della schedina
           const rows = classifica.filter(c => c.schedina_id === s.id).sort((a, b) => b.totale - a.totale)
           const leader = rows[0]
-          const nome = s.nome.replace(' — Mondiali FIFA 2026', '')
+          const nome = nomeBreve(s.nome)
 
           return (
             <div key={s.id} className="glass rounded-2xl p-5">

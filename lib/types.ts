@@ -1,9 +1,13 @@
 export interface Partita {
   home: string
   away: string
-  date: string
-  venue: string
+  date: string            // "2026-10-17"
+  venue?: string
+  ora?: string | null     // "14:30", ora di Roma
+  competizione?: string | null  // "Serie A", "Serie B", "Serie C"…
 }
+
+export type Fase = 'gironi' | 'eliminazione' | 'campionato'
 
 export interface Schedina {
   id: number
@@ -11,7 +15,8 @@ export interface Schedina {
   deadline: string
   partite: Partita[]
   attiva: boolean
-  fase?: 'gironi' | 'eliminazione'
+  fase?: Fase
+  torneo?: string
   created_at: string
 }
 
@@ -38,6 +43,7 @@ export interface MatchDetail {
   score: string          // es. "2-0"
   minuti: string[]       // es. ["9'", "45+5'", "67'"] — retrocompatibilità/display rapido
   gol?: GoalScored[]     // marcatore per gol (per analisi per-squadra); assente sui dati vecchi
+  stato?: 'da_giocare' | 'in_corso' | 'finita'  // modalità live; assente sui dati vecchi = finita
 }
 
 export interface Risultato {

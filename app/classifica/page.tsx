@@ -1,5 +1,8 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { ClassificaRow } from '@/lib/types'
+import { ClassificaRow, MatchDetail, Partita } from '@/lib/types'
+import LiveRefresh from '@/components/LiveRefresh'
+import { nomeBreve } from '@/lib/teams'
 
 interface GeneraleRow { user_id: string; username: string; full_name: string; totale: number; pos: number }
 
@@ -17,12 +20,35 @@ function avatarFor(name: string) {
   return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
 }
 
-export default async function ClassificaPage() {
+interface SchedinaLite { id: number; nome: string; attiva: boolean; torneo?: string; partite: Partita[] }
+
+export default async function ClassificaPage({ searchParams }: { searchParams: Promise<{ torneo?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  const params = await searchParams
 
-  const { data: schedine } = await supabase.from('schedine').select('id, nome, attiva').order('id')
-  const { data: classifica } = await supabase.from('classifica').select('*')
+  const { data: tutteSchedine } = await supabase.from('schedine').select('*').order('id')
+  const { data: tuttaClassifica } = await supabase.from('classifica').select('*')
+  const { data: risultati } = await supabase.from('risultati').select('schedina_id, dettagli')
+
+  // Un torneo alla volta: la classifica generale somma solo le sue schedine.
+  const all = (tutteSchedine ?? []) as SchedinaLite[]
+  const torneoDi = (s: SchedinaLite) => s.torneo ?? ''
+  const tornei = [...new Set(all.map(torneoDi))]
+  const corrente = [...all].reverse().find(s => s.attiva !== false)
+  const torneo = params.torneo && tornei.includes(params.torneo) ? params.torneo : corrente ? torneoDi(corrente) : tornei[tornei.length - 1] ?? ''
+  const schedine = all.filter(s => torneoDi(s) === torneo).reverse()
+  const ids = new Set(schedine.map(s => s.id))
+  const classifica = ((tuttaClassifica ?? []) as ClassificaRow[]).filter(r => ids.has(r.schedina_id))
+
+  // Provvisoria finché c'è una schedina con risultati ma partite non ancora finite.
+  const risMap = new Map(((risultati ?? []) as { schedina_id: number; dettagli: MatchDetail[] | null }[]).map(r => [r.schedina_id, r.dettagli ?? []]))
+  const provvisoria = schedine.some(s => {
+    const d = risMap.get(s.id)
+    if (!d) return false
+    const finite = d.filter(x => (x.stato ?? 'finita') === 'finita').length
+    return finite < s.partite.length
+  })
 
   const bySchedina = new Map<number, ClassificaRow[]>()
   classifica?.forEach((r: ClassificaRow) => {
@@ -40,19 +66,37 @@ export default async function ClassificaPage() {
   const generale = [...generalMap.values()].sort((a, b) => b.totale - a.totale).map((r, i) => ({ ...r, pos: i + 1 }))
 
   // Albo d'oro: campione di ogni fase CONCLUSA (schedina archiviata)
-  const albo = ((schedine ?? []) as { id: number; nome: string; attiva: boolean }[])
+  const albo = schedine
     .filter(s => s.attiva === false)
     .flatMap(s => {
       const rows = (bySchedina.get(s.id) ?? []).slice().sort((a, b) => b.totale - a.totale)
-      return rows.length ? [{ nome: s.nome.replace(' — Mondiali FIFA 2026', ''), champ: rows[0] }] : []
+      return rows.length ? [{ nome: nomeBreve(s.nome), champ: rows[0] }] : []
     })
 
   return (
     <div className="animate-fade-up">
-      <div className="mb-8">
+      <div className="mb-6">
         <span className="text-xs font-semibold tracking-widest text-[var(--gold)] uppercase">Leaderboard</span>
         <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">🏆 Classifica</h1>
+        {torneo && <p className="text-[var(--muted)] mt-1">{torneo}</p>}
       </div>
+
+      {tornei.length > 1 && (
+        <div className="flex flex-wrap gap-2 mb-5">
+          {[...tornei].reverse().map(t => (
+            <Link key={t || 'nessuno'} href={`/classifica?torneo=${encodeURIComponent(t)}`} className={`seg-btn px-3 py-1.5 text-sm ${t === torneo ? 'is-active' : ''}`}>
+              {t || 'Altro'}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      <LiveRefresh seconds={60} generatedAt={new Date().toISOString()} />
+      {provvisoria && (
+        <p className="text-xs text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/30 rounded-xl px-3 py-2 mb-5">
+          ⚡ Partite in corso: classifica provvisoria. Diventa definitiva al fischio finale dell&apos;ultima partita.
+        </p>
+      )}
 
       {generale.length === 0 ? (
         <div className="glass rounded-2xl py-20 text-center">
@@ -86,11 +130,11 @@ export default async function ClassificaPage() {
             </section>
           )}
 
-          {schedine?.map(s => {
+          {schedine.map(s => {
             const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, 10).map((r, i) => ({ ...r, pos: i + 1 }))
             return (
               <section key={s.id} className="mb-8">
-                <h2 className="font-display font-semibold text-base mb-3 text-white/80">{s.nome.replace(' — Mondiali FIFA 2026', '')}</h2>
+                <h2 className="font-display font-semibold text-base mb-3 text-white/80">{nomeBreve(s.nome)}</h2>
                 {rows.length === 0 ? (
                   <div className="glass rounded-2xl p-6 text-center text-[var(--muted)] text-sm">Risultati non ancora pubblicati.</div>
                 ) : (

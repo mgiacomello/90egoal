@@ -2,8 +2,11 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ClassificaRow, Pronostico, Schedina, Profile } from '@/lib/types'
+import LogoutButton from '@/components/LogoutButton'
+import PushToggle from '@/components/PushToggle'
 import Flag from '@/components/Flag'
 import ShareButton from '@/components/ShareButton'
+import { nomeBreve } from '@/lib/teams'
 
 export default async function ProfiloPage() {
   const supabase = await createClient()
@@ -13,12 +16,18 @@ export default async function ProfiloPage() {
   const [{ data: prof }, { data: classifica }, { data: schedine }, { data: mieiPron }] = await Promise.all([
     supabase.from('profiles').select('id, username, full_name, email, created_at').eq('id', user.id).single(),
     supabase.from('classifica').select('*'),
-    supabase.from('schedine').select('id, nome').order('id'),
+    supabase.from('schedine').select('*').order('id'),
     supabase.from('pronostici').select('*').eq('user_id', user.id),
   ])
 
   const profile = prof as Profile | null
-  const cl = (classifica as ClassificaRow[]) ?? []
+  // Posizione, punti e badge si contano sul torneo in corso: i Mondiali restano nello storico.
+  const tutte = (schedine as Schedina[] | null) ?? []
+  const corrente = [...tutte].reverse().find(s => s.attiva !== false) ?? tutte[tutte.length - 1]
+  const torneo = corrente?.torneo
+  const idsTorneo = new Set(tutte.filter(s => s.torneo === torneo).map(s => s.id))
+  const cl = ((classifica as ClassificaRow[]) ?? []).filter(c => idsTorneo.has(c.schedina_id))
+  const clTutta = (classifica as ClassificaRow[]) ?? []
 
   // classifica generale per posizione
   const tot = new Map<string, number>()
@@ -30,7 +39,7 @@ export default async function ProfiloPage() {
 
   // righe per schedina dell'utente
   const myRows = new Map<number, ClassificaRow>()
-  cl.forEach(c => { if (c.user_id === user.id) myRows.set(c.schedina_id, c) })
+  clTutta.forEach(c => { if (c.user_id === user.id) myRows.set(c.schedina_id, c) })
   const pronById = new Map<number, Pronostico>()
   ;(mieiPron as Pronostico[] | null)?.forEach(p => pronById.set(p.schedina_id, p))
 
@@ -46,8 +55,8 @@ export default async function ProfiloPage() {
 
   const nome = profile?.username ?? 'Giocatore'
   const shareText = myTot > 0
-    ? `⚽ Sono ${myPos}° su ${totGiocatori} con ${myTot} punti a 90 & Goal — i pronostici sui gol dei Mondiali! Gioca anche tu: https://90egoal.vercel.app`
-    : `⚽ Sto giocando a 90 & Goal, i pronostici sui minuti dei gol dei Mondiali! Gioca anche tu: https://90egoal.vercel.app`
+    ? `⚽ Sono ${myPos}° su ${totGiocatori} con ${myTot} punti a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
+    : `⚽ Sto giocando a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
 
   return (
     <div className="animate-fade-up max-w-2xl mx-auto">
@@ -67,7 +76,7 @@ export default async function ProfiloPage() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="glass rounded-2xl p-4 text-center">
           <div className="font-display font-extrabold text-3xl text-gradient-gold tabular-nums">{myPos || '—'}°</div>
-          <div className="text-[11px] text-[var(--muted)] mt-1">posizione (su {totGiocatori})</div>
+          <div className="text-[11px] text-[var(--muted)] mt-1">posizione (su {totGiocatori}){torneo ? ` · ${torneo}` : ''}</div>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
           <div className="font-display font-extrabold text-3xl text-gradient tabular-nums">{myTot}</div>
@@ -91,19 +100,22 @@ export default async function ProfiloPage() {
       )}
 
       {/* Condivisione */}
-      <div className="mb-7"><ShareButton text={shareText} /></div>
+      <div className="mb-5"><ShareButton text={shareText} /></div>
+
+      {/* Notifiche su questo dispositivo */}
+      <div className="mb-7"><PushToggle /></div>
 
       {/* Le mie schedine */}
       <h2 className="font-display font-bold text-lg mb-3">Le tue schedine</h2>
       <div className="space-y-3">
-        {schedine?.map(s => {
+        {[...tutte].reverse().map(s => {
           const pron = pronById.get(s.id)
           const row = myRows.get(s.id)
           const azz = new Set(row?.minuti_azzeccati ?? [])
           if (!pron) {
             return (
               <div key={s.id} className="glass rounded-2xl p-5 flex items-center justify-between gap-3">
-                <span className="text-[var(--muted)] text-sm">{s.nome.replace(' — Mondiali FIFA 2026', '')} — non giocata</span>
+                <span className="text-[var(--muted)] text-sm">{nomeBreve(s.nome)} — non giocata</span>
                 <Link href={`/schedine/${s.id}`} className="btn-ghost px-4 py-2 text-sm">Vai →</Link>
               </div>
             )
@@ -111,7 +123,7 @@ export default async function ProfiloPage() {
           return (
             <div key={s.id} className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                <span className="font-semibold">{s.nome.replace(' — Mondiali FIFA 2026', '')}</span>
+                <span className="font-semibold">{nomeBreve(s.nome)}</span>
                 {row ? (
                   <span className="font-display font-extrabold text-[var(--accent-soft)] tabular-nums">{row.totale} pt <span className="text-[var(--muted)] text-xs font-normal">({row.punti_minuti}m · {row.punti_recupero}r · {row.punti_bonus}b)</span></span>
                 ) : <span className="text-xs text-[var(--muted)]">in attesa risultati</span>}
@@ -129,6 +141,11 @@ export default async function ProfiloPage() {
             </div>
           )
         })}
+      </div>
+
+      <div className="mt-10 flex items-center justify-between border-t border-white/8 pt-5 text-sm">
+        <Link href="/regole" className="text-[var(--muted)] hover:text-white">📖 Regole del gioco</Link>
+        <LogoutButton className="btn-ghost px-5 py-2 text-sm" />
       </div>
     </div>
   )

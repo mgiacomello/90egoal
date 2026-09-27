@@ -1,5 +1,6 @@
 import { Schedina, Pronostico, Profile, Risultato, ClassificaRow } from '@/lib/types'
 import Flag from '@/components/Flag'
+import { nomeBreve } from '@/lib/teams'
 
 interface Props {
   schedine: Schedina[]
@@ -76,7 +77,7 @@ export default function AdminAggregates({ schedine, profiles, pronostici, risult
         return (
           <section key={s.id} className="glass rounded-2xl p-6 mb-6">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-5">
-              <h3 className="font-display font-bold text-lg">{s.nome.replace(' — Mondiali FIFA 2026', '')}</h3>
+              <h3 className="font-display font-bold text-lg">{nomeBreve(s.nome)}</h3>
               <span className="text-sm text-[var(--muted)]">
                 {n} su {utentiNonAdmin} hanno giocato{' '}
                 <span className="text-[var(--accent-soft)] font-semibold">

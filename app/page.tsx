@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Schedina, Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
 import AskAI from '@/components/AskAI'
-import { flagCode } from '@/lib/flags'
+import { isPlaceholder, nomeBreve } from '@/lib/teams'
 
 const STADIUM = 'https://images.unsplash.com/photo-1762013315117-1c8005ad2b41?w=1920&q=70&auto=format&fit=crop'
 
@@ -13,12 +13,18 @@ export default async function Home() {
   const { data: schedine } = await supabase.from('schedine').select('*').order('id')
 
   // Solo le schedine attive (fase corrente): la home mostra solo queste partite
-  const attive = (schedine as Schedina[] | null)?.filter(s => s.attiva !== false) ?? []
+  const attive = ((schedine as Schedina[] | null)?.filter(s => s.attiva !== false) ?? [])
+    .sort((a, b) => a.deadline.localeCompare(b.deadline))
   const partite: Partita[] = attive.flatMap(s => s.partite)
-  // Solo squadre/partite con nazionale reale (esclude segnaposto tipo "Vinc. USA-Belgio")
-  const noto = (t: string) => flagCode(t) !== 'un'
+  // Squadre vere, senza i segnaposto dei tabelloni ("Vinc. USA-Belgio")
+  const noto = (t: string) => !isPlaceholder(t)
   const squadre = [...new Set(partite.flatMap(p => [p.home, p.away]))].filter(noto)
-  const partiteReali = partite.filter(p => noto(p.home) && noto(p.away))
+  // La prossima schedina ancora aperta (altrimenti la prima attiva): è quella che interessa oggi.
+  const nowIso = new Date().toISOString()
+  const prossima = attive.find(s => s.deadline > nowIso) ?? attive[0]
+  const partiteReali = (prossima?.partite ?? []).filter(p => noto(p.home) && noto(p.away))
+  const torneo = prossima?.torneo ?? attive[0]?.torneo
+  const conSupplementari = attive.some(s => s.fase === 'eliminazione')
 
   return (
     <div className="flex flex-col gap-20 sm:gap-28">
@@ -38,7 +44,7 @@ export default async function Home() {
         <div className="relative px-4 sm:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 text-center max-w-3xl mx-auto">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-white/80 mb-6 animate-fade-up">
             <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse-glow" />
-            🏆 Fase finale · dagli ottavi alla finale · Mondiali 2026
+            {torneo ? `⚽ ${torneo}` : '⚽ Nuova stagione in arrivo'}
           </div>
 
           <h1 className="font-display font-extrabold text-5xl sm:text-7xl tracking-tight leading-[1.02] animate-fade-up drop-shadow-2xl">
@@ -47,8 +53,8 @@ export default async function Home() {
           </h1>
 
           <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-xl mx-auto animate-fade-up">
-            Gironi e sedicesimi alle spalle: ora è la <strong className="text-white">fase finale</strong>, dagli ottavi alla finale, tutto dentro o fuori.
-            Scegli 13 minuti, gioca i bonus e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
+            Dieci partite della stessa giornata, <strong className="text-white">13 minuti</strong> da scegliere.
+            Segui i gol in diretta, guarda i tuoi minuti illuminarsi e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
           </p>
 
           <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center animate-fade-up">
@@ -86,7 +92,7 @@ export default async function Home() {
         <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto stagger">
           {[
             { n: '13', l: 'minuti da indovinare' },
-            { n: '10', l: 'sfide fino alla finale' },
+            { n: '10', l: 'partite per schedina' },
             { n: '+10', l: 'punti bonus max' },
           ].map((s) => (
             <div key={s.l} className="glass glass-hover rounded-2xl py-6 px-2 text-center">
@@ -107,7 +113,9 @@ export default async function Home() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
           {[
             { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
-            { icon: '⏱️', step: '02', title: 'Recupero & supplementari', desc: 'Prevedi un gol nel recupero (+1) e se una sfida andrà ai tempi supplementari (+5): due bonus in più.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
+            conSupplementari
+              ? { icon: '⏱️', step: '02', title: 'Recupero & supplementari', desc: 'Prevedi un gol nel recupero (+1) e se una sfida andrà ai tempi supplementari (+5): due bonus in più.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' }
+              : { icon: '➕', step: '02', title: 'Il recupero', desc: 'Scegli se ci sarà un gol nel recupero del primo o del secondo tempo: +1 punto se arriva.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
             { icon: '🏆', step: '03', title: 'Primo & ultimo gol', desc: 'Indovina la squadra che segnerà la prima e l’ultima rete tra tutte le partite: bonus fino a +10 punti.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
           ].map((c) => (
             <div key={c.step} className="group relative glass glass-hover rounded-2xl p-6 text-left overflow-hidden">
@@ -131,17 +139,18 @@ export default async function Home() {
         <section>
           <div className="flex items-end justify-between mb-6">
             <div>
-              <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Le partite</span>
-              <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2">Big match ad alto numero di gol</h2>
+              <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">La prossima schedina</span>
+              <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2">{prossima ? nomeBreve(prossima.nome) : 'Le partite'}</h2>
             </div>
             {user && <Link href="/schedine" className="btn-ghost px-5 py-2.5 text-sm hidden sm:inline-flex">Tutte →</Link>}
           </div>
 
           <div className="grid sm:grid-cols-2 gap-3 stagger">
-            {partiteReali.slice(0, 6).map((p, i) => (
+            {partiteReali.slice(0, 10).map((p, i) => (
               <div key={i} className="group glass glass-hover rounded-xl p-4 flex items-center gap-4">
-                <span className="text-[10px] font-mono text-[var(--muted)] w-12 shrink-0 uppercase">
-                  {new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                <span className="text-[10px] font-mono text-[var(--muted)] w-12 shrink-0 uppercase leading-tight">
+                  {p.ora ?? new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
+                  {p.competizione && <span className="block normal-case">{p.competizione}</span>}
                 </span>
                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                   <Flag team={p.home} w={40} className="w-7 h-5 shrink-0" />
@@ -160,20 +169,21 @@ export default async function Home() {
 
       {/* ===== PUNTEGGIO ===== */}
       <section className="relative">
-        <div className="glass rounded-3xl p-8 sm:p-10 overflow-hidden">
+        <div className="relative glass rounded-3xl p-8 sm:p-10 overflow-hidden">
           <div className="absolute -top-24 -right-24 w-72 h-72 bg-[var(--accent)]/12 blur-3xl rounded-full pointer-events-none" />
           <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[var(--accent-cyan)]/10 blur-3xl rounded-full pointer-events-none" />
           <div className="relative grid md:grid-cols-2 gap-8 items-center">
             <div>
               <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Il sistema di punti</span>
               <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2 mb-4">Ogni gol vale punti</h2>
-              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. Nella fase a eliminazione i bonus su supplementari e marcatori possono ribaltare tutto fino all’ultimo turno.</p>
+              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. I bonus su recupero e prima/ultima squadra possono ribaltare tutto fino all’ultimo gol.</p>
+              <Link href="/regole" className="inline-block mt-4 text-sm text-[var(--accent-soft)] hover:text-white">Regole complete e casi particolari →</Link>
             </div>
             <div className="space-y-3">
               {[
                 { p: '+1', t: 'per ogni minuto esatto in cui viene segnato un gol', c: 'text-[var(--accent)]' },
                 { p: '+1', t: 'se indovini il recupero (primo o secondo tempo)', c: 'text-[var(--accent)]' },
-                { p: '+5', t: 'se indovini se la sfida andrà ai supplementari', c: 'text-[var(--accent-cyan)]' },
+                ...(conSupplementari ? [{ p: '+5', t: 'se indovini se la sfida andrà ai supplementari', c: 'text-[var(--accent-cyan)]' }] : []),
                 { p: '+3', t: 'per la squadra del primo OPPURE dell’ultimo gol', c: 'text-[var(--gold)]' },
                 { p: '+10', t: 'se indovini ENTRAMBE le squadre, prima e ultima', c: 'text-[var(--gold)]' },
               ].map((r, i) => (
