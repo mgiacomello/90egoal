@@ -47,6 +47,7 @@ import type { Question, Task } from "../session/model";
 export const cookieQuestions: Question[] = [
   {
     id: "q1",
+    theme: "cessione",
     clauseId: "c6",
     prompt: "Chiudi il banner con la X senza scegliere nulla. Che cosa succede?",
     options: ["Accetti tutti i cookie", "Accetti solo i cookie analitici", "Equivale a rifiutare: nessun cookie non tecnico viene installato", "Il banner si ripresenta alla pagina successiva"],
@@ -54,6 +55,7 @@ export const cookieQuestions: Question[] = [
   },
   {
     id: "q2",
+    theme: "base",
     clauseId: "c4",
     prompt: "A quali condizioni uno strumento di statistica può essere usato senza il tuo consenso?",
     options: [
@@ -66,6 +68,7 @@ export const cookieQuestions: Question[] = [
   },
   {
     id: "q3",
+    theme: "durata",
     clauseId: "c6",
     prompt: "Hai rifiutato i cookie. Dopo quanto tempo il sito può riproporti il banner, se nulla è cambiato?",
     options: ["A ogni nuova sessione", "Dopo 30 giorni", "Non prima di sei mesi", "Mai"],

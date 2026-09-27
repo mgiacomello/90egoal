@@ -25,7 +25,7 @@ export interface SessionExport {
     documentTitle: string;
     device: { name: string; simulated: boolean } | null;
     createdAt: number;
-    answers: { clauseId: string; correct: boolean }[];
+    answers: { clauseId: string; correct: boolean; theme?: string }[];
     tasks: { clauseId: string; chosenClauseId: string; correct: boolean }[];
   };
   clauses: Clause[];

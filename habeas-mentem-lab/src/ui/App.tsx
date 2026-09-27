@@ -19,6 +19,7 @@ import { HRF_DESCRIPTION } from "../session/hrf";
 import { documentAdvice, readClauses, setLearnedModel } from "../session/rewrite";
 import { historyFor, recordSession } from "../session/history";
 import { frictionMap } from "../session/friction";
+import { prefaceAssumptions, type Assumption } from "../session/preface";
 import { criticalPoints, readersPhrase, POPULATION_MIN_READERS, POPULATION_SOLID_READERS, type CriticalPoints } from "../session/critical";
 import { useRecorder } from "./useRecorder";
 
@@ -669,10 +670,11 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
   const [building, setBuilding] = useState(false);
   const [dossierError, setDossierError] = useState<string | null>(null);
   const [dossierUrl, setDossierUrl] = useState<{ url: string; name: string; kb: number } | null>(null);
-  const [tab, setTab] = useState<"mappa" | "parole" | "popolazione" | "riscrittura" | "dati">("mappa");
+  const [tab, setTab] = useState<"mappa" | "parole" | "popolazione" | "riscrittura" | "assunzioni" | "dati">("mappa");
   const readings = useMemo(() => readClauses(doc.clauses, metrics, friction), [doc, metrics, friction]);
   const history = useMemo(() => historyFor(doc.id, session.id, undefined, lab.model, doc.clauses), [doc, session.id, lab.model]);
   const critical = useMemo(() => criticalPoints(doc.clauses, metrics, friction, segmentRows, lab.model, doc.id), [doc, metrics, friction, segmentRows, lab.model]);
+  const assumptions = useMemo(() => prefaceAssumptions({ doc, session, metrics, friction, model: lab.model }), [doc, session, metrics, friction, lab.model]);
   useEffect(() => {
     recordSession(doc.id, session.id, session.createdAt, metrics, friction);
   }, [doc.id, session.id, session.createdAt, metrics, friction]);
@@ -811,6 +813,7 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
         )}
         <button className={`tab ${tab === "popolazione" ? "on" : ""}`} role="tab" aria-selected={tab === "popolazione"} onClick={() => setTab("popolazione")}>Dove perde i lettori</button>
         <button className={`tab ${tab === "riscrittura" ? "on" : ""}`} role="tab" aria-selected={tab === "riscrittura"} onClick={() => setTab("riscrittura")}>Lettura e riscrittura</button>
+        <button className={`tab ${tab === "assunzioni" ? "on" : ""}`} role="tab" aria-selected={tab === "assunzioni"} onClick={() => setTab("assunzioni")}>Assunzioni alla prova</button>
         <button className={`tab ${tab === "dati" ? "on" : ""}`} role="tab" aria-selected={tab === "dati"} onClick={() => setTab("dati")}>Tabella e dati</button>
       </div>
 
@@ -890,6 +893,7 @@ function Results({ r, doc, lab }: { r: R; doc: Document; lab: LabContext }) {
       )}
 
       {tab === "popolazione" && <PopulationView critical={critical} doc={doc} />}
+      {tab === "assunzioni" && <AssumptionsView items={assumptions} />}
 
       {tab === "parole" && segmentRows.length > 0 && (
         <div className="panel">
@@ -1260,6 +1264,41 @@ function PopulationView({ critical, doc }: { critical: CriticalPoints; doc: Docu
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/** Le tesi della prefazione di Floridi, ciascuna con il suo indicatore, misurata qui e sull'archivio. */
+function AssumptionsView({ items }: { items: Assumption[] }) {
+  return (
+    <section className="tavola assumptions">
+      <span className="tavola-title">Le assunzioni della prefazione, alla prova</span>
+      <p className="hint">
+        Sei tesi della prefazione di Luciano Floridi a «Mente e Tecnologia» (Springer, 2026), citate alla lettera e tradotte in un indicatore. Per ognuna: il dato di questa sessione, quello dell'archivio del team, e che cosa la smentirebbe. Lo stato cambia da solo con le sessioni nuove.
+      </p>
+      {items.map((a, i) => (
+        <article key={a.id} className={`assumption ${a.status.replace(/\s+/g, "-")}`}>
+          <div className="assumption-head">
+            <span className="clause-num">{i + 1}</span>
+            <span className={`status-pill ${a.status.replace(/\s+/g, "-")}`}>{a.status}</span>
+            <span className="assumption-claim">{a.claim}</span>
+          </div>
+          <blockquote>«{a.quote}» <cite>{a.source}</cite></blockquote>
+          <p className="assumption-indicator"><em>Indicatore</em> {a.indicator}</p>
+          <div className="assumption-data">
+            <div>
+              <span className="stat-label">Questa sessione</span>
+              {a.session ? <><span className="stat-value small">{a.session.value}</span><span className="stat-note">{a.session.detail}</span></> : <span className="stat-note">non misurabile in una sessione</span>}
+            </div>
+            <div>
+              <span className="stat-label">Archivio del team</span>
+              {a.population ? <><span className="stat-value small">{a.population.value}</span><span className="stat-note">{a.population.detail}</span></> : <span className="stat-note">nessun dato ancora</span>}
+            </div>
+          </div>
+          <p className="assumption-verdict">{a.verdict}</p>
+          <p className="hint"><em>Che cosa la smentirebbe:</em> {a.falsifier}</p>
+        </article>
+      ))}
     </section>
   );
 }

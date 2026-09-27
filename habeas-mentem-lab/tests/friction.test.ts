@@ -93,7 +93,7 @@ describe("mappa della frizione", () => {
   it("ogni documento modello ha domande e compiti che puntano a clausole esistenti", () => {
     for (const d of DOCUMENTS) {
       const ids = new Set(d.clauses.map((c) => c.id));
-      expect(d.questions.length).toBe(3);
+      expect(d.questions.length).toBeGreaterThanOrEqual(3);
       expect(d.tasks.length).toBe(2);
       for (const q of d.questions) {
         expect(ids.has(q.clauseId)).toBe(true);

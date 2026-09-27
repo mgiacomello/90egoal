@@ -22,11 +22,12 @@ import { AGGREGATE_THRESHOLDS, type Aggregate } from "./aggregate";
 import { BOOK_R, describeWeights, type Calibration } from "./calibrate";
 import { highestEffortSegments, slowestSegments, type SegmentMetrics } from "./segments";
 import { HRF_DESCRIPTION } from "./hrf";
-import { HEAT, INK, INK_2, MUTED, PAGE, Page, safe } from "./report";
+import { BAD, HEAT, INK, INK_2, MUTED, OK, PAGE, Page, safe } from "./report";
 import { documentAdvice, readClauses } from "./rewrite";
 import type { ClauseHistory } from "./history";
 import type { LabModel } from "./learning";
 import { criticalPoints, POPULATION_MIN_READERS, POPULATION_SOLID_READERS } from "./critical";
+import { prefaceAssumptions } from "./preface";
 
 export interface DossierInput {
   session: Session;
@@ -592,6 +593,37 @@ export async function buildDossier(input: DossierInput): Promise<Blob> {
       pg.y = (pdf as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
     }
     pg.plain("Questa tavola è la validazione del metodo e la diagnosi per chi scrive: dice dove i lettori, non uno ma molti, hanno rallentato o si sono persi, con il denominatore sempre visibile. Le sostituzioni sono bozze calcolate con regole dichiarate e rimisurate con lo stesso LX: un punto di partenza per il giurista, non un testo finale.");
+  }
+
+  // ── 7a-bis. Le assunzioni della prefazione, alla prova ───────────────────
+  {
+    const items = prefaceAssumptions({ doc, session, metrics, friction, model: input.model ?? null });
+    pg.newPage();
+    pg.section("Le assunzioni della prefazione, alla prova");
+    pg.p("Sei tesi della prefazione di Luciano Floridi a «Mente e Tecnologia» (Springer, 2026, pp. VII-X), citate alla lettera e tradotte ciascuna in un indicatore misurabile. Per ognuna: il dato di questa sessione, quello dell'archivio del team, il giudizio che i dati permettono oggi e che cosa la smentirebbe. Lo stato si aggiorna da solo con le sessioni nuove: è lo strumento per validare, o correggere, quelle assunzioni.", 9.5, INK_2, 4);
+    items.forEach((a, i) => {
+      pg.ensure(48);
+      pg.pdf.setDrawColor(...INK).setLineWidth(0.3);
+      pg.pdf.line(pg.x0, pg.y, pg.x1, pg.y);
+      pg.gap(5);
+      pg.smallcaps(`${i + 1} · ${a.status}`, pg.x0, pg.y, 6.5, a.status === "sostenuta" ? OK : a.status === "non sostenuta" ? BAD : MUTED);
+      pg.gap(5);
+      pg.pdf.setFont("times", "normal").setFontSize(11).setTextColor(...INK);
+      const claim = pg.pdf.splitTextToSize(safe(a.claim), pg.w) as string[];
+      pg.pdf.text(claim, pg.x0, pg.y);
+      pg.y += claim.length * 5 + 1;
+      pg.pdf.setFont("times", "italic").setFontSize(9).setTextColor(...INK_2);
+      const q = pg.pdf.splitTextToSize(safe(`«${a.quote}» (${a.source})`), pg.w - 6) as string[];
+      pg.pdf.text(q, pg.x0 + 6, pg.y);
+      pg.y += q.length * 4.2 + 2;
+      pg.p(`Indicatore: ${a.indicator}`, 8.5, INK_2, 2);
+      pg.tiles([
+        { label: "Questa sessione", value: a.session ? a.session.value : "—", note: a.session ? a.session.detail : "non misurabile in una sessione" },
+        { label: "Archivio del team", value: a.population ? a.population.value : "—", note: a.population ? a.population.detail : "nessun dato ancora" },
+      ]);
+      pg.p(a.verdict, 9.5, INK, 2);
+      pg.p(`Che cosa la smentirebbe: ${a.falsifier}`, 8, MUTED, 4);
+    });
   }
 
   // ── 7b. Che cosa ha imparato il laboratorio ──────────────────────────────

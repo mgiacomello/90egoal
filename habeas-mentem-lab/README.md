@@ -212,6 +212,34 @@ la possiede può leggere e scrivere le tabelle direttamente: la chiave del
 team protegge davvero solo con la service role. Senza chiave del team il
 modello resta leggibile (è il metodo), ma senza i testi di porzioni e frasi.
 
+## La prefazione di Floridi, alla prova
+
+Nella prefazione a *Mente e Tecnologia* (Springer, 2026, pp. VII-X) Luciano
+Floridi formula tesi che il laboratorio può misurare. `src/session/preface.ts`
+le cita alla lettera e le traduce in indicatori, ciascuno con il dato della
+sessione, quello dell'archivio del team e ciò che lo smentirebbe; la scheda
+«Assunzioni alla prova» e una tavola del fascicolo li mostrano, e lo stato
+cambia da solo con le sessioni nuove:
+
+1. «Il consenso si dà sulle parole di un documento, non sulle inferenze che il
+   segnale rende possibili» → accuratezza delle domande con tema `inferenza`
+   contro gli altri temi (`cessione`, `diritti`, `durata`, `base`). Le domande
+   dei documenti modello portano il tema; l'informativa neurotech ne ha due
+   dedicate (che cosa viene ricavato dai segnali, a chi può andare).
+2. «La correttezza formale del documento non cambia la sostanza» → elementi
+   dell'art. 13 GDPR presenti nel testo contro la quota di risposte esatte su
+   cessione e inferenze.
+3. «Uno o due su mille aprono il contratto; 244 ore l'anno» → minuti spesi
+   contro minuti plausibili a 250 parole al minuto, clausole scorse.
+4. «Quell'attività è al più un correlato dello stato mentale» → correlazione,
+   nell'archivio, tra sforzo medio per clausola e comprensione misurata
+   (`model.body.r`); la regola «il corpo da solo non colora» è la conseguenza.
+5. «Il regolatore deve guardare all'inferenza: il sensore spiega perché la
+   posta è alta, non dove intervenire» → da quali sensori vengono i colori
+   della mappa.
+6. «Tarato […] con una tecnologia dello stesso tipo» → correlazione LX e
+   comprensione sull'archivio, contro −0,71 e −0,68 del libro.
+
 ## La costituzione della misurazione, applicata
 
 I sei articoli del capitolo *La costituzione della misurazione* (v37), tradotti

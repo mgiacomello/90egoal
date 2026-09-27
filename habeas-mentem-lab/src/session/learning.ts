@@ -134,6 +134,14 @@ export interface LabModel {
   };
   /** Correlazione tra ogni strada dell'LX e la comprensione: più negativa, più la strada pesa. */
   roads: { road: Road; r: number | null; points: number }[];
+  /**
+   * Il corpo da solo: correlazione tra sforzo medio per clausola e comprensione
+   * misurata, sulle clausole con abbastanza lettori con segnale. Floridi:
+   * «quell'attività è al più un correlato dello stato mentale».
+   */
+  body: { r: number | null; clauses: number; readers: number };
+  /** Accuratezza delle domande per tema (inferenza, cessione, diritti, durata, base), su tutte le sessioni. */
+  themes: { theme: string; asked: number; correct: number; accuracy: number }[];
   words: LearnedWord[];
   notes: string[];
 }
@@ -155,6 +163,8 @@ export const EMPTY_MODEL: LabModel = {
   documents: [],
   lx: { source: "predefinito", weights: DEFAULT_WEIGHTS, threshold: LX_ACCESSIBILITY_THRESHOLD, r: null, defaultR: null, sessions: 0, clauses: 0, reason: "Nessuna sessione in archivio." },
   roads: [],
+  body: { r: null, clauses: 0, readers: 0 },
+  themes: [],
   words: [],
   notes: [],
 };
@@ -433,6 +443,25 @@ export function learn(exports: SessionExport[], now = new Date()): LabModel {
     points: points.length,
   }));
 
+  // Il corpo da solo: sforzo medio contro comprensione, dove ci sono lettori con segnale.
+  const bodyPoints = pooled.clauses.filter((c) => c.effort.mean !== null && c.effort.readersWithSignal >= 3 && c.readers > 0);
+  const compOf = new Map(points.map((p) => [p.clauseId, p.comprehension]));
+  const body = {
+    r: pearson(bodyPoints.map((c) => c.effort.mean as number), bodyPoints.map((c) => compOf.get(c.clauseId) ?? 0)),
+    clauses: bodyPoints.length,
+    readers: pooled.sessionsWithSignal,
+  };
+  // Temi delle domande, su tutte le sessioni.
+  const themeAcc = new Map<string, { asked: number; correct: number }>();
+  for (const e of exports) for (const a of e.session.answers ?? []) {
+    const t = a.theme ?? "altro";
+    const cur = themeAcc.get(t) ?? { asked: 0, correct: 0 };
+    cur.asked++;
+    if (a.correct) cur.correct++;
+    themeAcc.set(t, cur);
+  }
+  const themes = [...themeAcc.entries()].map(([theme, v]) => ({ theme, ...v, accuracy: v.correct / v.asked })).sort((a, b) => a.accuracy - b.accuracy);
+
   // I pesi appresi valgono solo se migliorano davvero la correlazione, e non di un soffio.
   const learned = cal.eligible && cal.r !== null && cal.defaultR !== null && cal.r < cal.defaultR - 0.05;
   const threshold = learned && cal.threshold !== null && (cal.thresholdDrop ?? 0) >= 0.1 ? cal.threshold : LX_ACCESSIBILITY_THRESHOLD;
@@ -462,6 +491,8 @@ export function learn(exports: SessionExport[], now = new Date()): LabModel {
       reason: cal.reason,
     },
     roads,
+    body,
+    themes,
     words,
     notes,
   };
@@ -516,7 +547,7 @@ export function archivable(raw: unknown): SessionExport | null {
     device: s.device ? { name: String(s.device.name ?? ""), simulated: !!s.device.simulated } : null,
     createdAt: Number(s.createdAt) || Date.now(),
     reading: (s as { reading?: unknown }).reading,
-    answers: Array.isArray(s.answers) ? s.answers.map((a) => ({ clauseId: String(a.clauseId), correct: !!a.correct })) : [],
+    answers: Array.isArray(s.answers) ? s.answers.map((a) => ({ clauseId: String(a.clauseId), correct: !!a.correct, ...(typeof a.theme === "string" ? { theme: a.theme } : {}) })) : [],
     tasks: Array.isArray(s.tasks) ? s.tasks.map((t) => ({ clauseId: String(t.clauseId), chosenClauseId: String(t.chosenClauseId), correct: !!t.correct })) : [],
   };
   return {

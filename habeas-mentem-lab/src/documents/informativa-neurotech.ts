@@ -59,6 +59,7 @@ export const informativaNeurotechQuestions: Question[] = [
     prompt: "Per quanto tempo NeuroSense conserva i segnali fisiologici grezzi della fascia?",
     options: ["Per tutta la durata dell'account", "24 mesi dalla raccolta, poi cancellazione o anonimizzazione", "10 anni, come i dati di fatturazione", "12 mesi, come i registri tecnici"],
     correctIndex: 1,
+    theme: "durata",
   },
   {
     id: "q2",
@@ -71,6 +72,7 @@ export const informativaNeurotechQuestions: Question[] = [
       "I Servizi di neurofeedback vengono sospesi",
     ],
     correctIndex: 2,
+    theme: "diritti",
   },
   {
     id: "q3",
@@ -78,6 +80,36 @@ export const informativaNeurotechQuestions: Question[] = [
     prompt: "Su quale base giuridica NeuroSense può usare i tuoi segnali fisiologici per addestrare i propri algoritmi?",
     options: ["Il legittimo interesse del Titolare", "L'esecuzione del contratto", "Un consenso esplicito separato, oppure solo dopo anonimizzazione irreversibile", "Un obbligo di legge"],
     correctIndex: 2,
+    theme: "base",
+  },
+  // Le due domande che mettono alla prova la tesi della prefazione: il lettore
+  // sa che cosa viene ricavato dai suoi segnali (inferenza) e a chi può
+  // andare ciò che cede (cessione)?
+  {
+    id: "q4",
+    clauseId: "c2",
+    prompt: "Oltre ai segnali della fascia, che cosa produce e conserva NeuroSense a partire da quei segnali?",
+    options: [
+      "Nulla: conserva solo i segnali grezzi",
+      "Punteggi di sessione, indici di attivazione, classificazioni e inferenze prodotte dai suoi algoritmi",
+      "Solo la frequenza cardiaca media della sessione",
+      "Una diagnosi medica, che invia al tuo medico",
+    ],
+    correctIndex: 1,
+    theme: "inferenza",
+  },
+  {
+    id: "q5",
+    clauseId: "c4",
+    prompt: "A chi NeuroSense può comunicare i tuoi segnali o i dati che ne ricava?",
+    options: [
+      "A datori di lavoro e assicurazioni, se lo chiedono con una richiesta motivata",
+      "A nessuno tra datori di lavoro, assicurazioni, banche e piattaforme pubblicitarie, e non li usa per valutare la tua idoneità",
+      "Alle piattaforme pubblicitarie, ma solo in forma aggregata",
+      "A chiunque, purché i dati siano cifrati",
+    ],
+    correctIndex: 1,
+    theme: "cessione",
   },
 ];
 
