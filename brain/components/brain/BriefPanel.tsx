@@ -32,8 +32,15 @@ type StoredBrief = {
   oggi?: StoredClaim[]
   novita?: StoredClaim[]
   conto?: { missing: number; missingCents: number; resolvable: number } | null
+  posta?: { waiting: number; direct: number; oldestDays: number } | null
+  scadenze?: { date: string; label: string; title: string; overdue: boolean }[]
   dropped?: number
   model?: string
+}
+
+function itDay(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
 }
 
 type Props = {
@@ -150,6 +157,33 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
 
       {error ? <p className="brain-error">{error}</p> : null}
       {sent ? <p className="brain-note">{sent}</p> : null}
+
+      {brief?.scadenze?.length ? (
+        <div className="brain-verdict" data-tone={brief.scadenze.some((s) => s.overdue) ? 'warn' : 'ok'} style={{ marginBottom: '1.25rem' }}>
+          <span className="brain-verdict-label">entro quando</span>
+          <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.1rem' }}>
+            {brief.scadenze.map((s, i) => (
+              <li key={i}>
+                <b>{itDay(s.date)}</b>
+                {s.overdue ? <span className="brain-tag" data-age="fermo" style={{ marginLeft: '0.375rem' }}>scaduta</span> : null}
+                {' '}· {s.label} — <span className="brain-meta">{s.title}</span>
+              </li>
+            ))}
+          </ul>
+          <span className="brain-meta">calcolato senza modello, dalla scheda Scadenze</span>
+        </div>
+      ) : null}
+
+      {brief?.posta && brief.posta.waiting > 0 ? (
+        <div className="brain-verdict" data-tone={brief.posta.oldestDays >= 7 ? 'warn' : 'ok'} style={{ marginBottom: '1.25rem' }}>
+          <span className="brain-verdict-label">chi aspetta te</span>
+          <p>
+            {brief.posta.waiting} thread in cui l&rsquo;ultima parola non è tua
+            {brief.posta.direct ? ` (${brief.posta.direct} scritti direttamente a te)` : ''}; il più vecchio da {brief.posta.oldestDays} giorni.
+          </p>
+          <span className="brain-meta">calcolato senza modello, dalla scheda Posta</span>
+        </div>
+      ) : null}
 
       {brief?.conto && brief.conto.missing > 0 ? (
         <div className="brain-verdict" data-tone="warn" style={{ marginBottom: '1.25rem' }}>

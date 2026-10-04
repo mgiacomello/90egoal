@@ -9,8 +9,10 @@ import {
 } from '../memory'
 import { runStructured } from '../model'
 import { decidePoints, staleness, type Staleness } from '../openpoints'
-import type { MailBrief } from '../briefmail'
+import type { MailBrief, MailDeadline, MailInbox } from '../briefmail'
 import { sourcesFromDocuments } from '../rank'
+import { reviewDeadlines } from './deadlines'
+import { reviewInbox } from './inbox'
 import { reviewLedger } from './ledger'
 import { CHANNEL_LABEL, type RawClaim, type SourceRef, type StoredDocument, type VerifiedClaim } from '../types'
 
@@ -118,6 +120,10 @@ export type Brief = {
   puntiAperti: BriefOpenPoint[]
   /** Dall'agente Amministrazione: deterministico, nessun modello. */
   conto: { missing: number; missingCents: number; resolvable: number } | null
+  /** Dall'agente Posta: deterministico. */
+  posta: MailInbox | null
+  /** Dall'agente Scadenze: scadute da poco e prossimi sette giorni. Deterministico. */
+  scadenze: MailDeadline[]
   dropped: number
   model: string
   sources: SourceRef[]
@@ -153,13 +159,40 @@ export async function writeBrief(now = new Date()): Promise<Brief> {
 
   const offered = sourcesFromDocuments(relevant.slice(0, MAX_SOURCES))
 
-  // La parte sui soldi non passa da nessun modello.
+  // Le parti che sono fatti — soldi, posta, scadenze — non passano da
+  // nessun modello: le calcolano gli agenti che le calcolano sempre.
   let conto: Brief['conto'] = null
   try {
     const ledger = await reviewLedger(60)
     conto = { missing: ledger.missing, missingCents: ledger.missingCents, resolvable: ledger.resolvable }
   } catch {
     conto = null
+  }
+  let posta: Brief['posta'] = null
+  try {
+    const owner = process.env.BRAIN_OWNER_EMAIL?.trim()
+    if (owner) {
+      const inbox = await reviewInbox(owner, 1)
+      posta = {
+        waiting: inbox.rows.length,
+        direct: inbox.rows.filter((r) => r.direct).length,
+        oldestDays: inbox.rows.reduce((m, r) => Math.max(m, r.ageDays), 0),
+      }
+    }
+  } catch {
+    posta = null
+  }
+  let scadenze: Brief['scadenze'] = []
+  try {
+    const today = now.toISOString().slice(0, 10)
+    scadenze = (await reviewDeadlines(7)).rows.map((r) => ({
+      date: r.date,
+      label: r.label,
+      title: r.title,
+      overdue: r.date < today,
+    }))
+  } catch {
+    scadenze = []
   }
 
   if (!offered.length) {
@@ -169,6 +202,8 @@ export async function writeBrief(now = new Date()): Promise<Brief> {
       novita: [],
       puntiAperti: carried.map((p) => ({ ...p, age: staleness(p.openedAt, now), mentionedToday: false })),
       conto,
+      posta,
+      scadenze,
       dropped: 0,
       model: 'nessuno',
       sources: [],
@@ -245,6 +280,8 @@ export async function writeBrief(now = new Date()): Promise<Brief> {
       mentionedToday: mentioned.has(p.id) || p.lastSeenAt >= now.toISOString().slice(0, 10),
     })),
     conto,
+    posta,
+    scadenze,
     dropped: oggi.dropped.length + novita.dropped.length + nuovi.dropped.length,
     model,
     sources: offered,
@@ -286,6 +323,8 @@ export function lighten(brief: Brief): Record<string, unknown> {
     oggi: strip(brief.oggi),
     novita: strip(brief.novita),
     conto: brief.conto,
+    posta: brief.posta,
+    scadenze: brief.scadenze,
     dropped: brief.dropped,
     model: brief.model,
   }
@@ -299,6 +338,8 @@ export function toMailBrief(brief: Brief): MailBrief {
     novita: brief.novita.map(toMailClaim),
     puntiAperti: brief.puntiAperti.map((p) => ({ text: p.text, openedAt: p.openedAt, age: p.age })),
     conto: brief.conto,
+    posta: brief.posta,
+    scadenze: brief.scadenze,
   }
 }
 

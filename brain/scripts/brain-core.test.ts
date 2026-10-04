@@ -711,9 +711,23 @@ function mail(partial: Partial<MailBrief> = {}): MailBrief {
     novita: [],
     puntiAperti: [],
     conto: null,
+    posta: null,
+    scadenze: [],
     ...partial,
   }
 }
+
+check('una scadenza vicina, o qualcuno che aspetta da giorni, giustificano la mail; uno che aspetta da ieri no', () => {
+  const s = { date: '2026-09-16', label: 'Termine', title: 'Diffida', overdue: false }
+  assert.equal(isWorthSending(mail({ scadenze: [s] })), true)
+  assert.equal(isWorthSending(mail({ posta: { waiting: 2, direct: 1, oldestDays: 1 } })), false)
+  assert.equal(isWorthSending(mail({ posta: { waiting: 2, direct: 1, oldestDays: 5 } })), true)
+  const { subject, text, html } = renderBriefEmail(mail({ scadenze: [s], posta: { waiting: 2, direct: 1, oldestDays: 5 } }))
+  assert.ok(subject.includes('1 scadenza'), subject)
+  assert.ok(subject.includes('2 aspettano te'), subject)
+  assert.ok(text.includes('ENTRO QUANDO') && text.includes('16/09/2026'), text)
+  assert.ok(html.includes('Chi aspetta te') && html.includes('5 giorni'))
+})
 
 const CLAIM = {
   text: 'Bianchi chiede conferma entro giovedì.',
