@@ -32,6 +32,7 @@ import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slot
 import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
 import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
 import { decodeEntities, parseFeed, stripHtml } from '../lib/brain/feeds.ts'
+import { inHowLong, isQuietHour, pickInitiatives, weekKey, type Initiative } from '../lib/brain/initiatives.ts'
 import { createHmac } from 'node:crypto'
 import { answerToText, chunkText as chunkForPhone, compactLine, parseInbound, routeMessage, sameNumber, verifySignature } from '../lib/brain/whatsapp.ts'
 import { isBoardWorthSending, memoExcerpt, objections, renderBoardText, repliesTo, threads, type Board } from '../lib/brain/board.ts'
@@ -1733,6 +1734,49 @@ check('chunkText spezza sulle righe entro il limite; answerToText mette le fonti
   assert.ok(text.includes('↳ Manca il mese.'))
   assert.equal(compactLine('a\n\n  b   c', 5), 'a b c')
   assert.equal(compactLine('abcdefgh', 5), 'abcd…')
+})
+
+/* ------------------------------------------------------------------ *
+ * initiatives: farsi vivi, una volta, con misura
+ * ------------------------------------------------------------------ */
+
+const ini = (key: string, executive: string, weight: number, urgent = false): Initiative => ({
+  key, executive, kind: 'waiting', text: key, urgent, weight,
+})
+
+check('isQuietHour: di notte in ora italiana, con il cambio d\'ora grossolano', () => {
+  assert.equal(isQuietHour(new Date('2026-10-04T20:30:00Z')), true) // 22:30 a Roma
+  assert.equal(isQuietHour(new Date('2026-10-04T07:00:00Z')), false) // 09:00
+  assert.equal(isQuietHour(new Date('2026-12-04T06:30:00Z')), true) // 07:30 d'inverno
+  assert.equal(isQuietHour(new Date('2026-12-04T07:30:00Z')), false) // 08:30
+})
+
+check('pickInitiatives: niente ripetizioni, budget per dirigente e totale, ordine per peso', () => {
+  const now = new Date('2026-10-04T10:00:00Z')
+  const cands = [
+    ini('a', 'grace', 90), ini('b', 'grace', 80), ini('c', 'grace', 70),
+    ini('d', 'sterling', 60), ini('e', 'sterling', 50), ini('f', 'sterling', 40),
+    ini('g', 'archer', 30), ini('h', 'nova', 20), ini('i', 'harper', 10),
+  ]
+  const picked = pickInitiatives(cands, { now, sent: new Set(['a']) })
+  assert.deepEqual(picked.map((p) => p.key), ['b', 'c', 'd', 'e', 'g', 'h'])
+  const small = pickInitiatives(cands, { now, sent: new Set(), perExecutive: 1, total: 2 })
+  assert.deepEqual(small.map((p) => p.key), ['a', 'd'])
+})
+
+check('di notte passano solo le urgenze', () => {
+  const night = new Date('2026-10-04T21:00:00Z') // 23:00 a Roma
+  const picked = pickInitiatives([ini('x', 'grace', 10), ini('y', 'grace', 100, true)], { now: night, sent: new Set() })
+  assert.deepEqual(picked.map((p) => p.key), ['y'])
+})
+
+check('weekKey e inHowLong', () => {
+  assert.equal(weekKey(new Date('2026-10-04T10:00:00Z')), '2026-W40')
+  assert.equal(weekKey(new Date('2026-10-05T10:00:00Z')), '2026-W41')
+  const now = new Date('2026-10-04T10:00:00Z')
+  assert.equal(inHowLong('2026-10-04T11:40:00Z', now), 'fra 1 h 40')
+  assert.equal(inHowLong('2026-10-04T10:25:00Z', now), 'fra 25 min')
+  assert.equal(inHowLong('2026-10-04T12:00:00Z', now), 'fra 2 h')
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

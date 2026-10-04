@@ -1,0 +1,21 @@
+# Il polso di BRAIN: ogni mezz'ora i dirigenti controllano se hanno
+# qualcosa da dirti adesso. Vercel Hobby concede due cron al giorno;
+# GitHub Actions no. Servono due segreti del repository:
+#   BRAIN_URL          https://<dominio di BRAIN>
+#   BRAIN_CRON_SECRET  lo stesso CRON_SECRET di Vercel
+name: brain-pulse
+on:
+  schedule:
+    - cron: '*/30 6-21 * * *'
+  workflow_dispatch:
+jobs:
+  pulse:
+    runs-on: ubuntu-latest
+    if: ${{ vars.BRAIN_PULSE != 'off' }}
+    steps:
+      - name: Polso
+        run: |
+          if [ -z "${{ secrets.BRAIN_URL }}" ]; then echo "BRAIN_URL non impostato: salto."; exit 0; fi
+          curl -sS --fail --max-time 280 \
+            -H "Authorization: Bearer ${{ secrets.BRAIN_CRON_SECRET }}" \
+            "${{ secrets.BRAIN_URL }}/api/brain/cron/pulse"

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import ClaimCard from '@/components/brain/ClaimCard'
 import type { Board, BoardClaim, Reply } from '@/lib/brain/board'
 import { BOARD_ORDER, EXECUTIVES, type ExecutiveKey } from '@/lib/brain/executives'
@@ -37,10 +37,48 @@ function claim(c: BoardClaim) {
 
 const nameOf = (k: string) => EXECUTIVES[k as ExecutiveKey]?.name ?? k
 
+type SentInitiative = { key: string; executive: string; kind: string; text: string; at: string; channel?: string }
+
 export default function BoardPanel({ initialBoard }: { initialBoard: StoredBoard | null }) {
   const [board, setBoard] = useState<StoredBoard | null>(initialBoard)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [initiatives, setInitiatives] = useState<SentInitiative[] | null>(null)
+  const [pulsing, setPulsing] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/brain/initiatives')
+      .then((res) => (res.ok ? res.json() : { initiatives: [] }))
+      .then((data) => {
+        if (alive) setInitiatives(data.initiatives ?? [])
+      })
+      .catch(() => {
+        if (alive) setInitiatives([])
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  async function takePulse() {
+    if (pulsing) return
+    setPulsing(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/brain/initiatives', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) setError(data.error ?? 'Il polso è fallito.')
+      else {
+        const sent = (data.sent ?? []) as SentInitiative[]
+        setInitiatives((prev) => [...sent.map((i) => ({ ...i, at: new Date().toISOString(), channel: data.channel })), ...(prev ?? [])])
+      }
+    } catch {
+      setError('Connessione interrotta.')
+    } finally {
+      setPulsing(false)
+    }
+  }
 
   async function convene() {
     if (busy) return
@@ -78,6 +116,35 @@ export default function BoardPanel({ initialBoard }: { initialBoard: StoredBoard
       </p>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
+
+      <div className="brain-section">
+        <h2>
+          Si sono fatti vivi{' '}
+          <button type="button" className="brain-copy" onClick={() => void takePulse()} disabled={pulsing}>
+            {pulsing ? 'controllo…' : 'polso adesso'}
+          </button>
+        </h2>
+        <p className="brain-meta" style={{ marginBottom: '0.5rem' }}>
+          Ogni mezz&rsquo;ora i dirigenti controllano se c&rsquo;è qualcosa da dirti adesso: un incontro fra
+          due ore, una scadenza domani, un addebito senza fattura, una relazione che tace. Una cosa si
+          dice una volta; al massimo due a testa e sei al giorno; di notte solo le urgenze.
+        </p>
+        {initiatives === null ? null : initiatives.length ? (
+          <div className="brain-list">
+            {initiatives.map((i) => (
+              <div key={`${i.key}-${i.at}`} className="brain-row">
+                <span className="brain-dot" data-state={i.kind === 'meeting' || i.kind === 'deadline' ? 'configured' : 'connected'} />
+                <div className="brain-row-main">
+                  <div className="brain-row-title" style={{ whiteSpace: 'pre-wrap' }}>{i.text.replace(/\*/g, '').replace(/_/g, '')}</div>
+                  <div className="brain-row-hint">{when(i.at)}{i.channel ? ` · via ${i.channel}` : ''}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="brain-empty">Niente negli ultimi sette giorni. Quando il polso è acceso, qui vedi cosa ti hanno scritto e quando.</p>
+        )}
+      </div>
 
       {!board ? (
         <p className="brain-empty" style={{ marginTop: '1rem' }}>

@@ -124,6 +124,36 @@ tavolo*; sotto, ogni dirigente con le sue scrivanie.
 
 ---
 
+## Proattivi: i dirigenti si fanno vivi
+
+Un collaboratore vero non aspetta che tu apra una pagina. Ogni mezz'ora il
+**polso** (`/api/brain/cron/pulse`) sincronizza le fonti e chiede a ogni
+dirigente se ha qualcosa da dirti *adesso*:
+
+| Chi | Quando si fa vivo |
+|---|---|
+| Grace | un incontro fra 15 minuti e due ore ("rispondi *agenda*"); una scadenza oggi o domani; qualcuno che aspetta da tre giorni con una domanda ("scrivi *bozza …*"); una prontezza crollata stamattina |
+| Sterling | un addebito senza giustificativo negli ultimi due giorni; un abbonamento aumentato o che non passa più |
+| Archer | una relazione che si raffredda (una volta a settimana per relazione) |
+| Harper | il segnale di mercato del giorno |
+| Nova | il prodotto nuovo del giorno |
+
+Le regole stanno in `lib/brain/initiatives.ts` e sono deterministiche: **una
+cosa si dice una volta sola** (la chiave di ogni iniziativa è stabile e quelle
+già mandate restano nel registro), al massimo due a testa e sei al giorno
+(`BRAIN_PULSE_BUDGET`), **di notte si tace** (21–8 ora italiana) salvo un
+incontro imminente o una scadenza di oggi. Il testo è formattato, non generato:
+un "ti scrivo perché" deve essere esatto. Il modello entra solo se rispondi.
+
+Arrivano su WhatsApp se è collegato, altrimenti sul webhook; in ogni caso
+restano nella scheda *Il tavolo* ("Si sono fatti vivi"). Su Vercel Hobby i cron
+sono due al giorno, quindi il polso lo chiama un'azione di GitHub ogni
+mezz'ora (`.github/workflows/brain-pulse.yml`): due segreti del repository,
+`BRAIN_URL` e `BRAIN_CRON_SECRET`. Su Vercel Pro basta aggiungere il cron a
+`vercel.json`.
+
+---
+
 ## WhatsApp: parlare con il board dal telefono
 
 L'unica porta di BRAIN che **scrive** fuori dalla console, e per questo la più
@@ -139,7 +169,8 @@ stretta. Tre regole, scritte nel codice e non in un prompt:
 
 Dal telefono: una domanda qualunque la prende Grace; `Sterling, …` o
 `@archer …` la dà a quel dirigente; `brief`, `board`, `riunisci` sono comandi;
-`?` è l'aiuto. Ogni riga porta la fonte. Il brief e il board del mattino
+`agenda` prepara il prossimo incontro, `bozza <oggetto>` scrive la risposta a
+quella mail, `?` è l'aiuto. Ogni riga porta la fonte. Il brief e il board del mattino
 arrivano anche qui, con una regola di Meta da sapere: fuori dalla finestra di
 24 ore dall'ultimo tuo messaggio si può mandare solo un **template approvato**
 — una riga che ti invita a rispondere `brief` o `board`, e la risposta riapre
@@ -203,7 +234,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 183 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 187 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -226,6 +257,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/feeds.ts` | RSS e Atom senza parser e senza dipendenze | un feed è abbastanza regolare da leggersi con le espressioni |
 | `lib/brain/radar.ts` | quali dieci articoli su cento: parole del profilo, doppioni tolti, i più recenti davanti | il modello non deve scegliere fra mille cose che non ha letto |
 | `lib/brain/board.ts` | le forme del board — memo, replica, sintesi — e le regole che le tengono oneste | un'obiezione non sparisce nella sintesi: resta scritta e firmata |
+| `lib/brain/initiatives.ts` | se e quando un dirigente si fa vivo: una volta sola, con budget, mai di notte salvo urgenze | cinque persone che ti scrivono dieci volte al giorno sono rumore |
 | `lib/brain/whatsapp.ts` | firma di Meta, messaggi in entrata, chi risponde, testo spezzato per il telefono | è l'unica porta che scrive fuori: va testata riga per riga |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
@@ -964,6 +996,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 
 # 4. La sincronizzazione automatica (senza, l'endpoint cron resta chiuso)
 CRON_SECRET=una-stringa-lunga-e-casuale
+BRAIN_PULSE_BUDGET=6                   # facoltativo: quante iniziative al giorno, in tutto
 
 # 5. La consegna del brief (facoltativa: senza, resta sulla console)
 RESEND_API_KEY=re_...                  # email
@@ -1093,6 +1126,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 183 test del nucleo, nessuna dipendenza
+npm test               # 187 test del nucleo, nessuna dipendenza
 npm run build
 ```
