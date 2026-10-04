@@ -19,7 +19,8 @@ import TrainingPanel from '@/components/brain/TrainingPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
-import { BOARD_ORDER, EXECUTIVES } from '@/lib/brain/executives'
+import { BOARD_ORDER, EXECUTIVES, type ExecutiveKey } from '@/lib/brain/executives'
+import { PROFILE_TEMPLATE } from '@/lib/brain/profile'
 import { agentHeadline, agentTab, type AgentKey } from '@/lib/brain/names'
 import type { SyncReport } from '@/lib/brain/connectors'
 import { CHANNEL_LABEL, type StoredDocument, type VerifiedClaim } from '@/lib/brain/types'
@@ -92,6 +93,7 @@ type Props = {
   initialBrief: Record<string, unknown> | null
   initialPoints: BriefOpenPoint[]
   initialBoard: StoredBoard | null
+  initialProfile: string | null
   autoSync: AutoSync | null
   googleOutcome: { ok: boolean; detail: string } | null
 }
@@ -123,12 +125,17 @@ export default function BrainConsole({
   initialBrief,
   initialPoints,
   initialBoard,
+  initialProfile,
   autoSync,
   googleOutcome,
 }: Props) {
   const [tab, setTab] = useState<Tab>('board')
 
   const [question, setQuestion] = useState('')
+  const [askAs, setAskAs] = useState<ExecutiveKey>('grace')
+  const [profile, setProfile] = useState(initialProfile ?? '')
+  const [profileSaving, setProfileSaving] = useState(false)
+  const [profileSaved, setProfileSaved] = useState<string | null>(null)
   const [asking, setAsking] = useState(false)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const [error, setError] = useState<string | null>(
@@ -176,7 +183,7 @@ export default function BrainConsole({
       const res = await fetch('/api/brain/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question: q, executive: askAs }),
       })
       const data = await res.json()
       if (!res.ok) setError(data.error ?? 'Non sono riuscito a rispondere.')
@@ -185,6 +192,26 @@ export default function BrainConsole({
       setError('Connessione interrotta.')
     } finally {
       setAsking(false)
+    }
+  }
+
+  async function saveProfileText() {
+    if (profileSaving) return
+    setProfileSaving(true)
+    setProfileSaved(null)
+    try {
+      const res = await fetch('/api/brain/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: profile }),
+      })
+      const data = await res.json()
+      if (!res.ok) setError(data.error ?? 'Non sono riuscito a salvare il profilo.')
+      else setProfileSaved('Salvato: da adesso ogni dirigente lo legge prima di scrivere.')
+    } catch {
+      setError('Connessione interrotta.')
+    } finally {
+      setProfileSaving(false)
     }
   }
 
@@ -303,6 +330,21 @@ export default function BrainConsole({
         {/* --- CHIEDI --- */}
         {tab === 'ask' ? (
           <section>
+            <div className="brain-actions" style={{ marginBottom: '0.75rem' }}>
+              {BOARD_ORDER.map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  className="brain-chip"
+                  aria-pressed={askAs === k}
+                  onClick={() => setAskAs(k)}
+                  title={EXECUTIVES[k].title}
+                >
+                  {EXECUTIVES[k].name}
+                </button>
+              ))}
+              <span className="brain-meta">risponde {EXECUTIVES[askAs].name} · {EXECUTIVES[askAs].title}</span>
+            </div>
             <form
               className="brain-ask"
               onSubmit={(e) => {
@@ -513,7 +555,28 @@ export default function BrainConsole({
         {/* --- MEMORIA --- */}
         {tab === 'memory' ? (
           <section>
-            <h2 style={{ fontSize: '1rem', margin: '0 0 0.75rem' }}>Aggiungi a mano</h2>
+            <h2 style={{ fontSize: '1rem', margin: '0 0 0.25rem' }}>Chi sei, per i tuoi dirigenti</h2>
+            <p className="brain-note" style={{ marginBottom: '0.75rem' }}>
+              Ogni dirigente legge questo testo prima di scrivere. È <b>contesto</b>, non una fonte: serve a
+              scegliere cosa conta, non a inventare fatti — una riga che cita solo il profilo non passa.
+            </p>
+            <div className="brain-ask">
+              <textarea
+                className="brain-field"
+                rows={8}
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                placeholder={PROFILE_TEMPLATE}
+              />
+              <div className="brain-actions">
+                <button type="button" className="brain-btn brain-btn-primary" onClick={() => void saveProfileText()} disabled={profileSaving || profile.trim().length < 20}>
+                  {profileSaving ? 'Salvo…' : 'Salva il profilo'}
+                </button>
+                {profileSaved ? <span className="brain-meta">{profileSaved}</span> : null}
+              </div>
+            </div>
+
+            <h2 style={{ fontSize: '1rem', margin: '1.5rem 0 0.75rem' }}>Aggiungi a mano</h2>
             <div className="brain-ask">
               <input
                 className="brain-input"

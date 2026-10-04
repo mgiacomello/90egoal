@@ -180,6 +180,19 @@ export async function recentDocuments(limit = 30, source?: SourceKey): Promise<S
   return ((data ?? []) as Record<string, unknown>[]).map(toStored)
 }
 
+/** Un documento per fonte e id esterno: serve alle note con un id fisso, come il profilo. */
+export async function documentByExternalId(source: SourceKey, externalId: string): Promise<StoredDocument | null> {
+  const db = brainDb()
+  const { data, error } = await db
+    .from('brain_documents')
+    .select('*')
+    .eq('source', source)
+    .eq('external_id', externalId)
+    .maybeSingle()
+  if (error) throw new BrainError(`Lettura documento fallita: ${error.message}`)
+  return data ? toStored(data as Record<string, unknown>) : null
+}
+
 /** Un documento intero, corpo compreso: serve a chi deve analizzarlo. */
 export async function documentById(id: string): Promise<StoredDocument | null> {
   const db = brainDb()

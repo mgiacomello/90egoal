@@ -1,6 +1,7 @@
 import { verifyClaims } from '../cite'
 import { logRun, recentDocuments } from '../memory'
 import { runStructured } from '../model'
+import { profileBlock, readProfile } from '../profile'
 import { DEFAULT_TOPICS, selectSignals } from '../radar'
 import { CHANNEL_LABEL, type RawClaim, type SourceRef, type VerifiedClaim } from '../types'
 
@@ -132,13 +133,14 @@ export async function scanRadar(days = 7, signal?: AbortSignal): Promise<RadarRe
     return empty
   }
 
+  const profile = profileBlock(await readProfile().catch(() => null))
   const { data, model } = await runStructured<{
     segnali?: (RawClaim & { impatto?: string; orizzonte?: string })[]
     prospettive?: RawClaim[]
     perTe?: RawClaim[]
   }>({
     task: 'answer',
-    system: SYSTEM,
+    system: SYSTEM + profile,
     user: ['FONTI (articoli degli ultimi giorni, già selezionati)', '', formatSources(offered)].join('\n'),
     tool: TOOL,
     signal,
