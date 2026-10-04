@@ -19,6 +19,8 @@ export async function proxy(request: NextRequest) {
 
   // Lo scheduler non ha una sessione: il suo controllo è il segreto condiviso.
   if (pathname.startsWith('/api/brain/cron')) return NextResponse.next({ request })
+  // Il webhook di WhatsApp nemmeno: il suo controllo è la firma di Meta e il numero del titolare.
+  if (pathname === '/api/brain/whatsapp') return NextResponse.next({ request })
 
   let response = NextResponse.next({ request })
 

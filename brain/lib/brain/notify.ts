@@ -26,7 +26,7 @@ import { isWorthSending, renderBriefEmail, type MailBrief } from './briefmail'
  * niente si rompe.
  */
 
-export type DeliveryChannel = 'email' | 'webhook'
+export type DeliveryChannel = 'email' | 'webhook' | 'whatsapp'
 
 export type DeliveryResult = {
   channel: DeliveryChannel
@@ -56,8 +56,77 @@ export function webhookConfigured(): boolean {
   return Boolean(process.env.BRAIN_WEBHOOK_URL)
 }
 
+export function whatsappConfigured(): boolean {
+  return Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_OWNER_NUMBER)
+}
+
 export function deliveryConfigured(): boolean {
-  return emailConfigured() || webhookConfigured()
+  return emailConfigured() || webhookConfigured() || whatsappConfigured()
+}
+
+const GRAPH = 'https://graph.facebook.com/v21.0'
+
+/**
+ * WhatsApp, al solo numero del titolare. Fuori dalla finestra di 24 ore
+ * dall'ultimo suo messaggio, Meta accetta solo un template approvato:
+ * allora parte il template (una riga, senza a capo, perché è tutto ciò
+ * che accetta) che invita a rispondere "brief" o "board" — e la
+ * risposta riapre la finestra per il testo intero.
+ */
+export async function sendWhatsApp(text: string): Promise<DeliveryResult> {
+  const to = (process.env.WHATSAPP_OWNER_NUMBER ?? '').replace(/\D/g, '')
+  try {
+    const res = await fetch(`${GRAPH}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messaging_product: 'whatsapp', to, type: 'text', text: { body: text.slice(0, 4096), preview_url: false } }),
+    })
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      return { channel: 'whatsapp', ok: false, detail: `${res.status} ${detail.slice(0, 300)}` }
+    }
+    return { channel: 'whatsapp', ok: true, detail: `inviato a ***${to.slice(-4)}` }
+  } catch (err) {
+    return { channel: 'whatsapp', ok: false, detail: (err as Error).message }
+  }
+}
+
+export async function sendWhatsAppTemplate(summary: string): Promise<DeliveryResult> {
+  const name = process.env.WHATSAPP_TEMPLATE?.trim()
+  if (!name) return { channel: 'whatsapp', ok: false, detail: 'fuori dalla finestra di 24 ore e nessun WHATSAPP_TEMPLATE configurato' }
+  const to = (process.env.WHATSAPP_OWNER_NUMBER ?? '').replace(/\D/g, '')
+  try {
+    const res = await fetch(`${GRAPH}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to,
+        type: 'template',
+        template: {
+          name,
+          language: { code: process.env.WHATSAPP_TEMPLATE_LANG?.trim() || 'it' },
+          components: [{ type: 'body', parameters: [{ type: 'text', text: summary }] }],
+        },
+      }),
+    })
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '')
+      return { channel: 'whatsapp', ok: false, detail: `${res.status} ${detail.slice(0, 300)}` }
+    }
+    return { channel: 'whatsapp', ok: true, detail: `template inviato a ***${to.slice(-4)}` }
+  } catch (err) {
+    return { channel: 'whatsapp', ok: false, detail: (err as Error).message }
+  }
+}
+
+/** Testo intero se la finestra è aperta; altrimenti il template con una riga. */
+export async function deliverWhatsApp(text: string, summary: string): Promise<DeliveryResult> {
+  const first = await sendWhatsApp(text)
+  if (first.ok) return first
+  // 131047: fuori dalla finestra di 24 ore. 131026: non raggiungibile.
+  if (/131047|re-engagement|24 ?h/i.test(first.detail)) return sendWhatsAppTemplate(summary)
+  return first
 }
 
 async function sendEmail(mail: { subject: string; text: string; html: string }): Promise<DeliveryResult> {
@@ -114,6 +183,7 @@ async function sendWebhook(brief: MailBrief, mail: { subject: string; text: stri
 export async function deliverMail(mail: { subject: string; text: string; html: string }, payload: unknown): Promise<DeliveryReport> {
   const jobs: Promise<DeliveryResult>[] = []
   if (emailConfigured()) jobs.push(sendEmail(mail))
+  if (whatsappConfigured()) jobs.push(deliverWhatsApp(`*${mail.subject}*\n\n${mail.text}`, `${mail.subject}. Rispondi "board" per leggerlo.`))
   if (webhookConfigured()) {
     jobs.push(
       (async (): Promise<DeliveryResult> => {
@@ -154,6 +224,7 @@ export async function deliverBrief(brief: MailBrief, force = false): Promise<Del
 
   if (emailConfigured()) jobs.push(sendEmail(mail))
   if (webhookConfigured()) jobs.push(sendWebhook(brief, mail))
+  if (whatsappConfigured()) jobs.push(deliverWhatsApp(`*${mail.subject}*\n\n${mail.text}`, `${mail.subject}. Rispondi "brief" per leggerlo.`))
 
   return { skipped: false, results: await Promise.all(jobs) }
 }
