@@ -14,7 +14,7 @@
 
 export type AgentKey =
   | 'chief' | 'brief' | 'meeting' | 'contracts' | 'ledger' | 'coach' | 'postcall'
-  | 'deadlines' | 'inbox' | 'slots'
+  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations'
 
 export type AgentIdentity = {
   /** Il nome di persona. Va scelto dal titolare. */
@@ -36,6 +36,8 @@ export const AGENTS: Record<AgentKey, AgentIdentity> = {
   deadlines: { name: null, role: 'scadenze', tab: 'Scadenze' },
   inbox: { name: null, role: 'posta in attesa', tab: 'Posta' },
   slots: { name: null, role: 'appuntamenti', tab: 'Appuntamenti' },
+  recurring: { name: null, role: 'abbonamenti', tab: 'Abbonamenti' },
+  relations: { name: null, role: 'relazioni', tab: 'Relazioni' },
 }
 
 /** L'etichetta della scheda: il nome se c'è, altrimenti il ruolo. */
