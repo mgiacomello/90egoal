@@ -98,18 +98,16 @@ function formatSources(refs: SourceRef[]): string {
     .join('\n\n---\n\n')
 }
 
-export async function scanRadar(days = 7, signal?: AbortSignal): Promise<RadarReport> {
-  const started = Date.now()
+/** Gli articoli scelti dal codice, come fonti: la parte senza modello, riusata dal board. */
+export async function radarSources(days = 7, limit = 20): Promise<{ offered: SourceRef[]; examined: number; topics: string[] }> {
   const since = Date.now() - days * 86_400_000
   const list = topics()
-
   const docs = (await recentDocuments(200, 'web')).filter((d) => Date.parse(d.occurredAt) >= since)
   const signals = selectSignals(
     docs.map((d) => ({ id: d.id, title: d.title, summary: d.body, occurredAt: d.occurredAt, doc: d })),
     list,
-    20
+    limit
   )
-
   const offered: SourceRef[] = signals.map((s, i) => ({
     handle: `F${i + 1}`,
     documentId: s.doc.id,
@@ -120,6 +118,13 @@ export async function scanRadar(days = 7, signal?: AbortSignal): Promise<RadarRe
     url: s.doc.url ?? null,
     excerpt: s.doc.body.slice(0, 1500),
   }))
+  return { offered, examined: docs.length, topics: list }
+}
+
+export async function scanRadar(days = 7, signal?: AbortSignal): Promise<RadarReport> {
+  const started = Date.now()
+  const { offered, examined, topics: list } = await radarSources(days, 20)
+  const docs = { length: examined }
 
   const empty: RadarReport = { days, examined: docs.length, offered, topics: list, segnali: [], prospettive: [], perTe: [], dropped: 0, model: 'nessuno' }
   if (!offered.length) {

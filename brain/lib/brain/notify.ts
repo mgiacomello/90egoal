@@ -108,6 +108,33 @@ async function sendWebhook(brief: MailBrief, mail: { subject: string; text: stri
 }
 
 /**
+ * Consegna una mail qualunque — il board, per esempio — sugli stessi
+ * canali del brief. Stesse regole: nessun invio da Gmail, mai.
+ */
+export async function deliverMail(mail: { subject: string; text: string; html: string }, payload: unknown): Promise<DeliveryReport> {
+  const jobs: Promise<DeliveryResult>[] = []
+  if (emailConfigured()) jobs.push(sendEmail(mail))
+  if (webhookConfigured()) {
+    jobs.push(
+      (async (): Promise<DeliveryResult> => {
+        try {
+          const res = await fetch(process.env.BRAIN_WEBHOOK_URL!, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: `*${mail.subject}*\n\n${mail.text}`, subject: mail.subject, payload }),
+          })
+          if (!res.ok) return { channel: 'webhook', ok: false, detail: `${res.status}` }
+          return { channel: 'webhook', ok: true, detail: 'consegnato' }
+        } catch (err) {
+          return { channel: 'webhook', ok: false, detail: (err as Error).message }
+        }
+      })()
+    )
+  }
+  return { skipped: false, results: await Promise.all(jobs) }
+}
+
+/**
  * Consegna il brief sui canali configurati.
  *
  * `force` salta il controllo su "vale la pena": serve al pulsante di
