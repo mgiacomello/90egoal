@@ -7,6 +7,7 @@ import { formatEuro } from '../reconcile'
 import { reviewDeadlines } from './deadlines'
 import { reviewInbox } from './inbox'
 import { reviewLedger } from './ledger'
+import { reviewPractice } from './practice'
 import { reviewSubscriptions } from './recurring'
 import { reviewRelations } from './relations'
 
@@ -51,8 +52,9 @@ async function candidates(owner: string, now: Date): Promise<Initiative[]> {
   const A = EXECUTIVES.archer.name
   const H = EXECUTIVES.harper.name
   const N = EXECUTIVES.nova.name
+  const Q = EXECUTIVES.quinn.name
 
-  const [events, deadlines, inbox, ledger, subs, relations, web, oura] = await Promise.all([
+  const [events, deadlines, inbox, ledger, subs, relations, web, oura, practice] = await Promise.all([
     upcomingEvents(1, 20).catch(() => []),
     reviewDeadlines(2).catch(() => null),
     reviewInbox(owner, 3).catch(() => null),
@@ -61,6 +63,7 @@ async function candidates(owner: string, now: Date): Promise<Initiative[]> {
     reviewRelations(owner).catch(() => null),
     recentDocuments(120, 'web').catch(() => []),
     recentDocuments(20, 'oura').catch(() => []),
+    reviewPractice(owner).catch(() => null),
   ])
 
   // Grace: un incontro nelle prossime due ore.
@@ -137,6 +140,38 @@ async function candidates(owner: string, now: Date): Promise<Initiative[]> {
       urgent: false,
       weight: 45 + Math.min(Math.round(r.silenceDays / 10), 20),
       text: `*${A}* · ${r.label}: silenzio da ${r.silenceDays} giorni, di solito vi sentivate ogni ${r.rhythmDays}. ${r.recent[0] ? `L'ultima cosa: "${r.recent[0].title}" (${day(r.recent[0].occurredAt)}).` : ''} Un messaggio oggi costa poco.`,
+    })
+  }
+
+  // Quinn: ore senza fattura (una volta a settimana per cliente), nomi nuovi, incarichi mancanti.
+  for (const m of (practice?.unbilled ?? []).slice(0, 2)) {
+    out.push({
+      key: `unbilled:${m.key}:${week}`,
+      executive: 'quinn',
+      kind: 'charge',
+      urgent: false,
+      weight: 48,
+      text: `*${Q}* · ${m.label}: circa ${String(m.unbilledHours).replace('.', ',')} ore stimate${m.lastInvoiceAt ? ` dall'ultima fattura del ${day(m.lastInvoiceAt)}` : ', e nessuna fattura in memoria'}. È il momento di una nota spese o di un acconto?`,
+    })
+  }
+  for (const m of (practice?.newContacts ?? []).slice(0, 2)) {
+    out.push({
+      key: `newcontact:${m.key}`,
+      executive: 'quinn',
+      kind: 'waiting',
+      urgent: false,
+      weight: 42,
+      text: `*${Q}* · Nome nuovo: ${m.label} (primo contatto ${day(m.firstTouchAt)}). Prima di andare avanti: controllo conflitti e lettera di incarico.`,
+    })
+  }
+  for (const m of (practice?.withoutEngagement ?? []).slice(0, 1)) {
+    out.push({
+      key: `engagement:${m.key}:${week}`,
+      executive: 'quinn',
+      kind: 'waiting',
+      urgent: false,
+      weight: 38,
+      text: `*${Q}* · ${m.label}: ${m.touches} contatti e nessuna lettera di incarico in memoria. Se c'è, mettila su Drive; se non c'è, vale la pena farla firmare.`,
     })
   }
 

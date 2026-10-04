@@ -11,6 +11,7 @@ import InboxPanel from '@/components/brain/InboxPanel'
 import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import PostCallPanel from '@/components/brain/PostCallPanel'
+import PracticePanel from '@/components/brain/PracticePanel'
 import RadarPanel from '@/components/brain/RadarPanel'
 import RecurringPanel from '@/components/brain/RecurringPanel'
 import RelationsPanel from '@/components/brain/RelationsPanel'
@@ -40,7 +41,7 @@ type Answer = {
 type Tab =
   | 'board'
   | 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall'
-  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'training' | 'radar' | 'sources' | 'memory'
+  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'training' | 'radar' | 'practice' | 'sources' | 'memory'
 
 /** Le schede che sono un assistente, e con che nome si presenta. */
 const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
@@ -58,13 +59,14 @@ const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
   relations: 'relations',
   training: 'training',
   radar: 'radar',
+  practice: 'practice',
 }
 
 /** La scheda di ogni scrivania. */
 const TAB_OF_DESK: Record<AgentKey, Tab> = {
   chief: 'ask', brief: 'brief', meeting: 'meeting', contracts: 'contracts', ledger: 'ledger', coach: 'coach',
   postcall: 'postcall', deadlines: 'deadlines', inbox: 'inbox', slots: 'slots', recurring: 'recurring',
-  relations: 'relations', training: 'training', radar: 'radar',
+  relations: 'relations', training: 'training', radar: 'radar', practice: 'practice',
 }
 
 /**
@@ -462,6 +464,9 @@ export default function BrainConsole({
 
         {/* --- RADAR --- */}
         {tab === 'radar' ? <RadarPanel /> : null}
+
+        {/* --- STUDIO --- */}
+        {tab === 'practice' ? <PracticePanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (

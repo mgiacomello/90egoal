@@ -9,6 +9,7 @@ import { CHANNEL_LABEL, type RawClaim, type SourceRef, type VerifiedClaim } from
 import { reviewDeadlines } from './deadlines'
 import { reviewInbox } from './inbox'
 import { reviewLedger } from './ledger'
+import { reviewPractice } from './practice'
 import { radarSources } from './radar'
 import { reviewSubscriptions } from './recurring'
 import { reviewRelations } from './relations'
@@ -101,6 +102,29 @@ async function graceFacts(owner: string): Promise<SourceRef[]> {
   out.push(calc('punti', 'Scrivania di Grace: punti aperti', points.map((p) => `- ${p.text} (aperto il ${day(p.openedAt)})`)))
   if (training && training.summary.sessions) {
     out.push({ ...training.source, documentId: 'calc:allenamento', title: 'Scrivania di Grace: allenamento, riepilogo calcolato' })
+  }
+  return out
+}
+
+async function quinnFacts(owner: string): Promise<SourceRef[]> {
+  const [practice, deadlines] = await Promise.all([reviewPractice(owner).catch(() => null), reviewDeadlines(45).catch(() => null)])
+  const out: SourceRef[] = []
+  if (practice) {
+    out.push(
+      calc('pratiche', 'Scrivania di Quinn: pratiche, ore stimate e fatture', [
+        `${practice.matters.length} pratiche attive. Le ore sono una stima (incontri per durata, mail 10/5 minuti).`,
+        ...practice.unbilled.slice(0, 6).map((m) => `- ORE SENZA FATTURA: ${m.label} · ${String(m.unbilledHours).replace('.', ',')} h stimate dall'ultima fattura${m.lastInvoiceAt ? ` del ${day(m.lastInvoiceAt)}` : ' (nessuna fattura in memoria)'}`),
+        ...practice.withoutEngagement.slice(0, 6).map((m) => `- SENZA INCARICO: ${m.label} · ${m.touches} contatti, nessuna lettera di incarico in memoria`),
+        ...practice.newContacts.slice(0, 6).map((m) => `- NOME NUOVO (controllo conflitti): ${m.label} · primo contatto ${day(m.firstTouchAt)}`),
+      ])
+    )
+  }
+  if (deadlines) {
+    out.push(
+      calc('termini', 'Scrivania di Quinn: termini e scadenze nei prossimi 45 giorni', [
+        ...deadlines.rows.slice(0, 10).map((r) => `- ${day(r.date)}${r.urgency === 'scaduta' ? ' (SCADUTA)' : ''} · ${r.label} · ${r.title}`),
+      ])
+    )
   }
   return out
 }
@@ -407,14 +431,15 @@ export async function runBoard(ownerEmail: string, signal?: AbortSignal): Promis
   const profile = profileBlock(await readProfile().catch(() => null))
 
   // 1. Le scrivanie, in parallelo e senza modello.
-  const [grace, sterling, archer, harper, nova] = await Promise.all([
+  const [grace, quinn, sterling, archer, harper, nova] = await Promise.all([
     graceFacts(ownerEmail),
+    quinnFacts(ownerEmail),
     sterlingFacts(),
     archerFacts(ownerEmail),
     harperFacts(ownerEmail),
     novaFacts(),
   ])
-  const facts: Facts = { grace, sterling, archer, harper, nova }
+  const facts: Facts = { grace, quinn, sterling, archer, harper, nova }
 
   // 2. I memo, in parallelo.
   const memos = await Promise.all(BOARD_ORDER.map((k) => writeMemo(k, facts[k], today, profile, signal)))
@@ -428,7 +453,7 @@ export async function runBoard(ownerEmail: string, signal?: AbortSignal): Promis
   const board: Board = { generatedAt: new Date().toISOString(), memos, replies, synthesis }
   const run: BoardRun = {
     ...board,
-    facts: { grace: grace.length, sterling: sterling.length, archer: archer.length, harper: harper.length, nova: nova.length },
+    facts: { grace: grace.length, quinn: quinn.length, sterling: sterling.length, archer: archer.length, harper: harper.length, nova: nova.length },
     text: renderBoardText(board, nameOf),
     worthSending: isBoardWorthSending(board),
   }

@@ -91,6 +91,7 @@ soli, e quando lo chiedi.
 | Nome | Ruolo | Mandato | Scrivanie |
 |---|---|---|---|
 | **Grace** | Executive Assistant & Chief of Staff | il tempo, la posta, le scadenze, gli incontri e la persona | Brief, Posta, Scadenze, Appuntamenti, Incontri, Dopo la call, Chiedi, Coach, Allenamento |
+| **Quinn** | Head of Legal Operations | le pratiche: ore, incarichi, conflitti, contratti, scadenze | Studio, Scadenze, Contratti |
 | **Sterling** | Chief Financial Officer | cassa, costi, incassi, giustificativi, abbonamenti | Conto, Abbonamenti |
 | **Archer** | Chief Revenue Officer | relazioni, trattative, contratti, incassi | Relazioni, Dopo la call, Contratti, Posta |
 | **Harper** | Chief Marketing Officer | posizionamento, messaggio, occasioni per farsi vedere | Radar, Relazioni |
@@ -234,7 +235,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 187 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 190 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -258,6 +259,8 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/radar.ts` | quali dieci articoli su cento: parole del profilo, doppioni tolti, i più recenti davanti | il modello non deve scegliere fra mille cose che non ha letto |
 | `lib/brain/board.ts` | le forme del board — memo, replica, sintesi — e le regole che le tengono oneste | un'obiezione non sparisce nella sintesi: resta scritta e firmata |
 | `lib/brain/initiatives.ts` | se e quando un dirigente si fa vivo: una volta sola, con budget, mai di notte salvo urgenze | cinque persone che ti scrivono dieci volte al giorno sono rumore |
+| `lib/brain/practice.ts` | pratiche per cliente: ore stimate, incassi, chi è senza fattura, senza incarico, nuovo | la contabilità di uno studio comincia dal tempo, prima della fattura |
+| `lib/brain/docx.ts` | un .docx letto senza dipendenze: zip dall'indice, testo dai paragrafi | i contratti arrivano così, non come Google Doc |
 | `lib/brain/whatsapp.ts` | firma di Meta, messaggi in entrata, chi risponde, testo spezzato per il telefono | è l'unica porta che scrive fuori: va testata riga per riga |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
@@ -495,8 +498,8 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Cinque dirigenti e quattordici scrivanie.** Grace, Sterling, Archer, Harper,
-  Nova; sotto di loro Brief, Posta, Scadenze, Incontri, Dopo la call,
+- **Sei dirigenti e quindici scrivanie.** Grace, Quinn, Sterling, Archer, Harper,
+  Nova; sotto di loro Studio, Brief, Posta, Scadenze, Incontri, Dopo la call,
   Appuntamenti, Relazioni, Chiedi, Contratti, Conto, Radar, Coach, Allenamento,
   Abbonamenti. Otto scrivanie non usano nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
   BRAIN è in sola lettura per scelta.
@@ -562,6 +565,27 @@ codici di transazione), almeno tre addebiti, intervalli che tengono una cadenza
 — settimanale, mensile, trimestrale, annuale. Per ognuno: costo all'anno,
 prossimo addebito atteso, se l'ultimo è aumentato di più del 10%, se è in
 ritardo e quindi forse finito. Il totale in cima esclude quelli finiti.
+
+---
+
+## Quinn e lo Studio: il mestiere al tavolo
+
+Per un avvocato la contabilità comincia prima della fattura: comincia dal
+tempo. `lib/brain/practice.ts` stima le ore per cliente dal calendario e dalla
+posta — un incontro vale la sua durata, una mail scritta dieci minuti, una
+ricevuta cinque — e le mette accanto agli incassi di quel cliente (Qonto, per
+nome). Non è il timesheet, e lo dice: serve a vedere **chi assorbe ore senza
+una fattura dietro**. Più due liste che in uno studio nessuno guarda finché non
+è tardi: chi lavora con te **senza una lettera di incarico** in memoria, e i
+**nomi nuovi** di questa settimana — il momento del controllo dei conflitti,
+che resta tuo. Quinn porta queste cose al board e si fa viva da sola, una
+volta a settimana per cliente.
+
+Le bozze di risposta della scheda Posta ora imitano **la tua voce**: fra le
+fonti entrano le ultime due mail che hai scritto tu allo stesso destinatario
+(marcate STILE), per tono e formule — non per i fatti. E Drive legge i
+**.docx** (`lib/brain/docx.ts`, senza dipendenze), perché i contratti arrivano
+così.
 
 ---
 
@@ -1126,6 +1150,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 187 test del nucleo, nessuna dipendenza
+npm test               # 190 test del nucleo, nessuna dipendenza
 npm run build
 ```

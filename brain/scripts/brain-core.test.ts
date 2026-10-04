@@ -32,6 +32,9 @@ import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slot
 import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
 import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
 import { decodeEntities, parseFeed, stripHtml } from '../lib/brain/feeds.ts'
+import { deflateRawSync } from 'node:zlib'
+import { docxToText, readZip, textFromDocumentXml } from '../lib/brain/docx.ts'
+import { buildMatters, estimateMinutes, matterKey, matterTokens, newContacts, unbilled, withoutEngagement, type TouchLike } from '../lib/brain/practice.ts'
 import { inHowLong, isQuietHour, pickInitiatives, weekKey, type Initiative } from '../lib/brain/initiatives.ts'
 import { createHmac } from 'node:crypto'
 import { answerToText, chunkText as chunkForPhone, compactLine, parseInbound, routeMessage, sameNumber, verifySignature } from '../lib/brain/whatsapp.ts'
@@ -1777,6 +1780,103 @@ check('weekKey e inHowLong', () => {
   assert.equal(inHowLong('2026-10-04T11:40:00Z', now), 'fra 1 h 40')
   assert.equal(inHowLong('2026-10-04T10:25:00Z', now), 'fra 25 min')
   assert.equal(inHowLong('2026-10-04T12:00:00Z', now), 'fra 2 h')
+})
+
+/* ------------------------------------------------------------------ *
+ * docx: un contratto com'è davvero
+ * ------------------------------------------------------------------ */
+
+/** Uno zip minimo, costruito a mano: basta a provare il lettore. */
+function zipOf(entries: { name: string; data: Buffer; deflate?: boolean }[]): Buffer {
+  const parts: Buffer[] = []
+  const central: Buffer[] = []
+  let offset = 0
+  for (const e of entries) {
+    const name = Buffer.from(e.name, 'utf8')
+    const payload = e.deflate ? deflateRawSync(e.data) : e.data
+    const local = Buffer.alloc(30)
+    local.writeUInt32LE(0x04034b50, 0)
+    local.writeUInt16LE(e.deflate ? 8 : 0, 8)
+    local.writeUInt32LE(payload.length, 18)
+    local.writeUInt32LE(e.data.length, 22)
+    local.writeUInt16LE(name.length, 26)
+    parts.push(local, name, payload)
+    const c = Buffer.alloc(46)
+    c.writeUInt32LE(0x02014b50, 0)
+    c.writeUInt16LE(e.deflate ? 8 : 0, 10)
+    c.writeUInt32LE(payload.length, 20)
+    c.writeUInt32LE(e.data.length, 24)
+    c.writeUInt16LE(name.length, 28)
+    c.writeUInt32LE(offset, 42)
+    central.push(c, name)
+    offset += local.length + name.length + payload.length
+  }
+  const cd = Buffer.concat(central)
+  const eocd = Buffer.alloc(22)
+  eocd.writeUInt32LE(0x06054b50, 0)
+  eocd.writeUInt16LE(entries.length, 8)
+  eocd.writeUInt16LE(entries.length, 10)
+  eocd.writeUInt32LE(cd.length, 12)
+  eocd.writeUInt32LE(offset, 16)
+  return Buffer.concat([...parts, cd, eocd])
+}
+
+check('readZip legge voci memorizzate e compresse; docxToText tira fuori i paragrafi', () => {
+  const xml = `<w:document><w:body><w:p><w:r><w:t>Art. 1 &#8211; Durata</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">Il contratto ha durata di </w:t></w:r><w:r><w:t>dodici (12) mesi</w:t></w:r><w:r><w:tab/><w:t>&amp; preavviso</w:t></w:r></w:p><w:p/></w:body></w:document>`
+  const zip = zipOf([
+    { name: '[Content_Types].xml', data: Buffer.from('<Types/>') },
+    { name: 'word/document.xml', data: Buffer.from(xml), deflate: true },
+  ])
+  const names = readZip(zip).map((e) => e.name)
+  assert.deepEqual(names, ['[Content_Types].xml', 'word/document.xml'])
+  assert.equal(docxToText(zip), 'Art. 1 – Durata\nIl contratto ha durata di dodici (12) mesi\t& preavviso')
+  assert.equal(docxToText(Buffer.from('non uno zip')), '')
+  assert.equal(textFromDocumentXml('<w:p><w:r><w:t>a</w:t><w:br/><w:t>b</w:t></w:r></w:p>'), 'a\nb')
+})
+
+/* ------------------------------------------------------------------ *
+ * practice: lo studio
+ * ------------------------------------------------------------------ */
+
+const touch = (id: string, day: string, who: string, over: Partial<TouchLike> = {}): TouchLike => ({
+  id, kind: 'email', title: 'x', occurredAt: `${day}T10:00:00Z`, participants: ['me@mio.it', who], minutes: null, fromOwner: false, ...over,
+})
+
+check('matterKey, matterTokens ed estimateMinutes', () => {
+  assert.equal(matterKey('Anna@StudioVerdi.it'), 'studioverdi.it')
+  assert.deepEqual(matterTokens('studioverdi.it', ['anna.rossi@studioverdi.it']), ['studioverdi', 'anna', 'rossi'])
+  assert.equal(estimateMinutes(touch('e', '2026-10-01', 'a@b.it', { kind: 'event', minutes: 45 })), 45)
+  assert.equal(estimateMinutes(touch('e', '2026-10-01', 'a@b.it', { kind: 'event', minutes: null })), 60)
+  assert.equal(estimateMinutes(touch('m', '2026-10-01', 'a@b.it', { fromOwner: true })), 10)
+})
+
+check('buildMatters stima le ore, trova le fatture del cliente, segna chi è nuovo e chi è senza incarico', () => {
+  const now = new Date('2026-10-04T12:00:00Z')
+  const touches = [
+    touch('v1', '2026-08-20', 'anna@studioverdi.it', { kind: 'event', minutes: 90 }),
+    touch('v2', '2026-09-10', 'anna@studioverdi.it', { fromOwner: true }),
+    touch('v3', '2026-09-20', 'anna@studioverdi.it', { kind: 'event', minutes: 120 }),
+    touch('v4', '2026-09-28', 'luca@studioverdi.it', { fromOwner: true }),
+    touch('n1', '2026-10-02', 'nuovo@acme.com'),
+    touch('n2', '2026-10-03', 'nuovo@acme.com'),
+  ]
+  const invoices = [{ id: 'i1', counterparty: 'STUDIOVERDI SRL', amountCents: 250000, occurredAt: '2026-09-01T00:00:00Z' }]
+  const docs = [{ id: 'd1', title: 'Lettera di incarico Acme 2026', occurredAt: '2026-10-01T00:00:00Z' }]
+  const matters = buildMatters(touches, invoices, docs, 'me@mio.it', now)
+  assert.deepEqual(matters.map((m) => m.key), ['acme.com', 'studioverdi.it'])
+  const verdi = matters[1]
+  assert.equal(verdi.hours, 3.8) // 90 + 10 + 120 + 10 minuti
+  assert.equal(verdi.unbilledHours, 2.3) // dopo la fattura del 1/9: 10 + 120 + 10
+  assert.equal(verdi.lastInvoiceCents, 250000)
+  assert.equal(verdi.engagement, null)
+  assert.equal(verdi.isNew, false)
+  const acme = matters[0]
+  assert.equal(acme.isNew, true)
+  assert.equal(acme.engagement?.id, 'd1')
+  assert.deepEqual(newContacts(matters).map((m) => m.key), ['acme.com'])
+  assert.deepEqual(withoutEngagement(matters, 3).map((m) => m.key), ['studioverdi.it'])
+  assert.deepEqual(unbilled(matters, now, 2, 30).map((m) => m.key), ['studioverdi.it'])
+  assert.deepEqual(unbilled(matters, now, 2, 60), [])
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

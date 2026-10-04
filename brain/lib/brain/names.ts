@@ -14,7 +14,7 @@
 
 export type AgentKey =
   | 'chief' | 'brief' | 'meeting' | 'contracts' | 'ledger' | 'coach' | 'postcall'
-  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'training' | 'radar'
+  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'training' | 'radar' | 'practice'
 
 export type AgentIdentity = {
   /** Il nome di persona. Va scelto dal titolare. */
@@ -40,6 +40,7 @@ export const AGENTS: Record<AgentKey, AgentIdentity> = {
   relations: { name: null, role: 'relazioni', tab: 'Relazioni' },
   training: { name: null, role: 'allenamento', tab: 'Allenamento' },
   radar: { name: null, role: 'radar di mercato', tab: 'Radar' },
+  practice: { name: null, role: 'pratiche e ore', tab: 'Studio' },
 }
 
 /** L'etichetta della scheda: il nome se c'è, altrimenti il ruolo. */
