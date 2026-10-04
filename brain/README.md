@@ -118,7 +118,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 164 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 165 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -530,6 +530,10 @@ sezioni, tutte che possono essere vuote:
   richiedono qualcosa da te.
 - **Conto** — i pagamenti senza giustificativo, presi dall'agente Amministrazione
   e quindi **calcolati senza modello**.
+- **Entro quando** — le scadenze dei prossimi sette giorni e quelle mancate da
+  poco, dall'agente Scadenze. Senza modello.
+- **Chi aspetta te** — quanti thread hanno l'ultima parola di qualcun altro e da
+  quanto, dall'agente Posta. Senza modello.
 
 Non inventa una nuova forma di garanzia: usa la stessa. Ogni riga passa da
 `verifyClaims()`, quindi è riconducibile a un documento in memoria esattamente
@@ -942,6 +946,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 164 test del nucleo, nessuna dipendenza
+npm test               # 165 test del nucleo, nessuna dipendenza
 npm run build
 ```

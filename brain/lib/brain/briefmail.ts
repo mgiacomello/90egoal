@@ -43,12 +43,25 @@ export type MailPoint = {
   age: 'nuovo' | 'in attesa' | 'fermo'
 }
 
+/** Dall'agente Posta: deterministico. */
+export type MailInbox = { waiting: number; direct: number; oldestDays: number }
+
+/** Dall'agente Scadenze: deterministico. */
+export type MailDeadline = { date: string; label: string; title: string; overdue: boolean }
+
 export type MailBrief = {
   generatedAt: string
   oggi: MailClaim[]
   novita: MailClaim[]
   puntiAperti: MailPoint[]
   conto: { missing: number; missingCents: number; resolvable: number } | null
+  posta?: MailInbox | null
+  scadenze?: MailDeadline[]
+}
+
+function dayOfIso(iso: string): string {
+  const [y, m, d] = iso.slice(0, 10).split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
 }
 
 function day(iso: string): string {
@@ -78,6 +91,10 @@ function ageDays(iso: string): number {
 export function isWorthSending(brief: MailBrief): boolean {
   if (brief.oggi.length || brief.novita.length) return true
   if (brief.conto && brief.conto.missing > 0) return true
+  // Una scadenza nei prossimi giorni, o qualcuno che aspetta da più di due
+  // giorni: sono le due cose per cui vale la pena aprire la posta.
+  if (brief.scadenze?.length) return true
+  if (brief.posta && brief.posta.waiting > 0 && brief.posta.oldestDays >= 3) return true
   return brief.puntiAperti.some((p) => p.age === 'fermo')
 }
 
@@ -89,6 +106,8 @@ function subjectOf(brief: MailBrief): string {
   const fermi = brief.puntiAperti.filter((p) => p.age === 'fermo').length
   if (fermi) parts.push(`${fermi} fermo${fermi === 1 ? '' : 'i'} da tempo`)
   if (brief.conto?.missing) parts.push(`${brief.conto.missing} senza fattura`)
+  if (brief.scadenze?.length) parts.push(`${brief.scadenze.length} scadenz${brief.scadenze.length === 1 ? 'a' : 'e'}`)
+  if (brief.posta?.waiting) parts.push(`${brief.posta.waiting} aspetta${brief.posta.waiting === 1 ? '' : 'no'} te`)
 
   return parts.length ? `Brief · ${parts.join(', ')}` : 'Brief'
 }
@@ -111,6 +130,20 @@ function renderText(brief: MailBrief, consoleUrl: string): string {
   }
   if (brief.novita.length) {
     out.push('COSA È ARRIVATO', ...brief.novita.map(claimText), '')
+  }
+  if (brief.scadenze?.length) {
+    out.push(
+      'ENTRO QUANDO',
+      ...brief.scadenze.map((s) => `- ${dayOfIso(s.date)}${s.overdue ? ' (SCADUTA)' : ''} · ${s.label} — ${s.title}`),
+      ''
+    )
+  }
+  if (brief.posta?.waiting) {
+    out.push(
+      'CHI ASPETTA TE',
+      `- ${brief.posta.waiting} thread in cui l'ultima parola non è tua${brief.posta.direct ? ` (${brief.posta.direct} scritti direttamente a te)` : ''}; il più vecchio da ${brief.posta.oldestDays} giorni.`,
+      ''
+    )
   }
   if (brief.conto?.missing) {
     out.push(
@@ -186,6 +219,17 @@ function renderHtml(brief: MailBrief, consoleUrl: string): string {
     )
     .join('')
 
+  const scadenze = (brief.scadenze ?? [])
+    .map(
+      (s) =>
+        `<div style="margin:0 0 10px;font-size:15px;line-height:1.5;color:#111827"><b style="color:${s.overdue ? '#dc2626' : '#111827'}">${esc(dayOfIso(s.date))}</b>${s.overdue ? ' <span style="font-size:11px;color:#dc2626">SCADUTA</span>' : ''} · ${esc(s.label)}<div style="font-size:12px;color:#6b7280">${esc(s.title)}</div></div>`
+    )
+    .join('')
+
+  const posta = brief.posta?.waiting
+    ? `<div style="font-size:15px;line-height:1.5;color:#111827">${brief.posta.waiting} thread in cui l'ultima parola non è tua${brief.posta.direct ? ` (${brief.posta.direct} scritti direttamente a te)` : ''}; il più vecchio da <b>${brief.posta.oldestDays} giorni</b>.<div style="font-size:12px;color:#6b7280;margin-top:6px">calcolato senza modello</div></div>`
+    : ''
+
   const conto = brief.conto?.missing
     ? `<div style="font-size:15px;line-height:1.5;color:#111827">${brief.conto.missing} pagament${brief.conto.missing === 1 ? 'o' : 'i'} senza giustificativo, per <b>€ ${formatEuro(brief.conto.missingCents)}</b>.${
         brief.conto.resolvable
@@ -201,6 +245,8 @@ function renderHtml(brief: MailBrief, consoleUrl: string): string {
 
   ${section('Oggi e domani', brief.oggi.map(claimHtml).join(''))}
   ${section('Cosa è arrivato', brief.novita.map(claimHtml).join(''))}
+  ${section('Entro quando', scadenze)}
+  ${section('Chi aspetta te', posta)}
   ${section('Conto', conto)}
   ${section('Punti aperti', points)}
 
