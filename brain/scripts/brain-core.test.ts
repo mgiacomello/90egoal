@@ -29,6 +29,8 @@ import {
 } from '../lib/brain/deadlines.ts'
 import { asksSomething, isNoise, recipientsOf, senderOf, waitingOnMe, type MailLike } from '../lib/brain/inbox.ts'
 import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slots.ts'
+import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
+import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
 import {
   attendees,
   callKey,
@@ -1440,6 +1442,80 @@ check('proposalText è formattata, non generata, e sparisce senza finestre', () 
   assert.ok(text?.includes('per la call sul contratto ti propongo 2 alternative'))
   assert.ok(text?.includes('- lunedì 5 ottobre, 10:00–11:00'))
   assert.equal(proposalText([], 'x'), null)
+})
+
+/* ------------------------------------------------------------------ *
+ * recurring: gli abbonamenti
+ * ------------------------------------------------------------------ */
+
+check('chargeKey riconduce le varianti della stessa controparte', () => {
+  assert.equal(chargeKey('AMZN Mktp IT*2K3J4 Amazon.it'), chargeKey('Amazon.it *1Z9 AMZN Mktp'))
+  assert.equal(chargeKey('Pagamento carta GOOGLE *Workspace'), 'google workspace')
+  assert.equal(cadenceOf(30), 'mensile')
+  assert.equal(cadenceOf(365), 'annuale')
+  assert.equal(cadenceOf(17), null)
+})
+
+check('findSubscriptions trova la cadenza mensile, segna aumenti e ritardi, calcola il costo annuo', () => {
+  const monthly = ['2026-05-03', '2026-06-03', '2026-07-03', '2026-08-03', '2026-09-03'].map((d, i) => ({
+    id: `g${i}`, label: 'Google Workspace', amountCents: i === 4 ? 1500 : 1200, occurredAt: `${d}T08:00:00Z`,
+  }))
+  const sparse = ['2026-02-01', '2026-05-20', '2026-09-02'].map((d, i) => ({
+    id: `s${i}`, label: 'Ferramenta Rossi', amountCents: 4000, occurredAt: `${d}T08:00:00Z`,
+  }))
+  const dead = ['2026-01-10', '2026-02-10', '2026-03-10'].map((d, i) => ({
+    id: `d${i}`, label: 'Vecchio SaaS', amountCents: 900, occurredAt: `${d}T08:00:00Z`,
+  }))
+  const subs = findSubscriptions([...monthly, ...sparse, ...dead], new Date('2026-10-04T00:00:00Z'))
+  assert.deepEqual(subs.map((s) => s.key), ['google workspace', 'saas vecchio'])
+  const g = subs[0]
+  assert.equal(g.cadence, 'mensile')
+  assert.equal(g.typicalCents, 1200)
+  assert.equal(g.increased, true)
+  assert.equal(g.nextAt, '2026-10-03')
+  assert.equal(g.yearlyCents, 14600)
+  assert.equal(g.overdue, false)
+  assert.equal(subs[1].overdue, true)
+  assert.equal(yearlyTotal(subs), 14600)
+})
+
+/* ------------------------------------------------------------------ *
+ * relations: chi si sta raffreddando
+ * ------------------------------------------------------------------ */
+
+check('relationKey raggruppa per organizzazione, ma per persona sui domini generici', () => {
+  assert.equal(relationKey('Anna@StudioVerdi.it'), 'studioverdi.it')
+  assert.equal(relationKey('mario.rossi@gmail.com'), 'mario.rossi@gmail.com')
+  assert.equal(isNoiseAddress('calendar-notification@google.com'), true)
+  assert.equal(isNoiseAddress('anna@studioverdi.it'), false)
+})
+
+check('buildRelations misura ritmo e silenzio, e segna chi si sta raffreddando', () => {
+  const touch = (id: string, day: string, who: string, kind = 'email') => ({
+    id, kind, title: 'x', occurredAt: `${day}T10:00:00Z`, participants: ['me@mio.it', who],
+  })
+  const docs = [
+    // Verdi: ogni ~7 giorni fino ad agosto, poi silenzio.
+    touch('v1', '2026-07-01', 'anna@studioverdi.it'), touch('v2', '2026-07-08', 'anna@studioverdi.it'),
+    touch('v3', '2026-07-15', 'anna@studioverdi.it'), touch('v4', '2026-07-22', 'luca@studioverdi.it'),
+    // Bianchi: sempre attivo.
+    touch('b1', '2026-09-20', 'bianchi@gmail.com'), touch('b2', '2026-09-27', 'bianchi@gmail.com', 'event'),
+    touch('b3', '2026-10-01', 'bianchi@gmail.com'),
+    // Un collega dello stesso dominio e una notifica: non sono relazioni.
+    touch('c1', '2026-10-02', 'collega@mio.it'), touch('n1', '2026-10-02', 'noreply@banca.it'),
+  ]
+  const rel = buildRelations(docs, 'ME@mio.it', new Date('2026-10-04T00:00:00Z'))
+  assert.deepEqual(rel.map((r) => r.key), ['bianchi@gmail.com', 'studioverdi.it'])
+  const verdi = rel[1]
+  assert.equal(verdi.touches, 4)
+  assert.deepEqual(verdi.emails, ['anna@studioverdi.it', 'luca@studioverdi.it'])
+  assert.equal(verdi.rhythmDays, 7)
+  assert.equal(verdi.silenceDays, 73)
+  assert.equal(verdi.cooling, true)
+  assert.equal(rel[0].cooling, false)
+  assert.deepEqual(cooling(rel).map((r) => r.key), ['studioverdi.it'])
+  assert.equal(mostActive(rel, 1)[0].key, 'studioverdi.it')
+  assert.ok(verdi.label.startsWith('Studioverdi (2 persone)'))
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

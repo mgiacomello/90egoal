@@ -10,6 +10,8 @@ import InboxPanel from '@/components/brain/InboxPanel'
 import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import PostCallPanel from '@/components/brain/PostCallPanel'
+import RecurringPanel from '@/components/brain/RecurringPanel'
+import RelationsPanel from '@/components/brain/RelationsPanel'
 import SlotsPanel from '@/components/brain/SlotsPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
@@ -32,7 +34,7 @@ type Answer = {
 
 type Tab =
   | 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall'
-  | 'deadlines' | 'inbox' | 'slots' | 'sources' | 'memory'
+  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'sources' | 'memory'
 
 /** Le schede che sono un assistente, e con che nome si presenta. */
 const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
@@ -46,6 +48,8 @@ const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
   deadlines: 'deadlines',
   inbox: 'inbox',
   slots: 'slots',
+  recurring: 'recurring',
+  relations: 'relations',
 }
 
 /**
@@ -61,12 +65,13 @@ const GROUPS: { label: string; tabs: [Tab, string][] }[] = [
       ['meeting', agentTab('meeting')],
       ['postcall', agentTab('postcall')],
       ['slots', agentTab('slots')],
+      ['relations', agentTab('relations')],
       ['ask', agentTab('chief')],
       ['contracts', agentTab('contracts')],
       ['ledger', agentTab('ledger')],
     ],
   },
-  { label: 'Persona', tabs: [['coach', agentTab('coach')]] },
+  { label: 'Persona', tabs: [['coach', agentTab('coach')], ['recurring', agentTab('recurring')]] },
   { label: 'Sistema', tabs: [['sources', 'Fonti'], ['memory', 'Memoria']] },
 ]
 
@@ -388,6 +393,12 @@ export default function BrainConsole({
 
         {/* --- APPUNTAMENTI --- */}
         {tab === 'slots' ? <SlotsPanel /> : null}
+
+        {/* --- ABBONAMENTI --- */}
+        {tab === 'recurring' ? <RecurringPanel /> : null}
+
+        {/* --- RELAZIONI --- */}
+        {tab === 'relations' ? <RelationsPanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (

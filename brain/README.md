@@ -118,7 +118,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 165 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 169 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -135,6 +135,8 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/deadlines.ts` | entro quando: date esplicite nelle frasi, scadenze e ultima disdetta calcolate da durata, decorrenza e preavviso | una scadenza "stimata" da un modello è la cosa più pericolosa da mettere davanti a un avvocato |
 | `lib/brain/inbox.ts` | in quali thread l'ultima parola non è tua, da quanti giorni, con che peso | è un fatto strutturato, non un giudizio |
 | `lib/brain/slots.ts` | le finestre libere in agenda, in ora italiana, e la mail per proporle | un'agenda si legge, non si immagina |
+| `lib/brain/recurring.ts` | gli addebiti ricorrenti: cadenza, costo annuo, aumenti, quelli che sembrano finiti | un estratto conto si legge con un calendario in mano |
+| `lib/brain/relations.ts` | chi compare nelle mail e negli incontri, con che ritmo, e chi si sta raffreddando | un CRM che si compila non si compila |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
@@ -371,9 +373,9 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Dieci agenti.** Brief, Posta, Scadenze, Incontri, Dopo la call, Appuntamenti,
-  capo di gabinetto, Contratti, Amministrazione, Coach. Sei di questi non usano
-  nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
+- **Dodici agenti.** Brief, Posta, Scadenze, Incontri, Dopo la call, Appuntamenti,
+  Relazioni, capo di gabinetto, Contratti, Amministrazione, Coach, Abbonamenti.
+  Otto di questi non usano nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
   BRAIN è in sola lettura per scelta.
 
 ---
@@ -417,6 +419,26 @@ italiana, un quarto d'ora di margine prima e dopo ogni impegno, una proposta al
 giorno con preferenza per le 10–12 e le 15–17, e la mail di proposta
 **formattata, non generata**. Non crea l'evento e non scrive a nessuno: il
 gesto resta tuo. `lib/brain/slots.ts`.
+
+---
+
+## Relazioni e Abbonamenti: il CRM e il conto che si leggono da soli
+
+Altri due agenti **senza modello**.
+
+**Relazioni** — `lib/brain/relations.ts`. Chi compare nelle mail e negli
+incontri, con che ritmo, da quanto tace. Le organizzazioni si riconoscono dal
+dominio (`studioverdi.it` è uno studio, non tre persone); le persone con una
+mail generica restano persone; i colleghi del tuo dominio e gli indirizzi di
+servizio non sono relazioni. **Si raffredda** chi aveva un ritmo e ora tace da
+almeno tre settimane e più del doppio del solito. Ogni riga porta gli ultimi
+documenti in cui la persona compare.
+
+**Abbonamenti** — `lib/brain/recurring.ts`. Stessa controparte (al netto dei
+codici di transazione), almeno tre addebiti, intervalli che tengono una cadenza
+— settimanale, mensile, trimestrale, annuale. Per ognuno: costo all'anno,
+prossimo addebito atteso, se l'ultimo è aumentato di più del 10%, se è in
+ritardo e quindi forse finito. Il totale in cima esclude quelli finiti.
 
 ---
 
@@ -946,6 +968,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 165 test del nucleo, nessuna dipendenza
+npm test               # 169 test del nucleo, nessuna dipendenza
 npm run build
 ```
