@@ -32,6 +32,8 @@ import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slot
 import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
 import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
 import { decodeEntities, parseFeed, stripHtml } from '../lib/brain/feeds.ts'
+import { createHmac } from 'node:crypto'
+import { answerToText, chunkText as chunkForPhone, compactLine, parseInbound, routeMessage, sameNumber, verifySignature } from '../lib/brain/whatsapp.ts'
 import { isBoardWorthSending, memoExcerpt, objections, renderBoardText, repliesTo, threads, type Board } from '../lib/brain/board.ts'
 import { DEFAULT_TOPICS, sameStory, scoreItem, selectSignals } from '../lib/brain/radar.ts'
 import { intensityMix, longestStreak, summarize as summarizeTraining, weekOf, weeklyLoad, type TrainingDay } from '../lib/brain/training.ts'
@@ -1676,6 +1678,61 @@ check('il board vale una mail solo con una sintesi che dice qualcosa; il testo t
   assert.ok(text.includes('→ Grace: bloccare'))
   assert.ok(text.includes('OBIEZIONI\n- Archer a Sterling: Prima la call'))
   assert.ok(!text.includes('ARCHER\n'))
+})
+
+/* ------------------------------------------------------------------ *
+ * whatsapp: la porta più stretta
+ * ------------------------------------------------------------------ */
+
+check('verifySignature accetta solo la firma HMAC giusta, e niente senza segreto', () => {
+  const body = '{"entry":[]}'
+  const good = `sha256=${createHmac('sha256', 'segreto').update(body).digest('hex')}`
+  assert.equal(verifySignature(body, good, 'segreto'), true)
+  assert.equal(verifySignature(body, good, 'altro'), false)
+  assert.equal(verifySignature(body, 'sha256=00', 'segreto'), false)
+  assert.equal(verifySignature(body, null, 'segreto'), false)
+  assert.equal(verifySignature(body, good, undefined), false)
+})
+
+check('parseInbound prende solo i messaggi di testo; sameNumber confronta le cifre', () => {
+  const payload = {
+    entry: [{ changes: [{ value: { messages: [
+      { id: 'm1', from: '393331234567', type: 'text', timestamp: '1759560000', text: { body: ' Sterling, quanto ho speso? ' } },
+      { id: 'm2', from: '393331234567', type: 'image' },
+      { id: 'm3', from: '41791112233', type: 'text', text: { body: 'ciao' } },
+    ] } }] }],
+  }
+  const msgs = parseInbound(payload)
+  assert.equal(msgs.length, 2)
+  assert.deepEqual(msgs[0], { id: 'm1', from: '393331234567', text: 'Sterling, quanto ho speso?', at: '2025-10-04T06:40:00.000Z' })
+  assert.equal(sameNumber('+39 333 1234567', msgs[0].from), true)
+  assert.equal(sameNumber('393331234567', msgs[1].from), false)
+  assert.equal(sameNumber('', ''), false)
+  assert.deepEqual(parseInbound({ boh: 1 }), [])
+})
+
+check('routeMessage: comandi, dirigente per nome, altrimenti Grace', () => {
+  assert.deepEqual(routeMessage('brief'), { kind: 'brief' })
+  assert.deepEqual(routeMessage('Board'), { kind: 'board' })
+  assert.deepEqual(routeMessage('riunisci il board'), { kind: 'convene' })
+  assert.deepEqual(routeMessage('?'), { kind: 'help' })
+  assert.deepEqual(routeMessage('Sterling, quanto ho speso in abbonamenti?'), { kind: 'ask', executive: 'sterling', question: 'quanto ho speso in abbonamenti?' })
+  assert.deepEqual(routeMessage('@archer chi devo richiamare'), { kind: 'ask', executive: 'archer', question: 'chi devo richiamare' })
+  assert.deepEqual(routeMessage('Mario, dimmi tutto'), { kind: 'ask', executive: 'grace', question: 'Mario, dimmi tutto' })
+})
+
+check('chunkText spezza sulle righe entro il limite; answerToText mette le fonti in piccolo', () => {
+  const long = Array.from({ length: 30 }, (_, i) => `riga ${i} ${'x'.repeat(200)}`).join('\n')
+  const parts = chunkForPhone(long, 1000)
+  assert.ok(parts.length >= 6)
+  assert.ok(parts.every((p) => p.length <= 1000))
+  assert.equal(parts.join('\n'), long)
+  const text = answerToText('Sterling', [{ text: 'Tre pagamenti senza fattura.', sources: [{ source: 'qonto', title: 'Pagamento', occurredAt: '2026-10-01T00:00:00Z' }] }], ['Manca il mese.'])
+  assert.ok(text.startsWith('*Sterling*\n• Tre pagamenti'))
+  assert.ok(text.includes('_Conto 01/10 · Pagamento_'))
+  assert.ok(text.includes('↳ Manca il mese.'))
+  assert.equal(compactLine('a\n\n  b   c', 5), 'a b c')
+  assert.equal(compactLine('abcdefgh', 5), 'abcd…')
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

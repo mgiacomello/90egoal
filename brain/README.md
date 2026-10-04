@@ -124,6 +124,48 @@ tavolo*; sotto, ogni dirigente con le sue scrivanie.
 
 ---
 
+## WhatsApp: parlare con il board dal telefono
+
+L'unica porta di BRAIN che **scrive** fuori dalla console, e per questo la più
+stretta. Tre regole, scritte nel codice e non in un prompt:
+
+1. ogni richiesta in entrata porta la **firma di Meta** (HMAC-SHA256 con il
+   segreto dell'app) e senza firma valida non viene nemmeno letta;
+2. si accettano messaggi **da un numero solo**, quello del titolare; chiunque
+   altro scriva al numero di BRAIN non riceve niente, e il suo testo non entra
+   in memoria;
+3. BRAIN scrive **a quel numero solo**. La promessa "nessun agente manda niente
+   a nome tuo" resta vera: l'unico destinatario sei tu.
+
+Dal telefono: una domanda qualunque la prende Grace; `Sterling, …` o
+`@archer …` la dà a quel dirigente; `brief`, `board`, `riunisci` sono comandi;
+`?` è l'aiuto. Ogni riga porta la fonte. Il brief e il board del mattino
+arrivano anche qui, con una regola di Meta da sapere: fuori dalla finestra di
+24 ore dall'ultimo tuo messaggio si può mandare solo un **template approvato**
+— una riga che ti invita a rispondere `brief` o `board`, e la risposta riapre
+la finestra per il testo intero.
+
+### Collegarlo (WhatsApp Business Platform, Cloud API)
+
+Consiglio un **numero dedicato a BRAIN**, non il tuo: così il numero da cui
+scrivi resta il tuo WhatsApp Business di sempre, e BRAIN è un contatto in
+rubrica. (La stessa SIM sull'app e sulla Platform è possibile con la
+"coesistenza" di Meta, ma complica, e qui non serve.)
+
+1. [developers.facebook.com](https://developers.facebook.com) → app di tipo
+   *Business* → aggiungi il prodotto **WhatsApp** → registra il numero.
+2. *Configurazione API* → **Webhook**: URL `https://<dominio>/api/brain/whatsapp`,
+   token di verifica = `WHATSAPP_VERIFY_TOKEN`; iscrivi il campo `messages`.
+3. *System user* con token permanente (permessi `whatsapp_business_messaging`,
+   `whatsapp_business_management`) → `WHATSAPP_TOKEN`; dalla stessa pagina
+   `WHATSAPP_PHONE_NUMBER_ID`; da *Impostazioni → Base* → `WHATSAPP_APP_SECRET`.
+4. `WHATSAPP_OWNER_NUMBER` = il **tuo** numero (cifre, con prefisso: `39333…`).
+5. Facoltativo: un template `brain_update` (categoria Utility, lingua `it`,
+   corpo `{{1}}`) → `WHATSAPP_TEMPLATE=brain_update`. Senza, il brief arriva su
+   WhatsApp solo nelle 24 ore dopo un tuo messaggio.
+
+---
+
 ## L'idea architetturale: il modello scrive, il codice verifica
 
 È la stessa spina dorsale di ONE TAP (*l'AI trascrive, il codice decide*),
@@ -161,7 +203,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 179 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 183 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -184,6 +226,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/feeds.ts` | RSS e Atom senza parser e senza dipendenze | un feed è abbastanza regolare da leggersi con le espressioni |
 | `lib/brain/radar.ts` | quali dieci articoli su cento: parole del profilo, doppioni tolti, i più recenti davanti | il modello non deve scegliere fra mille cose che non ha letto |
 | `lib/brain/board.ts` | le forme del board — memo, replica, sintesi — e le regole che le tengono oneste | un'obiezione non sparisce nella sintesi: resta scritta e firmata |
+| `lib/brain/whatsapp.ts` | firma di Meta, messaggi in entrata, chi risponde, testo spezzato per il telefono | è l'unica porta che scrive fuori: va testata riga per riga |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
@@ -927,6 +970,12 @@ RESEND_API_KEY=re_...                  # email
 BRAIN_MAIL_FROM=brain@tuodominio.it    # mittente verificato su Resend
 BRAIN_MAIL_TO=tu@esempio.it            # se diverso da BRAIN_OWNER_EMAIL
 BRAIN_WEBHOOK_URL=https://...          # in alternativa o in aggiunta: Slack, n8n, Telegram
+WHATSAPP_TOKEN=...                     # WhatsApp Cloud API: token permanente del system user
+WHATSAPP_PHONE_NUMBER_ID=...           # il numero di BRAIN
+WHATSAPP_APP_SECRET=...                # per verificare la firma di Meta su ogni webhook
+WHATSAPP_VERIFY_TOKEN=una-stringa      # per la verifica iniziale del webhook
+WHATSAPP_OWNER_NUMBER=39333...         # il TUO numero: l'unico che può scrivere e ricevere
+WHATSAPP_TEMPLATE=brain_update         # facoltativo: template approvato per scrivere fuori dalle 24 ore
 
 # 6. Le fonti (una alla volta, quando servono)
 GOOGLE_CLIENT_ID=...
@@ -1044,6 +1093,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 179 test del nucleo, nessuna dipendenza
+npm test               # 183 test del nucleo, nessuna dipendenza
 npm run build
 ```
