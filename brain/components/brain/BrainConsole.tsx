@@ -5,9 +5,12 @@ import BriefPanel from '@/components/brain/BriefPanel'
 import ContractPanel from '@/components/brain/ContractPanel'
 import ClaimCard from '@/components/brain/ClaimCard'
 import CoachPanel from '@/components/brain/CoachPanel'
+import DeadlinesPanel from '@/components/brain/DeadlinesPanel'
+import InboxPanel from '@/components/brain/InboxPanel'
 import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import PostCallPanel from '@/components/brain/PostCallPanel'
+import SlotsPanel from '@/components/brain/SlotsPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
@@ -27,7 +30,9 @@ type Answer = {
   searchNote?: string
 }
 
-type Tab = 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall' | 'sources' | 'memory'
+type Tab =
+  | 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall'
+  | 'deadlines' | 'inbox' | 'slots' | 'sources' | 'memory'
 
 /** Le schede che sono un assistente, e con che nome si presenta. */
 const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
@@ -38,7 +43,32 @@ const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
   ledger: 'ledger',
   coach: 'coach',
   postcall: 'postcall',
+  deadlines: 'deadlines',
+  inbox: 'inbox',
+  slots: 'slots',
 }
+
+/**
+ * Le schede, a gruppi. Dieci assistenti in una riga sola non si
+ * leggono; tre gruppi con un nome sì: cosa c'è oggi, il lavoro, la
+ * persona, e il sistema.
+ */
+const GROUPS: { label: string; tabs: [Tab, string][] }[] = [
+  { label: 'Oggi', tabs: [['brief', agentTab('brief')], ['inbox', agentTab('inbox')], ['deadlines', agentTab('deadlines')]] },
+  {
+    label: 'Lavoro',
+    tabs: [
+      ['meeting', agentTab('meeting')],
+      ['postcall', agentTab('postcall')],
+      ['slots', agentTab('slots')],
+      ['ask', agentTab('chief')],
+      ['contracts', agentTab('contracts')],
+      ['ledger', agentTab('ledger')],
+    ],
+  },
+  { label: 'Persona', tabs: [['coach', agentTab('coach')]] },
+  { label: 'Sistema', tabs: [['sources', 'Fonti'], ['memory', 'Memoria']] },
+]
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -216,29 +246,22 @@ export default function BrainConsole({
         </header>
 
         <nav className="brain-tabs" role="tablist">
-          {(
-            [
-              ['brief', agentTab('brief')],
-              ['meeting', agentTab('meeting')],
-              ['ask', agentTab('chief')],
-              ['contracts', agentTab('contracts')],
-              ['ledger', agentTab('ledger')],
-              ['coach', agentTab('coach')],
-              ['postcall', agentTab('postcall')],
-              ['sources', 'Fonti'],
-              ['memory', 'Memoria'],
-            ] as const
-          ).map(([key, label]) => (
-            <button
-              key={key}
-              type="button"
-              role="tab"
-              aria-selected={tab === key}
-              className="brain-tab"
-              onClick={() => openTab(key)}
-            >
-              {label}
-            </button>
+          {GROUPS.map((g) => (
+            <div key={g.label} className="brain-tab-group">
+              <span className="brain-tab-group-label">{g.label}</span>
+              {g.tabs.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  className="brain-tab"
+                  onClick={() => openTab(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
 
@@ -356,6 +379,15 @@ export default function BrainConsole({
 
         {/* --- DOPO LA CALL --- */}
         {tab === 'postcall' ? <PostCallPanel /> : null}
+
+        {/* --- SCADENZE --- */}
+        {tab === 'deadlines' ? <DeadlinesPanel /> : null}
+
+        {/* --- POSTA --- */}
+        {tab === 'inbox' ? <InboxPanel /> : null}
+
+        {/* --- APPUNTAMENTI --- */}
+        {tab === 'slots' ? <SlotsPanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (

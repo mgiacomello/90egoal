@@ -118,7 +118,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 153 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 164 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -132,6 +132,9 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/pdf.ts` | quello che è uscito dal PDF è testo vero o un guscio vuoto? | un limite dichiarato vale più di un corpo mezzo vuoto |
 | `lib/brain/reconcile.ts` | quale fattura corrisponde a quale movimento | l'aritmetica non si delega a un modello |
 | `lib/brain/transcript.ts` | riconosce le trascrizioni di Meet, le spezza in tratti citabili, formatta la mail di follow-up | una call di un'ora citata come "F1" non è una citazione |
+| `lib/brain/deadlines.ts` | entro quando: date esplicite nelle frasi, scadenze e ultima disdetta calcolate da durata, decorrenza e preavviso | una scadenza "stimata" da un modello è la cosa più pericolosa da mettere davanti a un avvocato |
+| `lib/brain/inbox.ts` | in quali thread l'ultima parola non è tua, da quanti giorni, con che peso | è un fatto strutturato, non un giudizio |
+| `lib/brain/slots.ts` | le finestre libere in agenda, in ora italiana, e la mail per proporle | un'agenda si legge, non si immagina |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
@@ -368,9 +371,52 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Sette agenti.** Brief, capo di gabinetto, Incontri, Contratti, Amministrazione,
-  Coach, Dopo la call. Manca chi fissa gli appuntamenti, perché scriverebbe in
-  agenda e manderebbe mail: BRAIN è in sola lettura per scelta.
+- **Dieci agenti.** Brief, Posta, Scadenze, Incontri, Dopo la call, Appuntamenti,
+  capo di gabinetto, Contratti, Amministrazione, Coach. Sei di questi non usano
+  nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
+  BRAIN è in sola lettura per scelta.
+
+---
+
+## Gli agenti del giorno: Posta, Scadenze, Appuntamenti
+
+Tre agenti **senza modello**, per la stessa ragione dell'Amministrazione: sono
+fatti, non giudizi, e un fatto si calcola.
+
+### Posta — chi aspetta te
+
+Non è un riassunto della casella. È una lista sola: i thread in cui **l'ultimo
+a scrivere non sei tu**, da quanti giorni, ordinati per peso — prima chi ti ha
+scritto direttamente con una domanda, poi chi ti ha messo in copia, dal più
+vecchio. Il rumore (notifiche, promozioni, `noreply@`) si toglie con regole,
+prima. `lib/brain/inbox.ts`.
+
+Il modello entra solo se chiedi una **bozza** per un thread: paragrafo per
+paragrafo, ogni paragrafo cita i messaggi del thread, e un impegno che non sta
+in nessuna fonte non può comparire — al suo posto c'è `[uno spazio]` da
+riempire a mano. Saluto e firma non li scrive: li metti tu. La mail non parte.
+
+### Scadenze — entro quando
+
+Due famiglie. **Esplicite**: una frase con una data e una parola che la rende un
+termine ("entro il", "scade il", "disdetta", "non oltre"); la frase è la prova,
+e sta sotto la data. **Calcolate**: un contratto con durata, decorrenza e
+preavviso → scadenza = decorrenza + durata, ultima disdetta = scadenza −
+preavviso, con il calcolo scritto per esteso. Senza una decorrenza trovata nel
+testo non esce nessuna data: meglio niente che una data inventata.
+`lib/brain/deadlines.ts`.
+
+Il giorno esatto — lo stesso o quello prima — lo decide il contratto, e per
+questo la frase è sempre accanto al numero. Le scadenze mancate da pochi giorni
+restano in cima, in rosso: sono la riga più importante della lista.
+
+### Appuntamenti — tre finestre, non un evento
+
+La metà onesta della "GiorgiaAI" del post. Giorni lavorativi, 9–18 ora
+italiana, un quarto d'ora di margine prima e dopo ogni impegno, una proposta al
+giorno con preferenza per le 10–12 e le 15–17, e la mail di proposta
+**formattata, non generata**. Non crea l'evento e non scrive a nessuno: il
+gesto resta tuo. `lib/brain/slots.ts`.
 
 ---
 
@@ -896,6 +942,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 153 test del nucleo, nessuna dipendenza
+npm test               # 164 test del nucleo, nessuna dipendenza
 npm run build
 ```

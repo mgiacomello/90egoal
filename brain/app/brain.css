@@ -70,9 +70,31 @@
 
 .brain-tabs {
   display: flex;
-  gap: 0.25rem;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
   margin: 1.25rem 0;
   border-bottom: 1px solid var(--brain-line);
+}
+
+/* Un gruppo di schede: l'etichetta piccola sopra, le schede sotto.
+   Dieci assistenti in fila non si leggono; quattro gruppi sì. */
+.brain-tab-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.125rem;
+  position: relative;
+  padding-top: 0.875rem;
+}
+
+.brain-tab-group-label {
+  position: absolute;
+  top: 0;
+  left: 0.875rem;
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--brain-muted);
+  opacity: 0.8;
 }
 
 .brain-tab {
