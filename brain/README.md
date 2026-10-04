@@ -118,7 +118,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 169 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 176 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -137,6 +137,9 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/slots.ts` | le finestre libere in agenda, in ora italiana, e la mail per proporle | un'agenda si legge, non si immagina |
 | `lib/brain/recurring.ts` | gli addebiti ricorrenti: cadenza, costo annuo, aumenti, quelli che sembrano finiti | un estratto conto si legge con un calendario in mano |
 | `lib/brain/relations.ts` | chi compare nelle mail e negli incontri, con che ritmo, e chi si sta raffreddando | un CRM che si compila non si compila |
+| `lib/brain/training.ts` | sto facendo sport bene: frequenza, mix di intensità, giorni di fila, recupero, HRV e frequenza a riposo, con un verdetto e le sue ragioni | il verdetto è calcolato, e per questo sta sopra alle frasi |
+| `lib/brain/feeds.ts` | RSS e Atom senza parser e senza dipendenze | un feed è abbastanza regolare da leggersi con le espressioni |
+| `lib/brain/radar.ts` | quali dieci articoli su cento: parole del profilo, doppioni tolti, i più recenti davanti | il modello non deve scegliere fra mille cose che non ha letto |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
@@ -373,9 +376,9 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Dodici agenti.** Brief, Posta, Scadenze, Incontri, Dopo la call, Appuntamenti,
-  Relazioni, capo di gabinetto, Contratti, Amministrazione, Coach, Abbonamenti.
-  Otto di questi non usano nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
+- **Quattordici agenti.** Brief, Posta, Scadenze, Incontri, Dopo la call,
+  Appuntamenti, Relazioni, capo di gabinetto, Contratti, Amministrazione, Radar,
+  Coach, Allenamento, Abbonamenti. Otto di questi non usano nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
   BRAIN è in sola lettura per scelta.
 
 ---
@@ -439,6 +442,32 @@ codici di transazione), almeno tre addebiti, intervalli che tengono una cadenza
 — settimanale, mensile, trimestrale, annuale. Per ognuno: costo all'anno,
 prossimo addebito atteso, se l'ultimo è aumentato di più del 10%, se è in
 ritardo e quindi forse finito. Il totale in cima esclude quelli finiti.
+
+---
+
+## Allenamento e Radar: l'anello e il mondo
+
+**Allenamento** — `lib/brain/training.ts`. "Sto facendo sport bene?" ha una
+risposta che non è un parere: sedute a settimana, mix facili/moderate/dure,
+giorni di fila, prontezza il giorno dopo una seduta dura contro gli altri
+giorni, sonno la notte dopo, HRV e frequenza a riposo in tendenza. Le soglie
+sono quelle di buon senso di chi allena amatori (tre sedute, non più di quattro
+giorni di fila, parte dura fra il 10 e il 35%, prontezza che non crolla), e il
+**verdetto con le sue ragioni è calcolato**: sta sopra alle frasi del modello,
+che legge il riepilogo e le singole sedute e dice cosa cambiare la settimana
+prossima. Il connettore Oura ora legge anche gli allenamenti (`/workout`) e i
+periodi di sonno (`/sleep`: HRV e frequenza a riposo); ogni allenamento è anche
+un documento suo, citabile. Non è un parere medico, e lo dice in cima.
+
+**Radar** — `lib/brain/feeds.ts`, `lib/brain/radar.ts`, connettore `web`.
+Notizie e prodotti che possono spostare il mercato del titolare, con analisi e
+prospettive. La fonte sono feed RSS/Atom letti ogni notte senza chiavi
+(`BRAIN_FEEDS`, o una lista predefinita per legal tech e IA); la selezione la
+fa il codice sul profilo (`BRAIN_RADAR_TOPICS`, o il predefinito), doppioni
+tolti; il modello legge solo quelli e scrive **segnali** (fatto, impatto,
+orizzonte), **prospettive** (che cominciano tutte con "Interpretazione:") e
+**per te** (mosse concrete). Ogni riga cita l'articolo. Il verificatore
+controlla i numeri come sempre; un'interpretazione resta dichiarata come tale.
 
 ---
 
@@ -861,6 +890,8 @@ BRAIN_APP_URL=https://tuodominio.it   # il dominio pubblico: serve a Google e al
 QONTO_LOGIN=...
 QONTO_SECRET_KEY=...
 OURA_TOKEN=...
+BRAIN_FEEDS=https://…/feed,https://…/rss     # facoltativo: i feed del Radar (c'è una lista predefinita)
+BRAIN_RADAR_TOPICS=AI Act,GDPR,legal tech     # facoltativo: le parole del profilo per il Radar
 ```
 
 Opzionale: `BRAIN_GMAIL_QUERY` sovrascrive il filtro di Gmail.
@@ -968,6 +999,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 169 test del nucleo, nessuna dipendenza
+npm test               # 176 test del nucleo, nessuna dipendenza
 npm run build
 ```

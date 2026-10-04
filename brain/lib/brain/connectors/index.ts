@@ -4,6 +4,7 @@ import { calendarConnector } from './gcal'
 import { driveConnector } from './gdrive'
 import { gmailConnector } from './gmail'
 import { ouraConnector } from './oura'
+import { rssConnector } from './rss'
 import { qontoConnector } from './qonto'
 import type { Connector, ConnectorStatus } from './types'
 
@@ -21,6 +22,7 @@ export const CONNECTORS: Connector[] = [
   driveConnector,
   qontoConnector,
   ouraConnector,
+  rssConnector,
 ]
 
 export function connectorByKey(key: string): Connector | undefined {
