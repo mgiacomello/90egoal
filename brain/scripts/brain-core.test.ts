@@ -31,6 +31,9 @@ import { asksSomething, isNoise, recipientsOf, senderOf, waitingOnMe, type MailL
 import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slots.ts'
 import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
 import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
+import { decodeEntities, parseFeed, stripHtml } from '../lib/brain/feeds.ts'
+import { DEFAULT_TOPICS, sameStory, scoreItem, selectSignals } from '../lib/brain/radar.ts'
+import { intensityMix, longestStreak, summarize as summarizeTraining, weekOf, weeklyLoad, type TrainingDay } from '../lib/brain/training.ts'
 import {
   attendees,
   callKey,
@@ -1516,6 +1519,118 @@ check('buildRelations misura ritmo e silenzio, e segna chi si sta raffreddando',
   assert.deepEqual(cooling(rel).map((r) => r.key), ['studioverdi.it'])
   assert.equal(mostActive(rel, 1)[0].key, 'studioverdi.it')
   assert.ok(verdi.label.startsWith('Studioverdi (2 persone)'))
+})
+
+/* ------------------------------------------------------------------ *
+ * feeds: RSS e Atom senza parser
+ * ------------------------------------------------------------------ */
+
+check('parseFeed legge un RSS 2.0 con CDATA, entità e HTML nella descrizione', () => {
+  const xml = `<?xml version="1.0"?><rss version="2.0"><channel><title>T</title>
+<item><title><![CDATA[OpenAI lancia &quot;Agents&quot;]]></title><link>https://x.it/a</link><guid>a-1</guid>
+<pubDate>Sat, 03 Oct 2026 10:00:00 GMT</pubDate><description>&lt;p&gt;Un &amp;amp; due&lt;/p&gt;</description></item>
+<item><title>Senza data</title><link>https://x.it/b</link></item></channel></rss>`
+  const items = parseFeed(xml)
+  assert.equal(items.length, 2)
+  assert.equal(items[0].title, 'OpenAI lancia "Agents"')
+  assert.equal(items[0].id, 'a-1')
+  assert.equal(items[0].published, '2026-10-03T10:00:00.000Z')
+  assert.equal(items[0].summary, 'Un & due')
+  assert.equal(items[1].published, null)
+  assert.equal(items[1].id, 'https://x.it/b')
+})
+
+check('parseFeed legge un Atom con link alternate e content', () => {
+  const xml = `<feed xmlns="http://www.w3.org/2005/Atom"><title>F</title>
+<entry><title>Nuovo modello</title><id>tag:1</id><updated>2026-10-02T08:00:00Z</updated>
+<link rel="self" href="https://f.it/self"/><link rel="alternate" href="https://f.it/post?a=1&amp;b=2"/>
+<content type="html">&lt;b&gt;Ciao&lt;/b&gt; mondo</content></entry></feed>`
+  const [item] = parseFeed(xml)
+  assert.equal(item.link, 'https://f.it/post?a=1&b=2')
+  assert.equal(item.summary, 'Ciao mondo')
+  assert.equal(item.published, '2026-10-02T08:00:00.000Z')
+  assert.equal(stripHtml('<p>a</p><script>x</script>b &#8217;c&#x27;'), 'a\nb ’c\'')
+  assert.equal(decodeEntities('&amp;&lt;&gt;'), '&<>')
+})
+
+/* ------------------------------------------------------------------ *
+ * radar: quali dieci
+ * ------------------------------------------------------------------ */
+
+check('scoreItem pesa il titolo doppio e le sigle solo come parola intera', () => {
+  const a = scoreItem({ id: '1', title: 'AI Act: la Commissione pubblica le linee guida', summary: 'privacy e compliance', occurredAt: '2026-10-01T00:00:00Z' }, DEFAULT_TOPICS)
+  assert.ok(a.score >= 6, String(a.score))
+  assert.ok(a.hits.includes('AI Act'))
+  const b = scoreItem({ id: '2', title: 'Raising kids in Paris', summary: 'daily life', occurredAt: '2026-10-01T00:00:00Z' }, DEFAULT_TOPICS)
+  assert.equal(b.score, 0)
+  assert.equal(sameStory('OpenAI launches Agents SDK for enterprises', 'OpenAI launches new Agents SDK'), true)
+  assert.equal(sameStory('OpenAI launches Agents SDK', 'Apple event in October'), false)
+})
+
+check('selectSignals toglie i doppioni e ordina per punteggio, poi per data', () => {
+  const items = [
+    { id: '1', title: 'OpenAI launches Agents SDK for enterprises', summary: '', occurredAt: '2026-10-01T00:00:00Z' },
+    { id: '2', title: 'OpenAI launches new Agents SDK', summary: '', occurredAt: '2026-10-02T00:00:00Z' },
+    { id: '3', title: 'EU AI Act guidelines on GDPR compliance', summary: 'privacy', occurredAt: '2026-09-30T00:00:00Z' },
+    { id: '4', title: 'Weekend recipes', summary: 'pasta', occurredAt: '2026-10-03T00:00:00Z' },
+  ]
+  const out = selectSignals(items, DEFAULT_TOPICS, 10)
+  assert.deepEqual(out.map((s) => s.id), ['3', '2'])
+})
+
+/* ------------------------------------------------------------------ *
+ * training: sto facendo sport bene?
+ * ------------------------------------------------------------------ */
+
+function tday(day: string, over: Partial<TrainingDay> = {}): TrainingDay {
+  return { day, workouts: [], steps: 8000, highMin: 0, mediumMin: 0, readiness: 80, sleep: 78, hrv: 40, restingHr: 52, ...over }
+}
+const run = (day: string, intensity: 'easy' | 'moderate' | 'hard', minutes = 45) => ({ day, activity: 'corsa', intensity, minutes, calories: 400 })
+
+check('weekOf e weeklyLoad: il lunedì della settimana, sedute e minuti', () => {
+  assert.equal(weekOf('2026-10-04'), '2026-09-28')
+  assert.equal(weekOf('2026-09-28'), '2026-09-28')
+  const days = [tday('2026-09-28', { workouts: [run('2026-09-28', 'easy')] }), tday('2026-09-30', { workouts: [run('2026-09-30', 'hard', 50)] }), tday('2026-10-06', { workouts: [run('2026-10-06', 'easy')] })]
+  const weeks = weeklyLoad(days)
+  assert.equal(weeks.length, 2)
+  assert.deepEqual([weeks[0].sessions, weeks[0].minutes, weeks[0].hard], [2, 95, 1])
+  assert.equal(longestStreak(days), 1)
+  assert.deepEqual(intensityMix(days), { easy: 2, moderate: 0, hard: 1, total: 3 })
+})
+
+check('summarize: quattro settimane ben fatte danno un verdetto buono', () => {
+  const days: TrainingDay[] = []
+  // Dal 7 settembre al 4 ottobre: lun facile, mer dura, ven facile, ogni settimana.
+  for (let i = 0; i < 28; i += 1) {
+    const d = new Date(Date.UTC(2026, 8, 7 + i)).toISOString().slice(0, 10)
+    const dow = (new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7
+    const w = dow === 0 ? [run(d, 'easy')] : dow === 2 ? [run(d, 'hard')] : dow === 4 ? [run(d, 'easy')] : []
+    days.push(tday(d, { workouts: w, readiness: dow === 3 ? 78 : 81, hrv: 40 + Math.floor(i / 7) * 2 }))
+  }
+  const s = summarizeTraining(days, '2026-10-05')
+  assert.equal(s.sessions, 12)
+  assert.equal(s.perWeek, 3)
+  assert.equal(s.longestStreak, 1)
+  assert.equal(s.mix.hard, 4)
+  assert.equal(s.verdict.ok, true, s.verdict.warnings.join('; '))
+  assert.equal(s.hrvTrend, 'in miglioramento')
+  assert.ok(s.verdict.good.some((g) => g.includes('3 sedute a settimana')))
+})
+
+check('summarize: sei giorni di fila, tutto duro e prontezza che crolla danno gli avvisi giusti', () => {
+  const days: TrainingDay[] = []
+  for (let i = 0; i < 14; i += 1) {
+    const d = new Date(Date.UTC(2026, 8, 21 + i)).toISOString().slice(0, 10)
+    const trained = i < 6 || (i >= 8 && i < 12)
+    days.push(tday(d, { workouts: trained ? [run(d, 'hard', 60)] : [], readiness: i > 0 && (i <= 6 || (i >= 9 && i <= 12)) ? 62 : 82, hrv: 50 - i * 2, restingHr: 48 + i }))
+  }
+  const s = summarizeTraining(days, '2026-10-05')
+  assert.equal(s.verdict.ok, false)
+  assert.ok(s.verdict.warnings.some((w) => w.includes('di fila')), s.verdict.warnings.join('; '))
+  assert.ok(s.verdict.warnings.some((w) => w.includes('sedute dure: troppe')))
+  assert.ok(s.verdict.warnings.some((w) => w.includes('recupero non basta')))
+  assert.ok(s.verdict.warnings.some((w) => w.includes('carico accumulato')))
+  assert.equal(s.restingHrTrend, 'in peggioramento')
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

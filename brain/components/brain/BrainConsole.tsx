@@ -10,9 +10,11 @@ import InboxPanel from '@/components/brain/InboxPanel'
 import MeetingPanel from '@/components/brain/MeetingPanel'
 import LedgerPanel from '@/components/brain/LedgerPanel'
 import PostCallPanel from '@/components/brain/PostCallPanel'
+import RadarPanel from '@/components/brain/RadarPanel'
 import RecurringPanel from '@/components/brain/RecurringPanel'
 import RelationsPanel from '@/components/brain/RelationsPanel'
 import SlotsPanel from '@/components/brain/SlotsPanel'
+import TrainingPanel from '@/components/brain/TrainingPanel'
 import type { BriefOpenPoint } from '@/lib/brain/agents/brief'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { MemoryStats } from '@/lib/brain/memory'
@@ -34,7 +36,7 @@ type Answer = {
 
 type Tab =
   | 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall'
-  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'sources' | 'memory'
+  | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'training' | 'radar' | 'sources' | 'memory'
 
 /** Le schede che sono un assistente, e con che nome si presenta. */
 const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
@@ -50,6 +52,8 @@ const AGENT_OF: Partial<Record<Tab, AgentKey>> = {
   slots: 'slots',
   recurring: 'recurring',
   relations: 'relations',
+  training: 'training',
+  radar: 'radar',
 }
 
 /**
@@ -71,7 +75,8 @@ const GROUPS: { label: string; tabs: [Tab, string][] }[] = [
       ['ledger', agentTab('ledger')],
     ],
   },
-  { label: 'Persona', tabs: [['coach', agentTab('coach')], ['recurring', agentTab('recurring')]] },
+  { label: 'Mondo', tabs: [['radar', agentTab('radar')]] },
+  { label: 'Persona', tabs: [['coach', agentTab('coach')], ['training', agentTab('training')], ['recurring', agentTab('recurring')]] },
   { label: 'Sistema', tabs: [['sources', 'Fonti'], ['memory', 'Memoria']] },
 ]
 
@@ -399,6 +404,12 @@ export default function BrainConsole({
 
         {/* --- RELAZIONI --- */}
         {tab === 'relations' ? <RelationsPanel /> : null}
+
+        {/* --- ALLENAMENTO --- */}
+        {tab === 'training' ? <TrainingPanel /> : null}
+
+        {/* --- RADAR --- */}
+        {tab === 'radar' ? <RadarPanel /> : null}
 
         {/* --- FONTI --- */}
         {tab === 'sources' ? (

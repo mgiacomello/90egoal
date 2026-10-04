@@ -6,10 +6,10 @@
  * questa forma e non sa nulla di Gmail, di Drive o di Qonto.
  */
 
-export const SOURCES = ['gmail', 'gcal', 'gdrive', 'qonto', 'oura', 'manual', 'calc'] as const
+export const SOURCES = ['gmail', 'gcal', 'gdrive', 'qonto', 'oura', 'web', 'manual', 'calc'] as const
 export type SourceKey = (typeof SOURCES)[number]
 
-export const KINDS = ['email', 'event', 'file', 'transaction', 'health', 'note', 'correction'] as const
+export const KINDS = ['email', 'event', 'file', 'transaction', 'health', 'article', 'note', 'correction'] as const
 export type DocKind = (typeof KINDS)[number]
 
 /** Il canale, in italiano, per come va mostrato accanto a una fonte. */
@@ -19,6 +19,7 @@ export const CHANNEL_LABEL: Record<SourceKey, string> = {
   gdrive: 'Drive',
   qonto: 'Conto',
   oura: 'Anello',
+  web: 'Web',
   manual: 'Nota',
   calc: 'Calcolo',
 }

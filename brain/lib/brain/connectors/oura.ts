@@ -32,6 +32,45 @@ type DailyRow = {
   steps?: number
   active_calories?: number
   total_calories?: number
+  high_activity_time?: number
+  medium_activity_time?: number
+}
+
+type SleepPeriod = {
+  id?: string
+  day?: string
+  type?: string
+  average_hrv?: number | null
+  lowest_heart_rate?: number | null
+  total_sleep_duration?: number
+}
+
+type WorkoutRow = {
+  id?: string
+  day?: string
+  activity?: string
+  intensity?: 'easy' | 'moderate' | 'hard'
+  calories?: number | null
+  distance?: number | null
+  label?: string | null
+  start_datetime?: string
+  end_datetime?: string
+}
+
+const ACTIVITY_LABEL: Record<string, string> = {
+  running: 'corsa', walking: 'camminata', cycling: 'bici', swimming: 'nuoto', strength_training: 'pesi',
+  yoga: 'yoga', pilates: 'pilates', hiit: 'HIIT', rowing: 'canottaggio', hiking: 'escursione', tennis: 'tennis',
+  padel: 'padel', football: 'calcio', soccer: 'calcio', basketball: 'basket', skiing: 'sci', elliptical: 'ellittica',
+  crossfit: 'crossfit', boxing: 'boxe', martial_arts: 'arti marziali', climbing: 'arrampicata', golf: 'golf',
+}
+
+const INTENSITY_LABEL: Record<string, string> = { easy: 'facile', moderate: 'moderata', hard: 'dura' }
+
+function minutesBetween(start?: string, end?: string): number {
+  const a = Date.parse(start ?? '')
+  const b = Date.parse(end ?? '')
+  if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) return 0
+  return Math.round((b - a) / 60_000)
 }
 
 function token(): string {
@@ -128,22 +167,46 @@ export const ouraConnector: Connector = {
     const start = new Date(Math.max(since.getTime(), Date.now() - maxDays * 86_400_000))
     const params = `?start_date=${isoDay(start)}&end_date=${isoDay(new Date())}`
 
-    const [sleep, readiness, activity] = await Promise.all([
+    const [sleep, readiness, activity, periods, workouts] = await Promise.all([
       ouraJson<{ data?: DailyRow[] }>(`/daily_sleep${params}`),
       ouraJson<{ data?: DailyRow[] }>(`/daily_readiness${params}`),
       ouraJson<{ data?: DailyRow[] }>(`/daily_activity${params}`),
+      // HRV e frequenza a riposo stanno nei periodi di sonno, non nel punteggio.
+      ouraJson<{ data?: SleepPeriod[] }>(`/sleep${params}`).catch(() => ({ data: [] as SleepPeriod[] })),
+      ouraJson<{ data?: WorkoutRow[] }>(`/workout${params}`).catch(() => ({ data: [] as WorkoutRow[] })),
     ])
 
     const sleepByDay = byDay(sleep.data ?? [])
     const readinessByDay = byDay(readiness.data ?? [])
     const activityByDay = byDay(activity.data ?? [])
 
+    // Il periodo di sonno principale di ogni giorno: il più lungo.
+    const periodByDay = new Map<string, SleepPeriod>()
+    for (const p of periods.data ?? []) {
+      if (!p.day) continue
+      const current = periodByDay.get(p.day)
+      if (!current || (p.total_sleep_duration ?? 0) > (current.total_sleep_duration ?? 0)) periodByDay.set(p.day, p)
+    }
+    const workoutsByDay = new Map<string, WorkoutRow[]>()
+    for (const w of workouts.data ?? []) {
+      if (!w.day) continue
+      workoutsByDay.set(w.day, [...(workoutsByDay.get(w.day) ?? []), w])
+    }
+
     const days = [...new Set([...sleepByDay.keys(), ...readinessByDay.keys(), ...activityByDay.keys()])].sort()
 
-    return days.map((day) => {
+    const dayDocs = days.map((day) => {
       const s = sleepByDay.get(day)
       const r = readinessByDay.get(day)
       const a = activityByDay.get(day)
+      const p = periodByDay.get(day)
+      const ws = (workoutsByDay.get(day) ?? []).map((w) => ({
+        activity: ACTIVITY_LABEL[w.activity ?? ''] ?? (w.activity ?? 'attività'),
+        intensity: w.intensity ?? null,
+        minutes: minutesBetween(w.start_datetime, w.end_datetime),
+        calories: typeof w.calories === 'number' ? Math.round(w.calories) : null,
+        start: w.start_datetime ?? null,
+      }))
 
       const lines = [
         s?.score != null ? `Sonno: ${s.score}/100${contributors(s)}` : 'Sonno: nessun dato',
@@ -155,6 +218,15 @@ export const ouraConnector: Connector = {
         a?.score != null ? `Attività: ${a.score}/100${contributors(a)}` : '',
         a?.steps != null ? `Passi: ${a.steps.toLocaleString('it-IT')}` : '',
         a?.active_calories != null ? `Calorie attive: ${a.active_calories}` : '',
+        a?.high_activity_time != null || a?.medium_activity_time != null
+          ? `Attività alta: ${Math.round((a?.high_activity_time ?? 0) / 60)} min, media: ${Math.round((a?.medium_activity_time ?? 0) / 60)} min`
+          : '',
+        p?.average_hrv != null ? `HRV media notturna: ${Math.round(p.average_hrv)} ms` : '',
+        p?.lowest_heart_rate != null ? `Frequenza a riposo: ${p.lowest_heart_rate} bpm` : '',
+        ...ws.map(
+          (w) =>
+            `Allenamento: ${w.activity}${w.intensity ? `, ${INTENSITY_LABEL[w.intensity]}` : ''}${w.minutes ? `, ${w.minutes} min` : ''}${w.calories ? `, ${w.calories} kcal` : ''}`
+        ),
       ].filter(Boolean)
 
       const summary = [
@@ -176,8 +248,47 @@ export const ouraConnector: Connector = {
         occurredAt: `${day}T12:00:00.000Z`,
         url: null,
         participants: [],
-        metadata: { sleepScore: s?.score, readinessScore: r?.score, activityScore: a?.score },
+        metadata: {
+          sleepScore: s?.score,
+          readinessScore: r?.score,
+          activityScore: a?.score,
+          steps: a?.steps ?? null,
+          highMin: a?.high_activity_time != null ? Math.round(a.high_activity_time / 60) : null,
+          mediumMin: a?.medium_activity_time != null ? Math.round(a.medium_activity_time / 60) : null,
+          hrv: p?.average_hrv != null ? Math.round(p.average_hrv) : null,
+          restingHr: p?.lowest_heart_rate ?? null,
+          workouts: ws,
+        },
       } satisfies BrainDocument
     })
+
+    // Ogni allenamento è anche un documento suo: si cita da solo.
+    const workoutDocs = (workouts.data ?? [])
+      .filter((w) => w.id && w.day)
+      .map((w): BrainDocument => {
+        const activity = ACTIVITY_LABEL[w.activity ?? ''] ?? (w.activity ?? 'attività')
+        const minutes = minutesBetween(w.start_datetime, w.end_datetime)
+        const lines = [
+          `Attività: ${activity}`,
+          w.intensity ? `Intensità: ${INTENSITY_LABEL[w.intensity]}` : '',
+          minutes ? `Durata: ${minutes} min` : '',
+          typeof w.calories === 'number' ? `Calorie: ${Math.round(w.calories)} kcal` : '',
+          typeof w.distance === 'number' && w.distance > 0 ? `Distanza: ${(w.distance / 1000).toFixed(1).replace('.', ',')} km` : '',
+          w.label ? `Etichetta: ${w.label}` : '',
+        ].filter(Boolean)
+        return {
+          source: 'oura',
+          kind: 'health',
+          externalId: `workout:${w.id}`,
+          title: `Allenamento ${w.day} — ${activity}${minutes ? ` ${minutes} min` : ''}${w.intensity ? `, ${INTENSITY_LABEL[w.intensity]}` : ''}`,
+          body: clip(lines.join('\n')),
+          occurredAt: w.start_datetime ?? `${w.day}T12:00:00.000Z`,
+          url: null,
+          participants: [],
+          metadata: { workout: true, day: w.day, activity, intensity: w.intensity ?? null, minutes, calories: w.calories ?? null },
+        }
+      })
+
+    return [...dayDocs, ...workoutDocs]
   },
 }
