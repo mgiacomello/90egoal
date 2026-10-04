@@ -2,9 +2,11 @@ import { after } from 'next/server'
 import { BOARD_AGENT, runBoard } from '@/lib/brain/agents/board'
 import { BRIEF_AGENT, readOpenPoints } from '@/lib/brain/agents/brief'
 import { askChiefOfStaff } from '@/lib/brain/agents/chief-of-staff'
+import { draftReply, reviewInbox } from '@/lib/brain/agents/inbox'
+import { prepareMeeting } from '@/lib/brain/agents/meeting'
 import { renderBriefEmail, type MailBrief } from '@/lib/brain/briefmail'
 import { EXECUTIVES, type ExecutiveKey } from '@/lib/brain/executives'
-import { lastRun, logRun } from '@/lib/brain/memory'
+import { lastRun, logRun, upcomingEvents } from '@/lib/brain/memory'
 import { sendWhatsApp } from '@/lib/brain/notify'
 import { HELP, answerToText, chunkText, parseInbound, routeMessage, sameNumber, verifySignature } from '@/lib/brain/whatsapp'
 
@@ -69,6 +71,23 @@ async function handle(text: string, owner: string): Promise<string> {
   if (route.kind === 'help') return HELP
   if (route.kind === 'brief') return lastBriefText()
   if (route.kind === 'board') return lastBoardText()
+  if (route.kind === 'agenda') {
+    const [next] = await upcomingEvents(2, 1)
+    if (!next) return 'Nessun incontro nei prossimi due giorni.'
+    const brief = await prepareMeeting({ eventId: next.id })
+    const claims = [...brief.sospesi, ...brief.punti, ...brief.daSapere].map((c) => ({ text: c.text, unverified: c.unverified, sources: c.sources }))
+    const head = `${brief.title}${brief.people.length ? ` · con ${brief.people.join(', ')}` : ''}`
+    const points = brief.openPoints.length ? [`Punti aperti con loro: ${brief.openPoints.map((p) => p.text).join('; ')}`] : []
+    return `${answerToText('Grace', claims, points)}\n_${head}_`
+  }
+  if (route.kind === 'draft') {
+    const inbox = await reviewInbox(owner, 0)
+    const wanted = route.title.toLowerCase()
+    const thread = inbox.rows.find((r) => r.title.toLowerCase().includes(wanted))
+    if (!thread) return `Non trovo una mail in attesa con oggetto "${route.title}".`
+    const draft = await draftReply(thread.documentId, owner)
+    return `*Bozza per ${draft.to}* · ${draft.subject}\n\n${draft.text}\n\n_Non parte da qui: copiala e rileggila._`
+  }
   if (route.kind === 'convene') {
     const board = await runBoard(owner)
     return `*Il board si è riunito*\n\n${board.text || 'Niente da decidere oggi.'}`

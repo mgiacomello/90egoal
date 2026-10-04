@@ -407,6 +407,28 @@ export async function lastRun(agent: string): Promise<RunRecord | null> {
   }
 }
 
+/** Le esecuzioni recenti di un agente: servono alle iniziative per non ripetersi. */
+export async function recentRuns(agent: string, sinceIso: string, limit = 200): Promise<RunRecord[]> {
+  const db = brainDb()
+  const { data, error } = await db
+    .from('brain_runs')
+    .select('*')
+    .eq('agent', agent)
+    .gte('created_at', sinceIso)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  if (error) throw new BrainError(`Lettura registro fallita: ${error.message}`)
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    agent: String(row.agent),
+    question: String(row.question ?? ''),
+    answer: row.answer,
+    model: (row.model as string | null) ?? null,
+    hits: Number(row.hits ?? 0),
+    latencyMs: (row.latency_ms as number | null) ?? null,
+    createdAt: String(row.created_at),
+  }))
+}
+
 /* --- punti aperti --- */
 
 export type OpenPoint = {

@@ -70,6 +70,8 @@ export type Route =
   | { kind: 'board' }
   | { kind: 'convene' }
   | { kind: 'brief' }
+  | { kind: 'agenda' }
+  | { kind: 'draft'; title: string }
   | { kind: 'help' }
 
 const EXEC_NAMES = ['grace', 'sterling', 'archer', 'harper', 'nova']
@@ -86,6 +88,9 @@ export function routeMessage(text: string): Route {
   if (/^brief$/.test(low)) return { kind: 'brief' }
   if (/^(board|tavolo)$/.test(low)) return { kind: 'board' }
   if (/^(riunisci|riunione|convoca)( il board)?$/.test(low)) return { kind: 'convene' }
+  if (/^agenda$/.test(low)) return { kind: 'agenda' }
+  const draft = t.match(/^bozza[\s:]+(.+)$/i)
+  if (draft) return { kind: 'draft', title: draft[1].trim() }
 
   const m = t.match(/^@?([A-Za-z]+)[\s,:–—-]+([\s\S]+)$/)
   if (m && EXEC_NAMES.includes(m[1].toLowerCase()) && m[2].trim()) {
@@ -152,5 +157,6 @@ export const HELP = [
   '• Scrivi una domanda: risponde Grace.',
   '• "Sterling, …" o "@archer …": risponde quel dirigente (Grace, Sterling, Archer, Harper, Nova).',
   '• "brief": il brief di stamattina. "board": l\'ultimo board. "riunisci": riunisce il board adesso.',
+  '• "agenda": l\'agenda del prossimo incontro. "bozza <oggetto>": una bozza di risposta a quella mail.',
   'Ogni riga porta la sua fonte. Niente parte a nome tuo.',
 ].join('\n')
