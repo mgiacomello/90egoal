@@ -20,6 +20,16 @@ import {
   type HealthDay,
 } from '../lib/brain/health.ts'
 import {
+  addMonths,
+  contractDeadlines,
+  explicitDeadlines,
+  findDates,
+  selectDeadlines,
+  urgency,
+} from '../lib/brain/deadlines.ts'
+import { asksSomething, isNoise, recipientsOf, senderOf, waitingOnMe, type MailLike } from '../lib/brain/inbox.ts'
+import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slots.ts'
+import {
   attendees,
   callKey,
   classifyMeetDoc,
@@ -1269,6 +1279,153 @@ check('renderFollowUp formatta le sezioni piene e sparisce se sono tutte vuote',
   assert.ok(mail.text.includes('Prossimi passi'))
   assert.ok(!mail.text.includes('Da chiarire'))
   assert.equal(renderFollowUp({ title: 'X', day: '2026-09-15', to: [], decisioni: [], impegni: [], domande: [] }), null)
+})
+
+/* ------------------------------------------------------------------ *
+ * deadlines: entro quando
+ * ------------------------------------------------------------------ */
+
+check('findDates legge i tre modi italiani e scioglie l\'anno mancante in avanti', () => {
+  const found = findDates('firmato il 12/01/2026, scade il 1º marzo 2027, revisione 2026-06-30, entro il 10 gennaio', '2026-12-05T00:00:00Z')
+  assert.deepEqual(found.map((f) => f.iso), ['2026-01-12', '2027-03-01', '2026-06-30', '2027-01-10'])
+  assert.deepEqual(findDates('il 31/02/2026 non esiste', '2026-01-01T00:00:00Z'), [])
+})
+
+check('addMonths rispetta la fine del mese', () => {
+  assert.equal(addMonths('2026-01-31', 1), '2026-02-28')
+  assert.equal(addMonths('2026-01-15', 12), '2027-01-15')
+  assert.equal(addMonths('2027-01-01', -3), '2026-10-01')
+})
+
+check('explicitDeadlines: una frase con data e parola chiave è un termine, e "entro N giorni" parte dalla mail', () => {
+  const doc = {
+    id: 'm1',
+    title: 'Diffida',
+    text: 'Buongiorno. Vi invitiamo a provvedere entro il 30 ottobre 2026. In mancanza, agiremo. Resto in attesa entro 15 giorni di un riscontro.',
+    occurredAt: '2026-10-01T09:00:00Z',
+  }
+  const out = explicitDeadlines(doc)
+  assert.equal(out.length, 2)
+  assert.equal(out[0].kind, 'termine')
+  assert.equal(out[0].date, '2026-10-30')
+  assert.equal(out[0].how, 'esplicita')
+  assert.ok(out[0].quote.includes('30 ottobre 2026'))
+  assert.equal(out[1].date, '2026-10-16')
+  assert.equal(out[1].how, 'calcolata')
+})
+
+check('contractDeadlines: durata + decorrenza + preavviso → scadenza e ultima disdetta', () => {
+  const doc = {
+    id: 'c1',
+    title: 'Contratto di licenza',
+    text:
+      'Art. 3 Durata. Il presente contratto ha una durata di dodici (12) mesi con decorrenza dal 1 febbraio 2026 e si intenderà tacitamente rinnovato per uguale periodo salvo disdetta da comunicarsi con preavviso di tre (3) mesi.',
+    occurredAt: '2026-01-20T00:00:00Z',
+  }
+  const out = contractDeadlines(doc)
+  assert.equal(out.length, 2)
+  assert.equal(out[0].kind, 'scadenza')
+  assert.equal(out[0].date, '2027-02-01')
+  assert.ok(out[0].label.includes('rinnovo tacito'))
+  assert.equal(out[1].kind, 'disdetta')
+  assert.equal(out[1].date, '2026-11-01')
+  // Senza decorrenza nel testo, nessuna data inventata.
+  assert.deepEqual(contractDeadlines({ ...doc, text: 'Durata di 12 mesi, rinnovo tacito, preavviso di 3 mesi.' }), [])
+})
+
+check('selectDeadlines tiene la finestra, scarta i doppioni e tiene le scadute da poco', () => {
+  const mk = (date: string, kind: 'termine' | 'scadenza' = 'termine') => ({
+    documentId: 'd', kind, date, label: '', quote: '', how: 'esplicita' as const,
+  })
+  const out = selectDeadlines([mk('2026-10-20'), mk('2026-10-20'), mk('2026-09-20'), mk('2026-10-02'), mk('2027-06-01')], '2026-10-04')
+  assert.deepEqual(out.map((d) => d.date), ['2026-10-02', '2026-10-20'])
+  assert.equal(urgency('2026-10-02', '2026-10-04'), 'scaduta')
+  assert.equal(urgency('2026-10-04', '2026-10-04'), 'oggi')
+  assert.equal(urgency('2026-10-09', '2026-10-04'), 'settimana')
+  assert.equal(urgency('2026-10-30', '2026-10-04'), 'mese')
+  assert.equal(urgency('2027-01-30', '2026-10-04'), 'oltre')
+})
+
+/* ------------------------------------------------------------------ *
+ * inbox: chi aspetta te
+ * ------------------------------------------------------------------ */
+
+const mailOf = (over: Partial<MailLike>): MailLike => ({
+  id: 'x', threadId: 't', title: 'Oggetto', occurredAt: '2026-10-01T10:00:00Z',
+  from: 'anna@studio.it', to: ['me@esempio.it'], labels: [], url: null, body: 'Ciao', ...over,
+})
+
+check('senderOf e recipientsOf leggono le righe Da: e A: in testa al corpo', () => {
+  const body = 'Da: Anna Verdi <Anna@Studio.it>\nA: me@esempio.it, altro@x.it\n\nCiao'
+  assert.equal(senderOf(body), 'anna@studio.it')
+  assert.deepEqual(recipientsOf(body), ['me@esempio.it', 'altro@x.it'])
+  assert.equal(senderOf('niente intestazione'), null)
+})
+
+check('isNoise scarta notifiche e promozioni; asksSomething riconosce una richiesta', () => {
+  assert.equal(isNoise('noreply@vercel.com', []), true)
+  assert.equal(isNoise('anna@studio.it', ['CATEGORY_PROMOTIONS']), true)
+  assert.equal(isNoise('anna@studio.it', ['INBOX']), false)
+  assert.equal(asksSomething('Puoi mandarmi la bozza?'), true)
+  assert.equal(asksSomething('Grazie, ricevuto.'), false)
+})
+
+check('waitingOnMe: resta solo il thread in cui l\'ultima parola non è mia, ordinato per peso ed età', () => {
+  const now = new Date('2026-10-04T12:00:00Z')
+  const mails = [
+    mailOf({ id: 'a1', threadId: 'A', occurredAt: '2026-09-25T10:00:00Z', body: 'Puoi confermare?' }),
+    mailOf({ id: 'b1', threadId: 'B', occurredAt: '2026-09-28T10:00:00Z' }),
+    mailOf({ id: 'b2', threadId: 'B', from: 'me@esempio.it', to: ['anna@studio.it'], occurredAt: '2026-09-29T10:00:00Z' }),
+    mailOf({ id: 'c1', threadId: 'C', occurredAt: '2026-10-01T10:00:00Z', to: ['altro@x.it'], body: 'FYI' }),
+    mailOf({ id: 'd1', threadId: 'D', from: 'noreply@banca.it', occurredAt: '2026-09-20T10:00:00Z' }),
+    mailOf({ id: 'e1', threadId: 'E', occurredAt: '2026-10-04T09:00:00Z' }),
+  ]
+  const out = waitingOnMe(mails, 'ME@esempio.it', now, 1)
+  assert.deepEqual(out.map((t) => t.threadId), ['A', 'C'])
+  assert.equal(out[0].ageDays, 9)
+  assert.equal(out[0].direct, true)
+  assert.equal(out[0].asks, true)
+  assert.equal(out[1].direct, false)
+})
+
+/* ------------------------------------------------------------------ *
+ * slots: le finestre libere
+ * ------------------------------------------------------------------ */
+
+check('parseWhen legge un impegno con orario e una giornata intera', () => {
+  const a = parseWhen('2026-10-06T10:00:00+02:00 → 2026-10-06T11:00:00+02:00')
+  assert.equal(a?.start, '2026-10-06T08:00:00.000Z')
+  assert.equal(a?.end, '2026-10-06T09:00:00.000Z')
+  const b = parseWhen('2026-10-07 → 2026-10-08')
+  assert.equal(b?.start, '2026-10-06T22:00:00.000Z')
+  assert.equal(b?.end, '2026-10-07T22:00:00.000Z')
+  assert.equal(parseWhen('boh'), null)
+})
+
+check('freeSlots evita gli impegni col margine, salta il weekend e preferisce le ore buone', () => {
+  // Domenica 4 ottobre 2026, ore 12 italiane.
+  const from = new Date('2026-10-04T10:00:00Z')
+  const busy = [
+    { start: '2026-10-05T08:00:00Z', end: '2026-10-05T10:00:00Z' }, // lunedì 10–12 occupato
+    { start: '2026-10-06T06:00:00Z', end: '2026-10-06T16:00:00Z' }, // martedì tutto il giorno
+  ]
+  const slots = freeSlots(busy, { from, days: 5, count: 3 })
+  assert.equal(slots.length, 3)
+  const days = slots.map((s) => romeParts(new Date(s.start)))
+  assert.deepEqual(days.map((d) => d.dow), [1, 3, 4])
+  // Lunedì: le 10–12 sono prese, la prima scelta è il pomeriggio alle 15.
+  assert.equal(days[0].h, 15)
+  assert.equal(days[1].h, 10)
+  assert.ok(slots[0].label.startsWith('lunedì 5 ottobre, 15:00–16:00'))
+  assert.deepEqual(freeSlots([], { from, days: 0 }), [])
+})
+
+check('proposalText è formattata, non generata, e sparisce senza finestre', () => {
+  const from = new Date('2026-10-04T10:00:00Z')
+  const text = proposalText(freeSlots([], { from, days: 3, count: 2 }), 'la call sul contratto')
+  assert.ok(text?.includes('per la call sul contratto ti propongo 2 alternative'))
+  assert.ok(text?.includes('- lunedì 5 ottobre, 10:00–11:00'))
+  assert.equal(proposalText([], 'x'), null)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

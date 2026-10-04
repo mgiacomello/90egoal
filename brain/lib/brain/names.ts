@@ -12,7 +12,9 @@
  * nome, perché "Giorgia" da sola non dice cosa fa.
  */
 
-export type AgentKey = 'chief' | 'brief' | 'meeting' | 'contracts' | 'ledger' | 'coach' | 'postcall'
+export type AgentKey =
+  | 'chief' | 'brief' | 'meeting' | 'contracts' | 'ledger' | 'coach' | 'postcall'
+  | 'deadlines' | 'inbox' | 'slots'
 
 export type AgentIdentity = {
   /** Il nome di persona. Va scelto dal titolare. */
@@ -31,6 +33,9 @@ export const AGENTS: Record<AgentKey, AgentIdentity> = {
   ledger: { name: null, role: 'amministrazione', tab: 'Conto' },
   coach: { name: null, role: 'coach', tab: 'Coach' },
   postcall: { name: null, role: 'dopo la call', tab: 'Dopo la call' },
+  deadlines: { name: null, role: 'scadenze', tab: 'Scadenze' },
+  inbox: { name: null, role: 'posta in attesa', tab: 'Posta' },
+  slots: { name: null, role: 'appuntamenti', tab: 'Appuntamenti' },
 }
 
 /** L'etichetta della scheda: il nome se c'è, altrimenti il ruolo. */
