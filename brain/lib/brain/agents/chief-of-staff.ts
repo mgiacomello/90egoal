@@ -1,4 +1,6 @@
 import { verifyClaims } from '../cite'
+import { EXECUTIVES, type ExecutiveKey } from '../executives'
+import { profileBlock, readProfile } from '../profile'
 import { describeSearch, expandedQuery, shouldExpand } from '../expand'
 import { countDocuments, logRun, searchMemory } from '../memory'
 import { runStructured } from '../model'
@@ -105,6 +107,8 @@ function formatSources(refs: SourceRef[]): string {
 }
 
 export type AskOptions = {
+  /** Quale dirigente risponde: con il suo mandato e il suo carattere. Senza, risponde Grace. */
+  executive?: ExecutiveKey
   /** Quante fonti offrire al modello. */
   maxSources?: number
   /** Iniettabile nei test e per domande su una data passata. */
@@ -241,9 +245,13 @@ export async function askChiefOfStaff(
     timeZone: 'Europe/Rome',
   })
 
+  const exec = EXECUTIVES[options.executive ?? 'grace']
+  const profile = profileBlock(await readProfile().catch(() => null))
+  const persona = `\n\nRISPONDI COME ${exec.name.toUpperCase()}, ${exec.title} (${exec.role}). Mandato: ${exec.mandate} Carattere: ${exec.persona} Leggi le fonti con questo mandato: metti davanti quello che conta per il tuo ruolo, e dillo con il tuo carattere — senza mai uscire dalle regole qui sopra.`
+
   const { data, model } = await runStructured<{ claims?: RawClaim[]; openQuestions?: string[] }>({
     task: 'answer',
-    system: SYSTEM,
+    system: SYSTEM + persona + profile,
     user: `Oggi è ${today}.\n\nDOMANDA\n${question}\n\nFONTI\n\n${formatSources(offered)}`,
     tool: TOOL,
     signal: options.signal,

@@ -108,6 +108,14 @@ Tre giri di tavolo, in `lib/brain/agents/board.ts`:
 4. **Sintesi** — Grace chiude: deciso, aperto, per te. Le obiezioni rimaste non
    si sciolgono nascondendole: restano scritte, con i nomi.
 
+**Tarati su di te, non solo sui tuoi dati.** Nella scheda *Memoria* c'è il
+**profilo**: chi sei, cosa fai, cosa conta quest'anno, come vuoi che ti
+parlino. Ogni dirigente lo legge prima di scrivere — memo, repliche, sintesi,
+Radar, Chiedi. È contesto, non una fonte: serve a scegliere cosa conta, e una
+riga che cita solo il profilo non passa il verificatore. In *Chiedi* scegli
+**chi risponde**: la stessa domanda letta da Sterling o da Archer dà due
+risposte diverse, con le stesse fonti.
+
 Il verificatore passa su ogni riga di ogni giro, memo compresi. Il board si
 riunisce da solo alle 05:40 UTC (`/api/brain/cron/board`, stesso segreto del
 cron) e scrive una mail solo se ha deciso qualcosa, se qualcuno si è opposto,

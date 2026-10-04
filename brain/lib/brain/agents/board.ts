@@ -3,6 +3,7 @@ import { verifyClaims } from '../cite'
 import { BOARD_ORDER, EXECUTIVES, type ExecutiveKey } from '../executives'
 import { listOpenPoints, logRun, recentDocuments, upcomingEvents } from '../memory'
 import { runStructured } from '../model'
+import { profileBlock, readProfile } from '../profile'
 import { formatEuro } from '../reconcile'
 import { CHANNEL_LABEL, type RawClaim, type SourceRef, type VerifiedClaim } from '../types'
 import { reviewDeadlines } from './deadlines'
@@ -248,7 +249,7 @@ const MEMO_TOOL = {
   },
 }
 
-async function writeMemo(key: ExecutiveKey, facts: SourceRef[], today: string, signal?: AbortSignal): Promise<Memo> {
+async function writeMemo(key: ExecutiveKey, facts: SourceRef[], today: string, profile: string, signal?: AbortSignal): Promise<Memo> {
   const exec = EXECUTIVES[key]
   const offered = handles(facts)
   if (!offered.length) return { executive: key, punti: [], richieste: [], model: 'nessuno', dropped: 0 }
@@ -259,7 +260,7 @@ async function writeMemo(key: ExecutiveKey, facts: SourceRef[], today: string, s
   // La sintesi, che è una sola, va sul modello migliore.
   const { data, model } = await runStructured<{ punti?: RawClaim[]; richieste?: (RawClaim & { a?: string })[] }>({
     task: 'draft',
-    system: `Sei ${exec.name}, ${exec.title} (${exec.role}) del titolare. Mandato: ${exec.mandate}\nCarattere: ${exec.persona}\n\nStai scrivendo il tuo memo per il board di oggi, ${today}. I colleghi: ${colleagues}.\n\n${RULES}`,
+    system: `Sei ${exec.name}, ${exec.title} (${exec.role}) del titolare. Mandato: ${exec.mandate}\nCarattere: ${exec.persona}\n\nStai scrivendo il tuo memo per il board di oggi, ${today}. I colleghi: ${colleagues}.\n\n${RULES}${profile}`,
     user: ['FONTI (la tua scrivania)', '', formatSources(offered)].join('\n'),
     tool: MEMO_TOOL,
     signal,
@@ -318,7 +319,7 @@ const REPLY_TOOL = {
   },
 }
 
-async function writeReplies(key: ExecutiveKey, facts: SourceRef[], memos: Memo[], today: string, signal?: AbortSignal): Promise<Reply[]> {
+async function writeReplies(key: ExecutiveKey, facts: SourceRef[], memos: Memo[], today: string, profile: string, signal?: AbortSignal): Promise<Reply[]> {
   const exec = EXECUTIVES[key]
   const others = memos.filter((m) => m.executive !== key && (m.punti.length || m.richieste.length))
   if (!others.length) return []
@@ -327,7 +328,7 @@ async function writeReplies(key: ExecutiveKey, facts: SourceRef[], memos: Memo[]
 
   const { data } = await runStructured<{ risposte?: (RawClaim & { a?: string; stance?: string })[] }>({
     task: 'draft',
-    system: `Sei ${exec.name}, ${exec.title} (${exec.role}). Mandato: ${exec.mandate}\nCarattere: ${exec.persona}\n\nÈ il secondo giro del board di oggi, ${today}: hai letto i memo dei colleghi e rispondi. Un'obiezione vale solo se cita i fatti della TUA scrivania che contraddicono il collega. Rispondi sempre alle richieste rivolte a te.\n\n${RULES}`,
+    system: `Sei ${exec.name}, ${exec.title} (${exec.role}). Mandato: ${exec.mandate}\nCarattere: ${exec.persona}\n\nÈ il secondo giro del board di oggi, ${today}: hai letto i memo dei colleghi e rispondi. Un'obiezione vale solo se cita i fatti della TUA scrivania che contraddicono il collega. Rispondi sempre alle richieste rivolte a te.\n\n${RULES}${profile}`,
     user: [
       askedOfMe.length ? `RICHIESTE RIVOLTE A TE:\n${askedOfMe.map((a) => `- ${a}`).join('\n')}` : 'Nessuna richiesta rivolta a te.',
       '',
@@ -364,7 +365,7 @@ const SYNTHESIS_TOOL = {
   },
 }
 
-async function synthesize(memos: Memo[], replies: Reply[], today: string, signal?: AbortSignal): Promise<Synthesis> {
+async function synthesize(memos: Memo[], replies: Reply[], today: string, profile: string, signal?: AbortSignal): Promise<Synthesis> {
   const grace = EXECUTIVES.grace
   const replySources: SourceRef[] = BOARD_ORDER.filter((k) => replies.some((r) => r.from === k)).map((k) => ({
     handle: '',
@@ -381,7 +382,7 @@ async function synthesize(memos: Memo[], replies: Reply[], today: string, signal
 
   const { data, model } = await runStructured<{ decisioni?: RawClaim[]; aperti?: RawClaim[]; perTe?: RawClaim[] }>({
     task: 'answer',
-    system: `Sei ${grace.name}, ${grace.title}. Chiudi il board di oggi, ${today}, per il titolare: cosa è stato deciso, cosa resta aperto, cosa tocca a lui. I disaccordi non si sciolgono nascondendoli: restano scritti con i nomi.\n\n${RULES}`,
+    system: `Sei ${grace.name}, ${grace.title}. Chiudi il board di oggi, ${today}, per il titolare: cosa è stato deciso, cosa resta aperto, cosa tocca a lui. I disaccordi non si sciolgono nascondendoli: restano scritti con i nomi.\n\n${RULES}${profile}`,
     user: ['FONTI (i memo e le repliche del board)', '', formatSources(offered)].join('\n'),
     tool: SYNTHESIS_TOOL,
     signal,
@@ -403,6 +404,7 @@ export type BoardRun = Board & { facts: Record<ExecutiveKey, number>; text: stri
 export async function runBoard(ownerEmail: string, signal?: AbortSignal): Promise<BoardRun> {
   const started = Date.now()
   const today = day(new Date().toISOString())
+  const profile = profileBlock(await readProfile().catch(() => null))
 
   // 1. Le scrivanie, in parallelo e senza modello.
   const [grace, sterling, archer, harper, nova] = await Promise.all([
@@ -415,13 +417,13 @@ export async function runBoard(ownerEmail: string, signal?: AbortSignal): Promis
   const facts: Facts = { grace, sterling, archer, harper, nova }
 
   // 2. I memo, in parallelo.
-  const memos = await Promise.all(BOARD_ORDER.map((k) => writeMemo(k, facts[k], today, signal)))
+  const memos = await Promise.all(BOARD_ORDER.map((k) => writeMemo(k, facts[k], today, profile, signal)))
 
   // 3. Le repliche, in parallelo: ognuno legge gli altri.
-  const replies = (await Promise.all(BOARD_ORDER.map((k) => writeReplies(k, facts[k], memos, today, signal)))).flat()
+  const replies = (await Promise.all(BOARD_ORDER.map((k) => writeReplies(k, facts[k], memos, today, profile, signal)))).flat()
 
   // 4. La sintesi.
-  const synthesis = await synthesize(memos, replies, today, signal)
+  const synthesis = await synthesize(memos, replies, today, profile, signal)
 
   const board: Board = { generatedAt: new Date().toISOString(), memos, replies, synthesis }
   const run: BoardRun = {
