@@ -254,8 +254,11 @@ async function writeMemo(key: ExecutiveKey, facts: SourceRef[], today: string, s
   if (!offered.length) return { executive: key, punti: [], richieste: [], model: 'nessuno', dropped: 0 }
 
   const colleagues = BOARD_ORDER.filter((k) => k !== key).map((k) => `${k} = ${EXECUTIVES[k].name}, ${EXECUTIVES[k].title}`).join('; ')
+  // Memo e repliche vanno sul modello veloce: sono cinque chiamate in
+  // parallelo per giro, e il board deve chiudersi in un paio di minuti.
+  // La sintesi, che è una sola, va sul modello migliore.
   const { data, model } = await runStructured<{ punti?: RawClaim[]; richieste?: (RawClaim & { a?: string })[] }>({
-    task: 'answer',
+    task: 'draft',
     system: `Sei ${exec.name}, ${exec.title} (${exec.role}) del titolare. Mandato: ${exec.mandate}\nCarattere: ${exec.persona}\n\nStai scrivendo il tuo memo per il board di oggi, ${today}. I colleghi: ${colleagues}.\n\n${RULES}`,
     user: ['FONTI (la tua scrivania)', '', formatSources(offered)].join('\n'),
     tool: MEMO_TOOL,
@@ -323,7 +326,7 @@ async function writeReplies(key: ExecutiveKey, facts: SourceRef[], memos: Memo[]
   const askedOfMe = others.flatMap((m) => m.richieste.filter((r) => r.a === key).map((r) => `${nameOf(m.executive)} ti chiede: ${r.text}`))
 
   const { data } = await runStructured<{ risposte?: (RawClaim & { a?: string; stance?: string })[] }>({
-    task: 'answer',
+    task: 'draft',
     system: `Sei ${exec.name}, ${exec.title} (${exec.role}). Mandato: ${exec.mandate}\nCarattere: ${exec.persona}\n\nÈ il secondo giro del board di oggi, ${today}: hai letto i memo dei colleghi e rispondi. Un'obiezione vale solo se cita i fatti della TUA scrivania che contraddicono il collega. Rispondi sempre alle richieste rivolte a te.\n\n${RULES}`,
     user: [
       askedOfMe.length ? `RICHIESTE RIVOLTE A TE:\n${askedOfMe.map((a) => `- ${a}`).join('\n')}` : 'Nessuna richiesta rivolta a te.',
