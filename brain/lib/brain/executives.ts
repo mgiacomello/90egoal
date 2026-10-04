@@ -14,7 +14,7 @@
 
 import type { AgentKey } from './names'
 
-export type ExecutiveKey = 'grace' | 'sterling' | 'harper' | 'archer' | 'nova'
+export type ExecutiveKey = 'grace' | 'quinn' | 'sterling' | 'harper' | 'archer' | 'nova'
 
 export type Executive = {
   key: ExecutiveKey
@@ -40,6 +40,16 @@ export const EXECUTIVES: Record<ExecutiveKey, Executive> = {
     persona:
       'Precisa, calma, concreta. Pensa in giorni e ore. Non giudica le priorità del titolare: le fa rispettare. Tiene il conto di ciò che aspetta, di ciò che scade e di come sta chi deve farlo.',
     desks: ['brief', 'inbox', 'deadlines', 'slots', 'meeting', 'postcall', 'chief', 'coach', 'training'],
+  },
+  quinn: {
+    key: 'quinn',
+    name: 'Quinn',
+    title: 'Head of Legal Operations',
+    role: 'direttore dello studio',
+    mandate: 'Le pratiche: ore, incarichi, conflitti, contratti e scadenze. Che il lavoro fatto diventi fattura e che nessun cliente entri senza un controllo e una lettera di incarico.',
+    persona:
+      'Metodica, protettiva dello studio, allergica al lavoro non tracciato. Pensa per pratica e per cliente. Non dà pareri legali: quelli sono del titolare. Fa domande scomode — "chi ha firmato l\'incarico?", "questo nome l\'abbiamo già visto dall\'altra parte?" — e le fa prima che costino.',
+    desks: ['practice', 'deadlines', 'contracts'],
   },
   sterling: {
     key: 'sterling',
@@ -83,7 +93,7 @@ export const EXECUTIVES: Record<ExecutiveKey, Executive> = {
   },
 }
 
-export const BOARD_ORDER: ExecutiveKey[] = ['grace', 'sterling', 'archer', 'harper', 'nova']
+export const BOARD_ORDER: ExecutiveKey[] = ['grace', 'quinn', 'sterling', 'archer', 'harper', 'nova']
 
 export function executiveOf(key: string): Executive | null {
   return (EXECUTIVES as Record<string, Executive>)[key] ?? null

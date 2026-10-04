@@ -74,7 +74,7 @@ export type Route =
   | { kind: 'draft'; title: string }
   | { kind: 'help' }
 
-const EXEC_NAMES = ['grace', 'sterling', 'archer', 'harper', 'nova']
+const EXEC_NAMES = ['grace', 'quinn', 'sterling', 'archer', 'harper', 'nova']
 
 /**
  * Chi deve rispondere. "Sterling, quanto…" o "@archer …" sceglie il
@@ -155,7 +155,7 @@ export function compactLine(text: string, max = 900): string {
 export const HELP = [
   '*BRAIN su WhatsApp*',
   '• Scrivi una domanda: risponde Grace.',
-  '• "Sterling, …" o "@archer …": risponde quel dirigente (Grace, Sterling, Archer, Harper, Nova).',
+  '• "Sterling, …" o "@archer …": risponde quel dirigente (Grace, Quinn, Sterling, Archer, Harper, Nova).',
   '• "brief": il brief di stamattina. "board": l\'ultimo board. "riunisci": riunisce il board adesso.',
   '• "agenda": l\'agenda del prossimo incontro. "bozza <oggetto>": una bozza di risposta a quella mail.',
   'Ogni riga porta la sua fonte. Niente parte a nome tuo.',

@@ -96,7 +96,8 @@ REGOLE NON NEGOZIABILI
 1. Ogni paragrafo deve appoggiarsi alle FONTI (i messaggi del thread e, se ci sono, altri documenti) e dichiarare da quali, con il loro handle (F1, F2…). Un paragrafo senza handle valido viene scartato.
 2. Non prendere impegni che non stanno nelle fonti: niente date, cifre, promesse inventate. Dove serve una decisione del titolare scrivi uno spazio fra parentesi quadre, così: [entro quando].
 3. Rispondi a quello che viene chiesto, nell'ordine in cui viene chiesto. Se una richiesta non trova risposta nelle fonti, dillo con uno spazio da riempire, non con una frase generica.
-4. Niente saluto iniziale e niente firma: li mette il titolare.`
+4. Niente saluto iniziale e niente firma: li mette il titolare.
+5. Se fra le fonti ci sono messaggi marcati STILE — mail che il titolare ha scritto in passato — imita il suo tono, la sua lunghezza e le sue formule; non prenderne i fatti, che riguardano altro.`
 
 export type Draft = {
   subject: string
@@ -129,15 +130,22 @@ export async function draftReply(documentId: string, ownerEmail: string, signal?
     .sort((a, b) => Date.parse(a.occurredAt) - Date.parse(b.occurredAt))
   const pool = thread.some((d) => d.id === last.id) ? thread : [...thread, last]
 
-  const offered: SourceRef[] = pool.slice(-8).map((d, i) => ({
+  // La voce del titolare: le ultime due mail che ha scritto lui allo
+  // stesso destinatario (o a chiunque, se con questo non ha mai scritto).
+  const me = ownerEmail.toLowerCase()
+  const to = senderOf(last.body) ?? ''
+  const allMine = (await recentDocuments(POOL, 'gmail')).filter((d) => senderOf(d.body) === me && !pool.some((p) => p.id === d.id))
+  const style = [...allMine.filter((d) => recipientsOf(d.body).includes(to)), ...allMine].filter((d, i, arr) => arr.indexOf(d) === i).slice(0, 2)
+
+  const offered: SourceRef[] = [...pool.slice(-8), ...style].map((d, i) => ({
     handle: `F${i + 1}`,
     documentId: d.id,
     source: 'gmail',
     kind: 'email',
-    title: d.title,
+    title: style.includes(d) ? `STILE · ${d.title}` : d.title,
     occurredAt: d.occurredAt,
     url: d.url ?? null,
-    excerpt: d.body.slice(0, 4000),
+    excerpt: d.body.slice(0, style.includes(d) ? 1500 : 4000),
   }))
 
   const { data, model } = await runStructured<{ paragrafi?: RawClaim[] }>({
@@ -158,7 +166,6 @@ export async function draftReply(documentId: string, ownerEmail: string, signal?
 
   const verified = verifyClaims(Array.isArray(data.paragrafi) ? data.paragrafi : [], offered)
   const subject = /^(re|r):/i.test(last.title) ? last.title : `Re: ${last.title}`
-  const to = senderOf(last.body) ?? ''
   const text = ['Buongiorno,', '', ...verified.claims.flatMap((c) => [c.text, '']), 'Cordiali saluti,'].join('\n')
 
   const draft: Draft = { subject, to, paragrafi: verified.claims, text, dropped: verified.dropped.length, model }

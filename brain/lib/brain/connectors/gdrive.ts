@@ -1,4 +1,5 @@
 import type { BrainDocument } from '../types'
+import { docxToText } from '../docx'
 import { MAX_PDF_BYTES, extractPdfText, noteFor } from '../pdf'
 import { googleConfigured, googleConnection, googleFetch, googleJson } from './google'
 import { clip, mapLimit, type Connector, type SyncWindow } from './types'
@@ -51,6 +52,8 @@ const EXPORT_AS: Record<string, string> = {
   'application/vnd.google-apps.presentation': 'text/plain',
 }
 
+const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+
 /** File di testo già leggibili così come sono. */
 const PLAIN_TEXT = new Set(['text/plain', 'text/markdown', 'text/csv', 'application/json'])
 
@@ -65,6 +68,14 @@ async function bodyOf(file: DriveFile): Promise<string> {
     const res = await googleFetch(`${API}/${file.id}?alt=media`)
     const extraction = await extractPdfText(new Uint8Array(await res.arrayBuffer()))
     return extraction.quality === 'ok' ? extraction.text : extraction.note
+  }
+
+  // I .docx: per chi fa l'avvocato i contratti arrivano così.
+  if (mime === DOCX) {
+    if (Number(file.size ?? 0) > MAX_EXPORT_BYTES * 25) return '[Contenuto non estratto: .docx troppo grande. In memoria c\'è solo il titolo.]'
+    const res = await googleFetch(`${API}/${file.id}?alt=media`)
+    const text = docxToText(Buffer.from(await res.arrayBuffer()))
+    return text || '[Contenuto non estratto: .docx senza testo leggibile. In memoria c\'è solo il titolo.]'
   }
 
   const exportAs = EXPORT_AS[mime]
@@ -94,7 +105,7 @@ function people(file: DriveFile): string[] {
 export const driveConnector: Connector = {
   key: 'gdrive',
   label: 'Google Drive',
-  hint: 'OAuth Google in sola lettura. Documenti, Fogli, Presentazioni e PDF con livello di testo; le scansioni restano al titolo.',
+  hint: 'OAuth Google in sola lettura. Documenti, Fogli, Presentazioni, .docx e PDF con livello di testo; le scansioni restano al titolo.',
   configured: googleConfigured,
   connected: async () => (await googleConnection()).connected,
 
