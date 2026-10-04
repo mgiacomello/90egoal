@@ -32,6 +32,7 @@ import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slot
 import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
 import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
 import { decodeEntities, parseFeed, stripHtml } from '../lib/brain/feeds.ts'
+import { isBoardWorthSending, memoExcerpt, objections, renderBoardText, repliesTo, threads, type Board } from '../lib/brain/board.ts'
 import { DEFAULT_TOPICS, sameStory, scoreItem, selectSignals } from '../lib/brain/radar.ts'
 import { intensityMix, longestStreak, summarize as summarizeTraining, weekOf, weeklyLoad, type TrainingDay } from '../lib/brain/training.ts'
 import {
@@ -1631,6 +1632,50 @@ check('summarize: sei giorni di fila, tutto duro e prontezza che crolla danno gl
   assert.ok(s.verdict.warnings.some((w) => w.includes('recupero non basta')))
   assert.ok(s.verdict.warnings.some((w) => w.includes('carico accumulato')))
   assert.equal(s.restingHrTrend, 'in peggioramento')
+})
+
+/* ------------------------------------------------------------------ *
+ * board: cinque dirigenti che si parlano
+ * ------------------------------------------------------------------ */
+
+const NAMES: Record<string, string> = { grace: 'Grace', sterling: 'Sterling', archer: 'Archer' }
+const SRC = { handle: 'F1', source: 'calc', title: 'x', occurredAt: '2026-10-04T05:00:00Z', url: null }
+const BOARD: Board = {
+  generatedAt: '2026-10-04T05:00:00Z',
+  memos: [
+    { executive: 'sterling', punti: [{ text: 'Tre pagamenti senza fattura per € 1.250,00.', sources: [SRC] }], richieste: [{ a: 'grace', text: 'bloccare un\'ora per i giustificativi', sources: [SRC] }], model: 'm', dropped: 0 },
+    { executive: 'archer', punti: [], richieste: [], model: 'm', dropped: 0 },
+  ],
+  replies: [
+    { from: 'grace', to: 'sterling', stance: 'accordo', text: 'Giovedì 15–16.', sources: [SRC] },
+    { from: 'archer', to: 'sterling', stance: 'obiezione', text: 'Prima la call con Verdi.', sources: [SRC] },
+  ],
+  synthesis: null,
+}
+
+check('memoExcerpt numera i punti e accoda le richieste con il nome del destinatario', () => {
+  const text = memoExcerpt(BOARD.memos[0], (k) => NAMES[k])
+  assert.ok(text.startsWith('1. Tre pagamenti'))
+  assert.ok(text.includes('Richiesta a Grace: bloccare'))
+  assert.equal(memoExcerpt(BOARD.memos[1], (k) => NAMES[k]), '(nessun punto)')
+})
+
+check('objections e repliesTo mettono le obiezioni davanti; threads conta le coppie', () => {
+  assert.equal(objections(BOARD.replies).length, 1)
+  assert.deepEqual(repliesTo(BOARD.replies, 'sterling').map((r) => r.stance), ['obiezione', 'accordo'])
+  assert.deepEqual(threads(BOARD.replies), [{ from: 'grace', to: 'sterling', count: 1 }, { from: 'archer', to: 'sterling', count: 1 }])
+})
+
+check('il board vale una mail solo con una sintesi che dice qualcosa; il testo tiene le obiezioni', () => {
+  assert.equal(isBoardWorthSending(BOARD), false)
+  const withSynthesis: Board = { ...BOARD, synthesis: { decisioni: [], aperti: [{ text: 'Archer e Sterling non concordano sull\'ordine.', sources: [SRC] }], perTe: [], model: 'm', dropped: 0 } }
+  assert.equal(isBoardWorthSending(withSynthesis), true)
+  const text = renderBoardText(withSynthesis, (k) => NAMES[k])
+  assert.ok(text.startsWith('RESTA APERTO'))
+  assert.ok(text.includes('STERLING\n- Tre pagamenti'))
+  assert.ok(text.includes('→ Grace: bloccare'))
+  assert.ok(text.includes('OBIEZIONI\n- Archer a Sterling: Prima la call'))
+  assert.ok(!text.includes('ARCHER\n'))
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

@@ -6,7 +6,7 @@
  * questa forma e non sa nulla di Gmail, di Drive o di Qonto.
  */
 
-export const SOURCES = ['gmail', 'gcal', 'gdrive', 'qonto', 'oura', 'web', 'manual', 'calc'] as const
+export const SOURCES = ['gmail', 'gcal', 'gdrive', 'qonto', 'oura', 'web', 'manual', 'calc', 'board'] as const
 export type SourceKey = (typeof SOURCES)[number]
 
 export const KINDS = ['email', 'event', 'file', 'transaction', 'health', 'article', 'note', 'correction'] as const
@@ -22,6 +22,7 @@ export const CHANNEL_LABEL: Record<SourceKey, string> = {
   web: 'Web',
   manual: 'Nota',
   calc: 'Calcolo',
+  board: 'Board',
 }
 
 /** Un documento normalizzato, prima di essere scritto in memoria. */

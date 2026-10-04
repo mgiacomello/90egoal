@@ -4,6 +4,10 @@
     {
       "path": "/api/brain/cron",
       "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/brain/cron/board",
+      "schedule": "40 5 * * *"
     }
   ]
 }

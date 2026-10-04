@@ -83,6 +83,7 @@ const SOURCE_WEIGHT: Record<SourceKey, number> = {
   web: 0.85,
   gdrive: 0.95,
   calc: 1.0,
+  board: 1.0,
 }
 
 /**

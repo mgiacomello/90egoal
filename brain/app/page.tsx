@@ -4,7 +4,9 @@ import { currentOwner } from '@/lib/brain/auth'
 import { connectorStatuses } from '@/lib/brain/connectors'
 import { memoryConfigured } from '@/lib/brain/db'
 import { CRON_AGENT } from '@/lib/brain/cron'
+import { BOARD_AGENT } from '@/lib/brain/agents/board'
 import { BRIEF_AGENT, readOpenPoints, type BriefOpenPoint } from '@/lib/brain/agents/brief'
+import type { StoredBoard } from '@/components/brain/BoardPanel'
 import { lastRun, memoryStats, recentDocuments, type MemoryStats, type RunRecord } from '@/lib/brain/memory'
 import type { ConnectorStatus } from '@/lib/brain/connectors/types'
 import type { StoredDocument } from '@/lib/brain/types'
@@ -80,14 +82,16 @@ export default async function BrainPage({ searchParams }: PageProps<'/'>) {
   let documents: StoredDocument[]
   let autoSync: RunRecord | null
   let briefRun: RunRecord | null
+  let boardRun: RunRecord | null
   let points: BriefOpenPoint[]
   try {
-    ;[connectors, stats, documents, autoSync, briefRun, points] = await Promise.all([
+    ;[connectors, stats, documents, autoSync, briefRun, boardRun, points] = await Promise.all([
       connectorStatuses(),
       memoryStats(),
       recentDocuments(40),
       lastRun(CRON_AGENT),
       lastRun(BRIEF_AGENT),
+      lastRun(BOARD_AGENT),
       readOpenPoints(),
     ])
   } catch (err) {
@@ -106,6 +110,7 @@ export default async function BrainPage({ searchParams }: PageProps<'/'>) {
       initialConnectors={connectors}
       initialStats={stats}
       initialDocuments={documents}
+      initialBoard={boardRun ? ({ ...(boardRun.answer as Record<string, unknown>), at: boardRun.createdAt } as StoredBoard) : null}
       initialBrief={
         briefRun ? { ...(briefRun.answer as Record<string, unknown>), at: briefRun.createdAt } : null
       }

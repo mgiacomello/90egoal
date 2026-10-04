@@ -81,6 +81,41 @@ momento in cui si capisce se il prodotto serve.
 
 ---
 
+## Il board: cinque dirigenti che si parlano
+
+BRAIN non è una fila di schede: è un **board**. Cinque dirigenti con un nome,
+un mandato e un carattere, ognuno con le sue scrivanie (gli agenti
+deterministici), che lavorano in parallelo e si confrontano — ogni mattina da
+soli, e quando lo chiedi.
+
+| Nome | Ruolo | Mandato | Scrivanie |
+|---|---|---|---|
+| **Grace** | Executive Assistant & Chief of Staff | il tempo, la posta, le scadenze, gli incontri e la persona | Brief, Posta, Scadenze, Appuntamenti, Incontri, Dopo la call, Chiedi, Coach, Allenamento |
+| **Sterling** | Chief Financial Officer | cassa, costi, incassi, giustificativi, abbonamenti | Conto, Abbonamenti |
+| **Archer** | Chief Revenue Officer | relazioni, trattative, contratti, incassi | Relazioni, Dopo la call, Contratti, Posta |
+| **Harper** | Chief Marketing Officer | posizionamento, messaggio, occasioni per farsi vedere | Radar, Relazioni |
+| **Nova** | Chief Innovation Officer | prodotti, strumenti e idee da provare | Radar |
+
+Tre giri di tavolo, in `lib/brain/agents/board.ts`:
+
+1. **Scrivanie** — in parallelo, senza modello: ogni dirigente si ritrova davanti
+   i fatti del suo mandato, come fonti `Calcolo`.
+2. **Memo** — in parallelo: al massimo quattro punti e due richieste ai
+   colleghi, ogni riga con le fonti.
+3. **Repliche** — in parallelo: ognuno legge i memo degli altri, che sono fonti
+   citabili (`Board`), e risponde: accordo, obiezione, risposta, richiesta.
+   Un'obiezione vale solo se cita i fatti della *propria* scrivania.
+4. **Sintesi** — Grace chiude: deciso, aperto, per te. Le obiezioni rimaste non
+   si sciolgono nascondendole: restano scritte, con i nomi.
+
+Il verificatore passa su ogni riga di ogni giro, memo compresi. Il board si
+riunisce da solo alle 05:40 UTC (`/api/brain/cron/board`, stesso segreto del
+cron) e scrive una mail solo se ha deciso qualcosa, se qualcuno si è opposto,
+o se c'è una mossa per il titolare. Nella console è la prima scheda, *Il
+tavolo*; sotto, ogni dirigente con le sue scrivanie.
+
+---
+
 ## L'idea architetturale: il modello scrive, il codice verifica
 
 È la stessa spina dorsale di ONE TAP (*l'AI trascrive, il codice decide*),
@@ -118,7 +153,7 @@ vede. "Non risulta" è un esito corretto del sistema, non un fallimento.
 
 ## Il nucleo deterministico
 
-Funzioni pure, senza rete e senza DOM. `npm test` — 176 test, zero
+Funzioni pure, senza rete e senza DOM. `npm test` — 179 test, zero
 dipendenze. Nessuna di queste importa valori da altri file: è la regola che le
 tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 
@@ -140,6 +175,7 @@ tiene testabili in isolamento, e vale per ogni pezzo nuovo del nucleo.
 | `lib/brain/training.ts` | sto facendo sport bene: frequenza, mix di intensità, giorni di fila, recupero, HRV e frequenza a riposo, con un verdetto e le sue ragioni | il verdetto è calcolato, e per questo sta sopra alle frasi |
 | `lib/brain/feeds.ts` | RSS e Atom senza parser e senza dipendenze | un feed è abbastanza regolare da leggersi con le espressioni |
 | `lib/brain/radar.ts` | quali dieci articoli su cento: parole del profilo, doppioni tolti, i più recenti davanti | il modello non deve scegliere fra mille cose che non ha letto |
+| `lib/brain/board.ts` | le forme del board — memo, replica, sintesi — e le regole che le tengono oneste | un'obiezione non sparisce nella sintesi: resta scritta e firmata |
 | `lib/brain/health.ts` | medie, tendenze e giorni peggiori dell'anello, e cosa c'era in agenda il giorno prima | una pendenza è una pendenza: "stai dormendo meglio" lo decide la curva, non il modello |
 | `lib/brain/openpoints.ts` | è lo stesso punto aperto, riformulato? | senza, la lista si riempie di doppioni in una settimana |
 | `lib/brain/briefmail.ts` | il brief come arriva nella posta | la mail non si rigenera: si formatta |
@@ -376,9 +412,10 @@ ritrova comunque il testo, perché `matchQuote()` normalizza proprio quello.
   entra. Il push in tempo reale (Gmail via Pub/Sub, webhook Qonto) accorcia la
   latenza, non aggiunge capacità: costa un pezzo di infrastruttura su Google
   Cloud e vale la pena solo quando la latenza diventa il problema.
-- **Quattordici agenti.** Brief, Posta, Scadenze, Incontri, Dopo la call,
-  Appuntamenti, Relazioni, capo di gabinetto, Contratti, Amministrazione, Radar,
-  Coach, Allenamento, Abbonamenti. Otto di questi non usano nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
+- **Cinque dirigenti e quattordici scrivanie.** Grace, Sterling, Archer, Harper,
+  Nova; sotto di loro Brief, Posta, Scadenze, Incontri, Dopo la call,
+  Appuntamenti, Relazioni, Chiedi, Contratti, Conto, Radar, Coach, Allenamento,
+  Abbonamenti. Otto scrivanie non usano nessun modello. Appuntamenti propone e scrive la mail ma non fissa niente:
   BRAIN è in sola lettura per scelta.
 
 ---
@@ -999,6 +1036,6 @@ L'architettura è già pronta per tutti e tre, senza toccare il nucleo:
 
 ```bash
 npm run dev            # http://localhost:3000
-npm test               # 176 test del nucleo, nessuna dipendenza
+npm test               # 179 test del nucleo, nessuna dipendenza
 npm run build
 ```

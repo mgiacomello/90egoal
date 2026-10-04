@@ -130,17 +130,21 @@ function formatSources(refs: SourceRef[]): string {
     .join('\n\n---\n\n')
 }
 
-export async function reviewTraining(days = 28, signal?: AbortSignal): Promise<TrainingReport> {
-  const started = Date.now()
+/** I numeri senza il modello: li usa anche il board. */
+export async function trainingFacts(days = 28): Promise<{ summary: TrainingSummary; workoutDocs: StoredDocument[]; source: SourceRef }> {
   const since = Date.now() - days * 86_400_000
   const today = new Date().toISOString().slice(0, 10)
-
   const docs = (await recentDocuments(200, 'oura')).filter((d) => Date.parse(d.occurredAt) >= since)
   const dayDocs = docs.filter((d) => d.externalId.startsWith('day:'))
   const workoutDocs = docs.filter((d) => d.externalId.startsWith('workout:')).slice(0, 10)
-
   const trainingDays = dayDocs.map(toDay).filter((d): d is TrainingDay => d !== null)
   const summary = summarize(trainingDays, today)
+  return { summary, workoutDocs, source: summarySource(summary, 'F1') }
+}
+
+export async function reviewTraining(days = 28, signal?: AbortSignal): Promise<TrainingReport> {
+  const started = Date.now()
+  const { summary, workoutDocs } = await trainingFacts(days)
 
   const offered: SourceRef[] = [
     summarySource(summary, 'F1'),
