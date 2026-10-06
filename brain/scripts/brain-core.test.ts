@@ -32,6 +32,12 @@ import { freeSlots, parseWhen, proposalText, romeParts } from '../lib/brain/slot
 import { cadenceOf, chargeKey, findSubscriptions, yearlyTotal } from '../lib/brain/recurring.ts'
 import { buildRelations, cooling, isNoiseAddress, mostActive, relationKey } from '../lib/brain/relations.ts'
 import { decodeEntities, parseFeed, stripHtml } from '../lib/brain/feeds.ts'
+import { amountVisible, approvalCode, canActOn, isPaymentAction, isSensitiveField, matchPending, newApproval, parseDecision, payCapCents, registrableDomain, requiresApproval, withinCap } from '../lib/brain/policy.ts'
+import { checkinPlan, findPnr, nextAttempt, parseFlight } from '../lib/brain/travel.ts'
+import { findIban, formatIban, parsePaymentNotice, paymentPack, validIban } from '../lib/brain/payments.ts'
+import { conflicts, declineText, isInvitation, parseInvitation } from '../lib/brain/invites.ts'
+import { buildMime, encodeHeader, toBase64Url } from '../lib/brain/mime.ts'
+import { parseCommand, parseWhen as parseWhenCmd } from '../lib/brain/mandates.ts'
 import { deflateRawSync } from 'node:zlib'
 import { docxToText, readZip, textFromDocumentXml } from '../lib/brain/docx.ts'
 import { buildMatters, estimateMinutes, matterKey, matterTokens, newContacts, unbilled, withoutEngagement, type TouchLike } from '../lib/brain/practice.ts'
@@ -1877,6 +1883,223 @@ check('buildMatters stima le ore, trova le fatture del cliente, segna chi è nuo
   assert.deepEqual(withoutEngagement(matters, 3).map((m) => m.key), ['studioverdi.it'])
   assert.deepEqual(unbilled(matters, now, 2, 30).map((m) => m.key), ['studioverdi.it'])
   assert.deepEqual(unbilled(matters, now, 2, 60), [])
+})
+
+/* ------------------------------------------------------------------ *
+ * policy: le regole che l'esecutore applica prima di ogni gesto
+ * ------------------------------------------------------------------ */
+
+check('requiresApproval: il pagamento e la mail sempre; il check-in no, salvo opt-out', () => {
+  assert.equal(requiresApproval('payment'), true)
+  assert.equal(requiresApproval('send_email'), true)
+  assert.equal(requiresApproval('browse'), false)
+  assert.equal(requiresApproval('form', { isCheckin: true }), false)
+  assert.equal(requiresApproval('form', { isCheckin: true, autoCheckin: false }), true)
+  assert.equal(requiresApproval('form'), true)
+  assert.equal(requiresApproval('signup'), false)
+  assert.equal(requiresApproval('signup', { allowNewsletter: false }), true)
+  assert.equal(payCapCents({}), 30000)
+  assert.equal(payCapCents({ BRAIN_PAY_CAP_EUR: '150' }), 15000)
+  assert.equal(withinCap(12000, 30000), true)
+  assert.equal(withinCap(45000, 30000), false)
+})
+
+check('parseDecision e matchPending: un "ok" senza codice vale solo se la richiesta è una', () => {
+  assert.deepEqual(parseDecision('ok'), { decision: 'yes', code: null })
+  assert.deepEqual(parseDecision('Sì, vai!'), { decision: 'yes', code: null })
+  assert.equal(parseDecision('no grazie')?.decision, 'no')
+  assert.equal(parseDecision('che tempo fa?'), null)
+  const now = new Date('2026-10-06T10:00:00Z')
+  const a = { taskId: 't1', approval: newApproval('t1', 'payment', 'paga', now, { amountCents: 100 }) }
+  const b = { taskId: 't2', approval: newApproval('t2', 'send_email', 'manda', now) }
+  assert.equal(matchPending({ decision: 'yes', code: null }, [a], now).match?.taskId, 't1')
+  const two = matchPending({ decision: 'yes', code: null }, [a, b], now)
+  assert.equal(two.match, null)
+  assert.equal(two.ambiguous, true)
+  const withCode = parseDecision(`ok ${b.approval.code}`)!
+  assert.equal(withCode.code, b.approval.code)
+  assert.equal(matchPending(withCode, [a, b], now).match?.taskId, 't2')
+  // Il pagamento scade in un'ora.
+  const later = new Date('2026-10-06T11:30:00Z')
+  assert.equal(matchPending({ decision: 'yes', code: null }, [a], later).match, null)
+  assert.equal(approvalCode('t1'), approvalCode('t1'))
+  assert.match(approvalCode('t1'), /^[A-HJ-NP-Z2-9]{2}\d[A-HJ-NP-Z2-9]$/)
+  assert.equal(parseDecision('va bene')?.code, null)
+})
+
+check('le guardie del browser: bottoni che pagano, campi della carta, importo visibile, domini', () => {
+  assert.equal(isPaymentAction('Paga ora'), true)
+  assert.equal(isPaymentAction('Conferma e paga'), true)
+  assert.equal(isPaymentAction('Place order'), true)
+  assert.equal(isPaymentAction('Aggiungi al carrello'), false)
+  assert.equal(isPaymentAction('Check-in'), false)
+  assert.equal(isSensitiveField('input name=cardnumber autocomplete=cc-number'), true)
+  assert.equal(isSensitiveField('CVV'), true)
+  assert.equal(isSensitiveField('email'), false)
+  assert.equal(amountVisible('Totale: 1.112,45 €', 111245), true)
+  assert.equal(amountVisible('Total €112.45', 11245), true)
+  assert.equal(amountVisible('Totale 112,46', 11245), false)
+  assert.equal(amountVisible('Totale € 140', 14000), true)
+  assert.equal(registrableDomain('https://www.ryanair.com/it/it/check-in'), 'ryanair.com')
+  assert.equal(registrableDomain('https://shop.example.co.uk/x'), 'example.co.uk')
+  assert.equal(canActOn('https://www.ryanair.com/it', ['ryanair.com']), true)
+  assert.equal(canActOn('https://checkout.stripe.com/pay', ['on.com']), true)
+  assert.equal(canActOn('https://ryanair-checkin.example.com', ['ryanair.com']), false)
+})
+
+/* ------------------------------------------------------------------ *
+ * travel: i voli nelle mail
+ * ------------------------------------------------------------------ */
+
+const RYANAIR = `Grazie per aver prenotato con Ryanair.
+Codice di prenotazione: K7QX2B
+Volo FR 1234  BGY - STN
+Ven, 17 ott 2026  partenza 06:30  arrivo 07:40
+Passeggero: MARIO ROSSI`
+
+check('parseFlight legge una conferma Ryanair: PNR, volo, aeroporti, partenza in UTC', () => {
+  const f = parseFlight(RYANAIR, 'noreply@ryanair.com', '2026-10-06T08:00:00Z')
+  assert.ok(f)
+  assert.equal(f.airline.key, 'ryanair')
+  assert.equal(f.pnr, 'K7QX2B')
+  assert.equal(f.flightNumber, 'FR1234')
+  assert.equal(f.from, 'BGY')
+  assert.equal(f.to, 'STN')
+  assert.equal(f.departureLocal, '2026-10-17 06:30')
+  assert.equal(f.departureIso, '2026-10-17T04:30:00.000Z')
+  assert.equal(findPnr('Booking reference: 123456'), null)
+  assert.equal(parseFlight('Nessun volo qui', 'a@b.it', '2026-10-06T08:00:00Z'), null)
+  // Un volo già passato non diventa un mandato.
+  assert.equal(parseFlight(RYANAIR, 'noreply@ryanair.com', '2026-11-01T08:00:00Z'), null)
+})
+
+check('checkinPlan: primo tentativo all\'apertura, poi ogni tre ore fino a poco prima della chiusura', () => {
+  const f = parseFlight(RYANAIR, 'noreply@ryanair.com', '2026-10-06T08:00:00Z')!
+  const plan = checkinPlan(f)
+  assert.equal(plan.firstAttemptIso, '2026-10-15T04:35:00.000Z')
+  assert.equal(plan.lastAttemptIso, '2026-10-17T01:30:00.000Z')
+  assert.equal(nextAttempt(plan, new Date('2026-10-15T05:00:00Z')), '2026-10-15T08:00:00.000Z')
+  assert.equal(nextAttempt(plan, new Date('2026-10-17T00:00:00Z')), null)
+})
+
+/* ------------------------------------------------------------------ *
+ * payments: IBAN, pagoPA, bollo
+ * ------------------------------------------------------------------ */
+
+check('validIban usa il mod-97; findIban trova solo IBAN validi', () => {
+  assert.equal(validIban('IT60 X054 2811 1010 0000 0123 456'), true)
+  assert.equal(validIban('IT60X0542811101000000123457'), false)
+  assert.equal(findIban('Bonifico su IT60 X054 2811 1010 0000 0123 456 intestato a Studio'), 'IT60X0542811101000000123456')
+  assert.equal(formatIban('IT60X0542811101000000123456'), 'IT60 X054 2811 1010 0000 0123 456')
+})
+
+check('parsePaymentNotice: un avviso pagoPA del bollo auto e una fattura con IBAN', () => {
+  const bollo = parsePaymentNotice(`Regione del Veneto - Tassa automobilistica
+Targa: AB123CD
+Codice avviso: 3012 3456 7890 1234 56
+Codice fiscale ente: 80007580279
+Importo: 187,64 euro
+Scadenza: 31/10/2026`)
+  assert.ok(bollo)
+  assert.equal(bollo.kind, 'pagopa')
+  assert.equal(bollo.noticeCode, '301234567890123456')
+  assert.equal(bollo.creditorCode, '80007580279')
+  assert.equal(bollo.plate, 'AB123CD')
+  assert.equal(bollo.amountCents, 18764)
+  assert.equal(bollo.dueDate, '2026-10-31')
+  const pack = paymentPack(bollo)
+  assert.ok(pack.includes('Codice avviso: 301234567890123456'))
+  assert.ok(pack.includes('Importo: € 187,64'))
+  assert.ok(pack.includes('Scadenza: 31/10/2026'))
+
+  const fattura = parsePaymentNotice(`Fattura n. 42/2026
+Beneficiario: Studio Bianchi Commercialisti
+IBAN IT60 X054 2811 1010 0000 0123 456
+Causale: saldo fattura 42/2026
+Totale da pagare € 1.220,00 entro il 15 novembre 2026`)
+  assert.ok(fattura)
+  assert.equal(fattura.kind, 'bonifico')
+  assert.equal(fattura.amountCents, 122000)
+  assert.equal(fattura.beneficiary, 'Studio Bianchi Commercialisti')
+  assert.equal(fattura.causale, 'saldo fattura 42/2026')
+  assert.equal(fattura.dueDate, '2026-11-15')
+  assert.ok(paymentPack(fattura).includes('IBAN: IT60 X054 2811 1010 0000 0123 456'))
+  assert.equal(parsePaymentNotice('Ciao, ci vediamo giovedì'), null)
+})
+
+/* ------------------------------------------------------------------ *
+ * invites: il "no, grazie" quando l'agenda è piena
+ * ------------------------------------------------------------------ */
+
+check('isInvitation, parseInvitation, conflicts e declineText', () => {
+  const subject = 'Invito: AI & Law Night'
+  const body = 'Caro Marco, siamo lieti di invitarti alla AI & Law Night il 22 ottobre 2026 alle 18:30 presso Talent Garden. Conferma la tua partecipazione.'
+  assert.equal(isInvitation(subject, body), true)
+  assert.equal(isInvitation('Newsletter di ottobre', 'Join us il 22 ottobre. Unsubscribe'), false)
+  const inv = parseInvitation(subject, body, '2026-10-06T08:00:00Z')
+  assert.ok(inv)
+  assert.equal(inv.day, '2026-10-22')
+  assert.equal(inv.timeLocal, '18:30')
+  assert.equal(inv.startIso, '2026-10-22T16:30:00.000Z')
+  assert.equal(inv.title, 'AI & Law Night')
+  const busy = [{ start: '2026-10-22T16:00:00Z', end: '2026-10-22T18:00:00Z', title: 'Cena cliente' }, { start: '2026-10-23T16:00:00Z', end: '2026-10-23T18:00:00Z' }]
+  assert.deepEqual(conflicts(inv, busy).map((b) => b.title), ['Cena cliente'])
+  const text = declineText(inv, 'Giulia')
+  assert.ok(text.startsWith('Gentile Giulia,'))
+  assert.ok(text.includes('"AI & Law Night" del 22/10/2026 alle 18:30'))
+})
+
+/* ------------------------------------------------------------------ *
+ * mime: la mail che Gmail spedisce
+ * ------------------------------------------------------------------ */
+
+check('buildMime: intestazioni di risposta, oggetto con accenti, allegato in base64', () => {
+  assert.equal(encodeHeader('Re: fattura'), 'Re: fattura')
+  assert.equal(encodeHeader('Ricevuta già pagata'), `=?UTF-8?B?${Buffer.from('Ricevuta già pagata').toString('base64')}?=`)
+  const raw = buildMime({
+    to: ['anna@studio.it'],
+    subject: 'Re: Fattura n. 42',
+    text: 'Pagata, grazie.',
+    inReplyTo: '<abc@mail.gmail.com>',
+    attachments: [{ filename: 'ricevuta.pdf', mimeType: 'application/pdf', data: new Uint8Array([37, 80, 68, 70]) }],
+    boundary: 'XYZ',
+  })
+  assert.ok(raw.includes('To: anna@studio.it\r\n'))
+  assert.ok(raw.includes('In-Reply-To: <abc@mail.gmail.com>\r\nReferences: <abc@mail.gmail.com>'))
+  assert.ok(raw.includes('Content-Type: multipart/mixed; boundary="XYZ"'))
+  assert.ok(raw.includes(Buffer.from('Pagata, grazie.').toString('base64')))
+  assert.ok(raw.includes('filename="ricevuta.pdf"'))
+  assert.ok(raw.includes('JVBERg=='))
+  assert.ok(raw.endsWith('--XYZ--'))
+  assert.equal(toBase64Url('??>'), 'Pz8-')
+})
+
+/* ------------------------------------------------------------------ *
+ * mandates: i comandi del titolare
+ * ------------------------------------------------------------------ */
+
+check('parseWhen: relativo, domani, giorno della settimana, data e ora', () => {
+  const now = new Date('2026-10-06T08:00:00Z') // martedì 10:00 a Roma
+  assert.equal(parseWhenCmd('fra 2 ore chiama Verdi', now)?.atIso, '2026-10-06T10:00:00.000Z')
+  assert.equal(parseWhenCmd('tra mezz\'ora', now)?.atIso, '2026-10-06T08:30:00.000Z')
+  assert.equal(parseWhenCmd('domani alle 9 di chiamare Verdi', now)?.atIso, '2026-10-07T07:00:00.000Z')
+  assert.equal(parseWhenCmd('domani alle 9 di chiamare Verdi', now)?.rest, 'di chiamare Verdi')
+  assert.equal(parseWhenCmd('venerdì alle 15:30', now)?.atIso, '2026-10-09T13:30:00.000Z')
+  assert.equal(parseWhenCmd('il 12/11 alle 18', now)?.atIso, '2026-11-12T17:00:00.000Z')
+  assert.equal(parseWhenCmd('alle 9', now)?.atIso, '2026-10-07T07:00:00.000Z')
+  assert.equal(parseWhenCmd('chiama Verdi', now), null)
+})
+
+check('parseCommand riconosce gli incarichi e lascia le domande al board', () => {
+  const now = new Date('2026-10-06T08:00:00Z')
+  assert.equal(parseCommand('Comprami le On Cloud 6 taglia 43 dal sito ufficiale', now)?.kind, 'buy')
+  assert.equal(parseCommand('paga il bollo auto', now)?.kind, 'pay')
+  assert.equal(parseCommand('fai il check-in del volo di venerdì', now)?.kind, 'checkin')
+  assert.equal(parseCommand('disdici l\'abbonamento a Netflix', now)?.kind, 'errand')
+  const r = parseCommand('ricordami domani alle 9 di chiamare Verdi', now)
+  assert.deepEqual(r, { kind: 'remind', what: 'chiamare Verdi', atIso: '2026-10-07T07:00:00.000Z' })
+  assert.deepEqual(parseCommand('mandati', now), { kind: 'tasks' })
+  assert.equal(parseCommand('quanto ho speso in abbonamenti?', now), null)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)
