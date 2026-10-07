@@ -3,6 +3,7 @@ import { BOARD_AGENT, runBoard } from '@/lib/brain/agents/board'
 import { BRIEF_AGENT, readOpenPoints } from '@/lib/brain/agents/brief'
 import { askChiefOfStaff } from '@/lib/brain/agents/chief-of-staff'
 import { draftReply, reviewInbox } from '@/lib/brain/agents/inbox'
+import { handleMandateMessage } from '@/lib/brain/agents/mandates'
 import { prepareMeeting } from '@/lib/brain/agents/meeting'
 import { renderBriefEmail, type MailBrief } from '@/lib/brain/briefmail'
 import { EXECUTIVES, type ExecutiveKey } from '@/lib/brain/executives'
@@ -67,6 +68,11 @@ async function lastBoardText(): Promise<string> {
 }
 
 async function handle(text: string, owner: string): Promise<string> {
+  // Prima i mandati: "ok 7F2A", "fatto 7F2A", "mandati", "ricordami…".
+  // Se il messaggio non è uno di questi, va avanti per la sua strada.
+  const mandate = await handleMandateMessage(text).catch(() => null)
+  if (mandate) return mandate
+
   const route = routeMessage(text)
   if (route.kind === 'help') return HELP
   if (route.kind === 'brief') return lastBriefText()

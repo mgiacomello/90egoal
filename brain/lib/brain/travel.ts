@@ -70,11 +70,16 @@ export function romeToUtc(y: number, m: number, d: number, h: number, min: numbe
 const PNR_LABELS = /(?:codice\s+(?:di\s+)?prenotazione|prenotazione\s*(?:n\.?|nr\.?|numero)?|booking\s+(?:reference|ref\.?|number|code)|reservation\s+(?:number|code)|confirmation\s+(?:number|code)|pnr|codice\s+pnr)\s*[:#]?\s*([A-Z0-9]{6})\b/i
 
 export function findPnr(text: string): string | null {
-  const m = text.match(PNR_LABELS)
-  if (!m) return null
-  const code = m[1].toUpperCase()
-  // Un PNR ha almeno una lettera: "123456" è un numero d'ordine.
-  return /[A-Z]/.test(code) ? code : null
+  for (const m of text.matchAll(new RegExp(PNR_LABELS.source, 'gi'))) {
+    const raw = m[1]
+    // Un PNR è scritto in maiuscolo: "Conferma prenotazione\nCodice" non
+    // è un codice, è la parola dopo. E ha almeno una lettera: "123456"
+    // è un numero d'ordine.
+    if (raw !== raw.toUpperCase()) continue
+    if (!/[A-Z]/.test(raw)) continue
+    return raw
+  }
+  return null
 }
 
 export function findAirline(text: string, sender = ''): Airline | null {

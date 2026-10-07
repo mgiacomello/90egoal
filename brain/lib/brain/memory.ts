@@ -4,6 +4,7 @@ import { BrainError } from './errors'
 import { chunkDocument } from './chunk'
 import { correctionBody, correctionKey, correctionTitle } from './correction'
 import type { BrainDocument, SearchHit, SourceKey, StoredDocument } from './types'
+import { OPEN_STATUSES, type Mandate, type MandateDraft, type MandateStatus } from './lifecycle'
 
 /**
  * La memoria: scrivere, cercare, sfogliare.
@@ -550,4 +551,93 @@ export async function logRun(entry: {
   } catch {
     // Il registro è utile, non essenziale: non deve far fallire una risposta.
   }
+}
+
+/* --- mandati --- */
+
+
+function toMandate(row: Record<string, unknown>): Mandate {
+  return {
+    id: String(row.id),
+    key: String(row.key),
+    kind: row.kind as Mandate['kind'],
+    status: row.status as MandateStatus,
+    code: String(row.code),
+    title: String(row.title ?? ''),
+    text: String(row.text ?? ''),
+    payload: (row.payload as Record<string, unknown>) ?? {},
+    citations: (row.citations as Mandate['citations']) ?? [],
+    dueAt: (row.due_at as string | null) ?? null,
+    wakeAt: (row.wake_at as string | null) ?? null,
+    approval: (row.approval as Mandate['approval']) ?? null,
+    announcedAt: (row.announced_at as string | null) ?? null,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+    closedAt: (row.closed_at as string | null) ?? null,
+    note: (row.note as string | null) ?? null,
+  }
+}
+
+function fromMandate(patch: Partial<Mandate>): Record<string, unknown> {
+  const row: Record<string, unknown> = {}
+  if ('status' in patch) row.status = patch.status
+  if ('title' in patch) row.title = patch.title
+  if ('text' in patch) row.text = patch.text
+  if ('payload' in patch) row.payload = patch.payload
+  if ('citations' in patch) row.citations = patch.citations
+  if ('dueAt' in patch) row.due_at = patch.dueAt
+  if ('wakeAt' in patch) row.wake_at = patch.wakeAt
+  if ('approval' in patch) row.approval = patch.approval
+  if ('announcedAt' in patch) row.announced_at = patch.announcedAt
+  if ('closedAt' in patch) row.closed_at = patch.closedAt
+  if ('note' in patch) row.note = patch.note
+  row.updated_at = new Date().toISOString()
+  return row
+}
+
+/** I mandati aperti (o tutti, se `includeClosed`), i più vecchi prima. */
+export async function listMandates(includeClosed = false, limit = 100): Promise<Mandate[]> {
+  const db = brainDb()
+  let q = db.from('brain_mandates').select('*').order('created_at', { ascending: true }).limit(limit)
+  if (!includeClosed) q = q.in('status', OPEN_STATUSES)
+  const { data, error } = await q
+  if (error) throw new BrainError(`Lettura mandati fallita: ${error.message}`)
+  return ((data ?? []) as Record<string, unknown>[]).map(toMandate)
+}
+
+/**
+ * Apre un mandato. `ignoreDuplicates`: se la chiave c'è già è la stessa
+ * cosa — lo stesso volo, lo stesso avviso — e non va né duplicata né
+ * riscritta: il suo stato è quello che vogliamo conservare.
+ * Restituisce true se è nuovo.
+ */
+export async function openMandate(draft: MandateDraft): Promise<boolean> {
+  const db = brainDb()
+  const { data, error } = await db
+    .from('brain_mandates')
+    .upsert(
+      {
+        key: draft.key,
+        kind: draft.kind,
+        status: draft.status,
+        code: draft.code,
+        title: draft.title,
+        text: draft.text,
+        payload: draft.payload,
+        citations: draft.citations,
+        due_at: draft.dueAt,
+        wake_at: draft.wakeAt,
+        approval: draft.approval,
+      },
+      { onConflict: 'key', ignoreDuplicates: true }
+    )
+    .select('id')
+  if (error) throw new BrainError(`Apertura mandato fallita: ${error.message}`)
+  return (data ?? []).length > 0
+}
+
+export async function updateMandate(id: string, patch: Partial<Mandate>): Promise<void> {
+  const db = brainDb()
+  const { error } = await db.from('brain_mandates').update(fromMandate(patch)).eq('id', id)
+  if (error) throw new BrainError(`Aggiornamento mandato fallito: ${error.message}`)
 }

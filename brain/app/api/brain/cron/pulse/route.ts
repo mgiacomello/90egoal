@@ -1,4 +1,5 @@
 import { pulse } from '@/lib/brain/agents/initiatives'
+import { runMandates } from '@/lib/brain/agents/mandates'
 import { syncConnectors } from '@/lib/brain/connectors'
 import { isAuthorizedCron } from '@/lib/brain/cron'
 import { toBrainError } from '@/lib/brain/errors'
@@ -27,15 +28,18 @@ export async function GET(request: Request) {
   try {
     const reports = await syncConnectors(['gmail', 'gcal', 'qonto', 'web', 'oura'], { limit: 60 }).catch(() => [])
     const report = await pulse(owner)
+    // I mandati hanno un orologio loro: un check-in che apre alle 6 non
+    // aspetta il budget delle iniziative.
+    const mandates = await runMandates().catch((err) => ({ error: (err as Error).message }))
     await logRun({
       agent: AGENT,
       question: '',
-      answer: { synced: reports.map((r) => ({ source: r.source, stored: r.stored, error: r.error })), ...report, sent: report.sent.map((i) => i.key) },
+      answer: { synced: reports.map((r) => ({ source: r.source, stored: r.stored, error: r.error })), ...report, sent: report.sent.map((i) => i.key), mandates },
       model: null,
       hits: report.sent.length,
       latencyMs: Date.now() - started,
     })
-    return Response.json({ ok: true, ...report, sent: report.sent.map((i) => ({ key: i.key, executive: i.executive })), durationMs: Date.now() - started })
+    return Response.json({ ok: true, ...report, sent: report.sent.map((i) => ({ key: i.key, executive: i.executive })), mandates, durationMs: Date.now() - started })
   } catch (err) {
     const e = toBrainError(err, 'Il polso è fallito.')
     await logRun({ agent: AGENT, question: '', answer: { error: e.message }, model: null, hits: 0, latencyMs: Date.now() - started })

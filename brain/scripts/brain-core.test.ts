@@ -38,6 +38,7 @@ import { findIban, formatIban, parsePaymentNotice, paymentPack, validIban } from
 import { conflicts, declineText, isInvitation, parseInvitation } from '../lib/brain/invites.ts'
 import { buildMime, encodeHeader, toBase64Url } from '../lib/brain/mime.ts'
 import { parseCommand, parseWhen as parseWhenCmd } from '../lib/brain/mandates.ts'
+import { applyDecision, applyDone, fromCommand, fromFlight, fromInvitation, fromPaymentNotice, isDue, itWhen, parseDone, renderMandates, tick, type Mandate } from '../lib/brain/lifecycle.ts'
 import { deflateRawSync } from 'node:zlib'
 import { docxToText, readZip, textFromDocumentXml } from '../lib/brain/docx.ts'
 import { buildMatters, estimateMinutes, matterKey, matterTokens, newContacts, unbilled, withoutEngagement, type TouchLike } from '../lib/brain/practice.ts'
@@ -2104,3 +2105,113 @@ check('parseCommand riconosce gli incarichi e lascia le domande al board', () =>
 
 console.log(`\n${passed} passati, ${failed} falliti`)
 if (failed > 0) process.exit(1)
+
+// ---------------------------------------------------------------------------
+// Il ciclo di vita dei mandati
+// ---------------------------------------------------------------------------
+{
+  const now = new Date('2026-10-07T10:00:00Z')
+  const ryanair = `Da: Ryanair <noreply@ryanair.com>\nA: marco@x.it\n\nConferma prenotazione\nCodice di prenotazione: AB12CD\nVolo FR 1234 BGY - STN\n17/10/2026 06:30`
+  const flight = parseFlight(ryanair, 'noreply@ryanair.com', '2026-10-07T10:00:00Z')
+  assert.ok(flight, 'il volo si riconosce')
+  const draft = fromFlight(flight!, [{ source: 'gmail', title: 'Conferma', occurredAt: '2026-10-07T09:00:00Z', url: null }])
+  assert.equal(draft.kind, 'checkin')
+  assert.equal(draft.status, 'waiting')
+  assert.equal(draft.key, 'checkin:AB12CD:FR1234')
+  assert.match(draft.code, /^[A-HJ-NP-Z2-9]{2}\d[A-HJ-NP-Z2-9]$/)
+  assert.ok(draft.text.includes('FR1234') && draft.text.includes('AB12CD'))
+  assert.ok(draft.text.includes('si paga'), 'la multa di Ryanair è detta subito')
+  assert.equal(draft.wakeAt, checkinPlan(flight!).firstAttemptIso)
+
+  const base: Mandate = { ...draft, id: 'm1', announcedAt: now.toISOString(), createdAt: now.toISOString(), updatedAt: now.toISOString(), closedAt: null, note: null }
+  // Prima dell'apertura: silenzio.
+  assert.equal(isDue(base, now), false)
+  assert.equal(tick(base, now).say, null)
+  // All'apertura: si fa vivo, e ripassa fra tre ore.
+  const opening = new Date(draft.wakeAt!)
+  const t1 = tick(base, opening)
+  assert.ok(t1.say?.includes('Check-in aperto'))
+  assert.ok(t1.say?.includes('AB12CD'))
+  assert.equal(t1.patch.wakeAt, new Date(opening.getTime() + 180 * 60_000).toISOString())
+  // Dopo la chiusura, senza "fatto": scade da solo.
+  const late = new Date(Date.parse(flight!.departureIso) - 2 * 3_600_000)
+  const t2 = tick({ ...base, wakeAt: late.toISOString(), payload: { ...base.payload, reminders: 3 } }, late)
+  assert.equal(t2.patch.status, 'expired')
+
+  // "fatto 7F2A" chiude quello giusto; senza codice e con due in attesa, chiede.
+  const other: Mandate = { ...base, id: 'm2', key: 'checkin:ZZ99ZZ:FR1', code: 'QQ7Q', title: 'Altro volo' }
+  const done1 = applyDone(draft.code, [base, other], now)
+  assert.equal(done1.mandate?.id, 'm1')
+  assert.equal(done1.patch?.status, 'done')
+  const done2 = applyDone(null, [base, other], now)
+  assert.equal(done2.mandate, null)
+  assert.ok(done2.reply.startsWith('Quale?'))
+  assert.equal(applyDone(null, [base], now).mandate?.id, 'm1')
+  assert.deepEqual(parseDone('Fatto 7F2A!'), { code: '7F2A' })
+  assert.deepEqual(parseDone('pagato'), { code: null })
+  assert.equal(parseDone('fattorino in arrivo'), null)
+  assert.equal(parseDone('ok'), null)
+
+  // Un avviso pagoPA → il pacchetto, e il promemoria due giorni prima.
+  const avviso = `Da: Regione Veneto <bollo@regione.veneto.it>\nA: marco@x.it\n\nTassa automobilistica targa AB123CD\nAvviso di pagamento pagoPA\nCodice avviso: 3012 3456 7890 1234 56\nCodice fiscale ente: 80007580279\nImporto: € 184,50\nScadenza: 31/10/2026`
+  const notice = parsePaymentNotice(avviso)
+  assert.ok(notice && notice.noticeCode, 'l\'avviso si riconosce')
+  const pay = fromPaymentNotice(notice!, 'doc-1', 'Bollo auto 2026', [])
+  assert.equal(pay.kind, 'payment')
+  assert.ok(pay.text.includes('301234567890123456'))
+  assert.ok(pay.text.includes(`fatto ${pay.code}`))
+  assert.equal(pay.wakeAt, '2026-10-29T07:00:00.000Z')
+  const payM: Mandate = { ...pay, id: 'p1', announcedAt: now.toISOString(), createdAt: now.toISOString(), updatedAt: now.toISOString(), closedAt: null, note: null }
+  const pt = tick(payM, new Date('2026-10-29T07:30:00Z'))
+  assert.ok(pt.say?.includes('non mi risulta ancora pagato'))
+  assert.equal(pt.patch.wakeAt, '2026-10-31T09:00:00.000Z')
+  // Una settimana dopo la scadenza, senza conferma: scaduto.
+  assert.equal(tick({ ...payM, wakeAt: '2026-11-08T07:00:00Z' }, new Date('2026-11-08T08:00:00Z')).patch.status, 'expired')
+
+  // Un invito con un conflitto → aspetta l'ok; "ok" lo approva, "no" lo lascia stare.
+  const inv = parseInvitation('Invito: AI Night Milano', 'Da: Sara Bianchi <sara@evento.it>\nA: marco@x.it\n\nTi invitiamo all\'AI Night il 20/10/2026 alle 18:30 a Milano. RSVP entro il 15.', '2026-10-07T10:00:00Z')
+  assert.ok(inv)
+  const busy = [{ start: '2026-10-20T16:00:00Z', end: '2026-10-20T18:00:00Z', title: 'Call con Verdi' }]
+  const none = fromInvitation(inv!, [], 'doc-2', { email: 'sara@evento.it', name: 'Sara' }, [], now)
+  assert.equal(none, null, 'senza conflitto non c\'è niente da declinare')
+  const invite = fromInvitation(inv!, conflicts(inv!, busy), 'doc-2', { email: 'sara@evento.it', name: 'Sara' }, [], now)!
+  assert.equal(invite.status, 'proposed')
+  assert.equal(invite.approval?.kind, 'send_email')
+  assert.equal(invite.approval?.code, invite.code)
+  assert.ok(invite.text.includes('Call con Verdi') && invite.text.includes('Gentile Sara'))
+  const invM: Mandate = { ...invite, id: 'i1', announcedAt: now.toISOString(), createdAt: now.toISOString(), updatedAt: now.toISOString(), closedAt: null, note: null }
+  const yes = applyDecision(parseDecision(`ok ${invite.code}`)!, [invM], now)
+  assert.equal(yes.patch?.status, 'approved')
+  assert.ok(yes.reply.includes('sara@evento.it'))
+  const no = applyDecision(parseDecision('no')!, [invM], now)
+  assert.equal(no.patch?.status, 'declined')
+  // Un "ok" senza niente in attesa non è una decisione.
+  assert.equal(applyDecision(parseDecision('ok')!, [base], now).mandate, null)
+  // Il tick fa scadere un'approvazione vecchia.
+  const stale = tick(invM, new Date(now.getTime() + 25 * 3_600_000))
+  assert.equal(stale.patch.status, 'expired')
+  // Prima della scadenza, il tick lo lascia in pace.
+  assert.deepEqual(tick(invM, now), { say: null, patch: {} })
+
+  // I comandi: un promemoria ha l'orologio, un acquisto resta in lista.
+  const rem = fromCommand(parseCommand('ricordami domani alle 9 di chiamare Verdi', now)!, now)!
+  assert.equal(rem.kind, 'remind')
+  assert.equal(rem.wakeAt, '2026-10-08T07:00:00.000Z')
+  const remM: Mandate = { ...rem, id: 'r1', announcedAt: now.toISOString(), createdAt: now.toISOString(), updatedAt: now.toISOString(), closedAt: null, note: null }
+  const rt = tick(remM, new Date('2026-10-08T07:05:00Z'))
+  assert.ok(rt.say?.includes('chiamare Verdi'))
+  assert.equal(rt.patch.status, 'done')
+  const buy = fromCommand(parseCommand('comprami le On Cloud 6 taglia 43', now)!, now)!
+  assert.equal(buy.kind, 'buy')
+  assert.equal(buy.wakeAt, null)
+  assert.ok(buy.text.includes('Non so ancora muovermi da solo'))
+  assert.equal(fromCommand({ kind: 'tasks' }, now), null)
+
+  // La lista per il telefono.
+  const list = renderMandates([base, invM, remM], now)
+  assert.ok(list.includes(`ok ${invite.code}`))
+  assert.ok(list.includes('mi faccio vivo il'))
+  assert.ok(renderMandates([], now).startsWith('Nessun mandato'))
+  assert.equal(itWhen('2026-10-17T04:30:00Z'), '17/10 alle 06:30')
+  assert.equal(itWhen('2026-12-17T05:30:00Z'), '17/12 alle 06:30')
+}

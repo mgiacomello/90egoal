@@ -158,5 +158,7 @@ export const HELP = [
   '• "Sterling, …" o "@archer …": risponde quel dirigente (Grace, Quinn, Sterling, Archer, Harper, Nova).',
   '• "brief": il brief di stamattina. "board": l\'ultimo board. "riunisci": riunisce il board adesso.',
   '• "agenda": l\'agenda del prossimo incontro. "bozza <oggetto>": una bozza di risposta a quella mail.',
+  '• "mandati": le cose che ho in carico (check-in, pagamenti, inviti). "ok 7F2A" / "no 7F2A" per decidere, "fatto 7F2A" per chiudere.',
+  '• "ricordami domani alle 9 di …": un promemoria. "comprami …", "paga …": lo segno e te lo tengo in lista.',
   'Ogni riga porta la sua fonte. Niente parte a nome tuo.',
 ].join('\n')

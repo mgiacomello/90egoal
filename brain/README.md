@@ -67,6 +67,7 @@ Nell'SQL Editor del progetto Supabase, in quest'ordine:
 ```
 supabase/migration_brain.sql
 supabase/migration_brain_brief.sql
+supabase/migration_brain_mandates.sql
 ```
 
 ### 4. Entri
@@ -152,6 +153,44 @@ sono due al giorno, quindi il polso lo chiama un'azione di GitHub ogni
 mezz'ora (`.github/workflows/brain-pulse.yml`): due segreti del repository,
 `BRAIN_URL` e `BRAIN_CRON_SECRET`. Su Vercel Pro basta aggiungere il cron a
 `vercel.json`.
+
+---
+
+## I mandati: le cose che BRAIN ha in carico
+
+Un'iniziativa dice una cosa e sta zitta. Un **mandato** ha un *dopo*: il
+check-in di un volo che apre fra dodici giorni, un bollo da pagare entro fine
+mese, un invito a cui rispondere di no, un "ricordami domani alle 9". Ha uno
+stato e un orologio, e sta in `brain_mandates`
+(`supabase/migration_brain_mandates.sql`).
+
+Nascono da soli, dalle mail, a ogni polso — senza modello, con i
+riconoscitori di `travel.ts`, `payments.ts`, `invites.ts`:
+
+| Nella mail | Cosa fa BRAIN | Quando torna |
+|---|---|---|
+| una conferma di volo (compagnia, PNR, volo, partenza) | te lo dice subito, con la multa se la compagnia la fa pagare | all'apertura del check-in: "è aperto, prenotazione X su ryanair.com"; poi ogni tre ore fino alla chiusura |
+| un avviso pagoPA, un bollo, una fattura con IBAN (validato mod-97) | ti manda il pacchetto da copiare in banca, un campo per riga | due giorni prima della scadenza, e il giorno stesso |
+| un invito che si scontra con l'agenda | ti scrive il "no, grazie" e chiede l'ok | — aspetta te; l'ok scade dopo 24 ore |
+
+E nascono dai tuoi comandi su WhatsApp: `ricordami domani alle 9 di …` (si fa
+vivo a quell'ora), `comprami …`, `paga …`, `disdici …` (restano in lista,
+finché non ci sarà chi li esegue). `mandati` mostra la lista.
+
+**Ogni mandato ha un codice** di quattro caratteri — `ok 7F2A`, `no 7F2A`,
+`fatto 7F2A` — e un "ok" senza codice vale solo se c'è una cosa sola in attesa:
+un sì detto alla richiesta sbagliata è un'azione sbagliata. La stessa cosa (lo
+stesso volo, lo stesso avviso) non si apre due volte: la chiave è stabile.
+Senza un tuo "fatto", un mandato si chiude da solo solo quando è troppo tardi
+per servire (il check-in è chiuso, la scadenza è passata da una settimana), e
+lo dice.
+
+**Quello che non fa, ancora.** Nessun mandato manda, paga o clicca: arriva fino
+a "pronto" — il testo da incollare, l'IBAN da copiare, il PNR sotto mano — e lì
+aspetta la tua mano. Le regole per quando ci sarà un esecutore stanno già in
+`lib/brain/policy.ts` (approvazione con codice e scadenza, tetto ai pagamenti,
+mai nei campi della carta, importo visibile prima di "Paga", domini
+consentiti): entrerà fra "approvato" e "fatto", e non prima.
 
 ---
 
@@ -1050,7 +1089,8 @@ Opzionale: `BRAIN_GMAIL_QUERY` sovrascrive il filtro di Gmail.
 ### Passi
 
 1. **SQL Editor di Supabase** → incolla `supabase/migration_brain.sql` → Run.
-   Poi `supabase/migration_brain_brief.sql` (il delta per i punti aperti).
+   Poi `supabase/migration_brain_brief.sql` (i punti aperti) e
+   `supabase/migration_brain_mandates.sql` (i mandati).
 2. Imposta `BRAIN_OWNER_EMAIL` e `ANTHROPIC_API_KEY`, riavvia.
 3. Apri la console, scheda **Memoria**, incolla una nota. Funziona già: chiedi
    qualcosa e guarda la fonte comparire sotto la frase.

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import ClaimCard from '@/components/brain/ClaimCard'
+import MandatesPanel from '@/components/brain/MandatesPanel'
 import type { Board, BoardClaim, Reply } from '@/lib/brain/board'
 import { BOARD_ORDER, EXECUTIVES, type ExecutiveKey } from '@/lib/brain/executives'
 
@@ -145,6 +146,8 @@ export default function BoardPanel({ initialBoard }: { initialBoard: StoredBoard
           <p className="brain-empty">Niente negli ultimi sette giorni. Quando il polso è acceso, qui vedi cosa ti hanno scritto e quando.</p>
         )}
       </div>
+
+      <MandatesPanel />
 
       {!board ? (
         <p className="brain-empty" style={{ marginTop: '1rem' }}>
