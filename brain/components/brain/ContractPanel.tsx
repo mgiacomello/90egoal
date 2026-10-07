@@ -272,12 +272,15 @@ export default function ContractPanel({ documents }: Props) {
             </div>
           ) : null}
 
-          <p className="brain-note">
-            La <b>citazione</b> è verificata sul testo: se non ci fosse, quella clausola non sarebbe
-            qui. <b>Rischio, standard di mercato e controproposta</b> non sono verificabili contro
-            niente — sono il giudizio di un modello, e vanno letti come si legge il parere di un
-            collega giovane: utile per non partire da zero, non per firmare.
-          </p>
+          <details className="brain-how">
+            <summary>Come funziona</summary>
+            <p className="brain-note">
+              La <b>citazione</b> è verificata sul testo: se non ci fosse, quella clausola non sarebbe
+              qui. <b>Rischio, standard di mercato e controproposta</b> non sono verificabili contro
+              niente — sono il giudizio di un modello, e vanno letti come si legge il parere di un
+              collega giovane: utile per non partire da zero, non per firmare.
+            </p>
+          </details>
         </div>
       ) : null}
     </section>

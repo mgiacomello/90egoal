@@ -60,11 +60,14 @@ export default function RecurringPanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Un abbonamento è una cosa che si paga senza più deciderlo. Qui è <b>calcolato</b>: stessa
-        controparte, stessa cadenza, almeno tre addebiti. Gli importi possono variare — un canone a
-        consumo resta un canone — conta la regolarità nel tempo. Senza modello.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Un abbonamento è una cosa che si paga senza più deciderlo. Qui è <b>calcolato</b>: stessa
+          controparte, stessa cadenza, almeno tre addebiti. Gli importi possono variare — un canone a
+          consumo resta un canone — conta la regolarità nel tempo. Senza modello.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

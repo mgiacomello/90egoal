@@ -74,12 +74,15 @@ export default function PracticePanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Le ore sono una <b>stima</b>: un incontro vale la sua durata, una mail scritta dieci minuti,
-        una ricevuta cinque. Non è il timesheet: serve a vedere <b>chi assorbe tempo senza una
-        fattura dietro</b>, chi lavora con te senza una lettera di incarico in memoria, e chi è un
-        nome nuovo — il momento del controllo dei conflitti. Senza modello.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Le ore sono una <b>stima</b>: un incontro vale la sua durata, una mail scritta dieci minuti,
+          una ricevuta cinque. Non è il timesheet: serve a vedere <b>chi assorbe tempo senza una
+          fattura dietro</b>, chi lavora con te senza una lettera di incarico in memoria, e chi è un
+          nome nuovo — il momento del controllo dei conflitti. Senza modello.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

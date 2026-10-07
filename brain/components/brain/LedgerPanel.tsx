@@ -88,11 +88,14 @@ export default function LedgerPanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Questo agente <b>non usa nessun modello</b>. Abbinare una fattura a un addebito è aritmetica —
-        importo, data, nome — e l&apos;aritmetica non si delega a qualcosa che ogni tanto può leggere
-        male una cifra. Funziona anche senza chiave AI, e risponde subito.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Questo agente <b>non usa nessun modello</b>. Abbinare una fattura a un addebito è aritmetica —
+          importo, data, nome — e l&apos;aritmetica non si delega a qualcosa che ogni tanto può leggere
+          male una cifra. Funziona anche senza chiave AI, e risponde subito.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

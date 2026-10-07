@@ -85,12 +85,15 @@ export default function InboxPanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Non è un riassunto della casella. È un fatto: <b>in questi thread l&rsquo;ultimo a scrivere
-        non sei tu</b>. Calcolato dai messaggi, senza modello. La bozza, se la chiedi, cita i
-        messaggi del thread e lascia fra parentesi quadre quello che deve decidere tu. Non parte da
-        qui.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Non è un riassunto della casella. È un fatto: <b>in questi thread l&rsquo;ultimo a scrivere
+          non sei tu</b>. Calcolato dai messaggi, senza modello. La bozza, se la chiedi, cita i
+          messaggi del thread e lascia fra parentesi quadre quello che deve decidere tu. Non parte da
+          qui.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

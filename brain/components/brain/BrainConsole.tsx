@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import BoardPanel, { type StoredBoard } from '@/components/brain/BoardPanel'
+import TodayPanel from '@/components/brain/TodayPanel'
 import BriefPanel from '@/components/brain/BriefPanel'
 import ContractPanel from '@/components/brain/ContractPanel'
 import ClaimCard from '@/components/brain/ClaimCard'
@@ -39,6 +40,7 @@ type Answer = {
 }
 
 type Tab =
+  | 'today'
   | 'board'
   | 'brief' | 'meeting' | 'ask' | 'contracts' | 'ledger' | 'coach' | 'postcall'
   | 'deadlines' | 'inbox' | 'slots' | 'recurring' | 'relations' | 'training' | 'radar' | 'practice' | 'sources' | 'memory'
@@ -70,19 +72,36 @@ const TAB_OF_DESK: Record<AgentKey, Tab> = {
 }
 
 /**
- * Le schede, per dirigente. Il tavolo per primo; poi ogni dirigente con
- * le sue scrivanie — una scrivania può servire due dirigenti, e allora
- * compare sotto entrambi, perché è così che lavorano; in fondo il
- * sistema.
+ * Le voci della barra laterale, per *cosa fai* — la giornata, lo
+ * studio, i soldi, fuori, tu — e non per dirigente: una scrivania che
+ * serve due dirigenti compare una volta sola, e accanto porta il nome
+ * di chi la legge. Oggi per prima; il sistema in fondo.
  */
-const GROUPS: { label: string; tabs: [Tab, string][] }[] = [
-  { label: 'Board', tabs: [['board', 'Il tavolo']] },
-  ...BOARD_ORDER.map((k) => ({
-    label: EXECUTIVES[k].name,
-    tabs: EXECUTIVES[k].desks.map((d): [Tab, string] => [TAB_OF_DESK[d], agentTab(d)]),
-  })),
-  { label: 'Sistema', tabs: [['sources', 'Fonti'], ['memory', 'Memoria']] },
+type NavItem = { key: Tab; label: string; who?: string }
+type NavGroup = { label: string; items: NavItem[] }
+
+function whoReads(desk: AgentKey): string {
+  return BOARD_ORDER.filter((k) => EXECUTIVES[k].desks.includes(desk)).map((k) => EXECUTIVES[k].name).join(', ')
+}
+
+const desk = (d: AgentKey): NavItem => ({ key: TAB_OF_DESK[d], label: agentTab(d), who: whoReads(d) })
+
+const GROUPS: NavGroup[] = [
+  { label: 'Inizio', items: [{ key: 'today', label: 'Oggi' }, { key: 'ask', label: 'Chiedi', who: 'tutti' }, { key: 'board', label: 'Il tavolo', who: 'il board' }] },
+  { label: 'La giornata', items: [desk('brief'), desk('inbox'), desk('deadlines'), desk('slots'), desk('meeting'), desk('postcall')] },
+  { label: 'Lo studio', items: [desk('practice'), desk('contracts'), desk('relations')] },
+  { label: 'I soldi', items: [desk('ledger'), desk('recurring')] },
+  { label: 'Fuori e dentro', items: [desk('radar'), desk('coach'), desk('training')] },
+  { label: 'Sistema', items: [{ key: 'sources', label: 'Fonti' }, { key: 'memory', label: 'Memoria' }] },
 ]
+
+/** Il titolo grande di ogni pagina. */
+const TITLE: Record<Tab, string> = {
+  today: 'Oggi', board: 'Il tavolo', ask: 'Chiedi', sources: 'Le fonti', memory: 'La memoria',
+  brief: 'Il brief', meeting: 'Incontri', contracts: 'Contratti', ledger: 'Il conto', coach: 'Coach', postcall: 'Dopo la call',
+  deadlines: 'Scadenze', inbox: 'Posta in attesa', slots: 'Appuntamenti', recurring: 'Abbonamenti', relations: 'Relazioni',
+  training: 'Allenamento', radar: 'Radar', practice: 'Lo studio',
+}
 
 /** L'ultima esecuzione automatica, già ridotta a quello che si mostra. */
 type AutoSync = { at: string; stored: number; detail: string }
@@ -131,7 +150,7 @@ export default function BrainConsole({
   autoSync,
   googleOutcome,
 }: Props) {
-  const [tab, setTab] = useState<Tab>('board')
+  const [tab, setTab] = useState<Tab>('today')
 
   const [question, setQuestion] = useState('')
   const [askAs, setAskAs] = useState<ExecutiveKey>('grace')
@@ -281,41 +300,62 @@ export default function BrainConsole({
       <div className="brain-shell">
         <header className="brain-head">
           <span className="brain-mark">BRAIN<span>.</span></span>
-          <span className="brain-role">{EXECUTIVES.grace.name} · {EXECUTIVES.grace.title} · {ownerEmail}</span>
+          <span className="brain-role">{EXECUTIVES.grace.name} · {EXECUTIVES.grace.role} · {ownerEmail}</span>
           <span className="brain-count">
             {stats.total.toLocaleString('it-IT')} document{stats.total === 1 ? 'o' : 'i'} in memoria
           </span>
         </header>
 
-        <nav className="brain-tabs" role="tablist">
+        <div className="brain-layout">
+        <nav className="brain-side" role="tablist" aria-label="Sezioni">
           {GROUPS.map((g) => (
-            <div key={g.label} className="brain-tab-group">
-              <span className="brain-tab-group-label">{g.label}</span>
-              {g.tabs.map(([key, label]) => (
+            <div key={g.label} className="brain-side-group">
+              <span className="brain-side-label">{g.label}</span>
+              {g.items.map((item) => (
                 <button
-                  key={`${g.label}-${key}`}
+                  key={item.key}
                   type="button"
                   role="tab"
-                  aria-selected={tab === key}
-                  className="brain-tab"
-                  onClick={() => openTab(key)}
+                  aria-selected={tab === item.key}
+                  className="brain-side-item"
+                  onClick={() => openTab(item.key)}
                 >
-                  {label}
+                  {item.label}
+                  {item.who ? <small>{item.who}</small> : null}
                 </button>
               ))}
             </div>
           ))}
         </nav>
 
-        {tab === 'board' ? (
-          <p className="brain-agent">{BOARD_ORDER.map((k) => `${EXECUTIVES[k].name} · ${EXECUTIVES[k].title}`).join('  ·  ')}</p>
-        ) : AGENT_OF[tab] ? (
-          <p className="brain-agent">{agentHeadline(AGENT_OF[tab]!)}</p>
+        <div className="brain-main">
+        {tab !== 'today' ? (
+          <div className="brain-panel-head">
+            <h1 className="brain-h1">{TITLE[tab]}</h1>
+            {tab === 'board' ? (
+              <p className="brain-agent">{BOARD_ORDER.map((k) => `${EXECUTIVES[k].name} · ${EXECUTIVES[k].role}`).join('  ·  ')}</p>
+            ) : AGENT_OF[tab] ? (
+              <p className="brain-agent">{agentHeadline(AGENT_OF[tab]!)}{AGENT_OF[tab] !== 'chief' ? ` · legge ${whoReads(AGENT_OF[tab]!)}` : ''}</p>
+            ) : null}
+          </div>
         ) : null}
 
         {error ? <p className="brain-error">{error}</p> : null}
         {googleOutcome?.ok ? (
           <p className="brain-note">Google collegato{googleOutcome.detail ? ` come ${googleOutcome.detail}` : ''}.</p>
+        ) : null}
+
+        {/* --- OGGI --- */}
+        {tab === 'today' ? (
+          <TodayPanel
+            ownerEmail={ownerEmail}
+            connectors={connectors}
+            brief={initialBrief}
+            points={initialPoints}
+            total={stats.total}
+            autoSync={autoSync}
+            go={openTab}
+          />
         ) : null}
 
         {/* --- IL TAVOLO --- */}
@@ -630,6 +670,8 @@ export default function BrainConsole({
             </div>
           </section>
         ) : null}
+        </div>
+        </div>
       </div>
     </div>
   )

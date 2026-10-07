@@ -232,10 +232,13 @@ export default function BriefPanel({ initialBrief, initialPoints }: Props) {
         <h2>
           Punti aperti {points.length ? <span className="brain-tag">{points.length}</span> : null}
         </h2>
-        <p className="brain-note" style={{ marginBottom: '0.75rem' }}>
-          Si chiudono <b>solo a mano</b>. Nessuno li toglie perché non se ne parla più: è il motivo
-          per cui questa lista si può guardare con fiducia.
-        </p>
+        <details className="brain-how">
+          <summary>Come funziona</summary>
+          <p className="brain-note">
+            Si chiudono <b>solo a mano</b>. Nessuno li toglie perché non se ne parla più: è il motivo
+            per cui questa lista si può guardare con fiducia.
+          </p>
+        </details>
 
         <div className="brain-list">
           {points.map((p) => (

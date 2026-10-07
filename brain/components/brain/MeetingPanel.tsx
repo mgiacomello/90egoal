@@ -90,11 +90,14 @@ export default function MeetingPanel() {
 
   return (
     <section>
-      <p className="brain-note" style={{ marginBottom: '1rem' }}>
-        L&rsquo;agenda si costruisce da <b>quello che è già stato detto</b>. Il recupero parte da
-        <b> chi</b>, non da cosa: i partecipanti sono un elenco esatto di indirizzi, non una ricerca
-        per nome — così &ldquo;Bianchi&rdquo; non tira dentro anche il fornitore omonimo.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          L&rsquo;agenda si costruisce da <b>quello che è già stato detto</b>. Il recupero parte da
+          <b> chi</b>, non da cosa: i partecipanti sono un elenco esatto di indirizzi, non una ricerca
+          per nome — così &ldquo;Bianchi&rdquo; non tira dentro anche il fornitore omonimo.
+        </p>
+      </details>
 
       <div className="brain-list">
         {(events ?? []).map((e) => (

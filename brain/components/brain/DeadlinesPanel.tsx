@@ -69,12 +69,15 @@ export default function DeadlinesPanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Questo agente <b>non usa nessun modello</b>. Una data si legge e una durata si somma; un
-        modello che &ldquo;stima&rdquo; una scadenza è la cosa più pericolosa da mettere davanti a un
-        avvocato. Per le date calcolate il calcolo è scritto per esteso: <b>il giorno esatto lo
-        decide il contratto</b>, controllalo sulla frase.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Questo agente <b>non usa nessun modello</b>. Una data si legge e una durata si somma; un
+          modello che &ldquo;stima&rdquo; una scadenza è la cosa più pericolosa da mettere davanti a un
+          avvocato. Per le date calcolate il calcolo è scritto per esteso: <b>il giorno esatto lo
+          decide il contratto</b>, controllalo sulla frase.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

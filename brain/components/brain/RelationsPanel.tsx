@@ -77,12 +77,15 @@ export default function RelationsPanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Il CRM che non si compila. Chi compare nelle mail e negli incontri, con che ritmo, e da
-        quanto tace. <b>Si raffredda</b> chi aveva un ritmo e ora tace da almeno tre settimane e
-        più del doppio del solito. Le organizzazioni si riconoscono dal dominio; le persone con una
-        mail generica restano persone. Senza modello.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Il CRM che non si compila. Chi compare nelle mail e negli incontri, con che ritmo, e da
+          quanto tace. <b>Si raffredda</b> chi aveva un ritmo e ora tace da almeno tre settimane e
+          più del doppio del solito. Le organizzazioni si riconoscono dal dominio; le persone con una
+          mail generica restano persone. Senza modello.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

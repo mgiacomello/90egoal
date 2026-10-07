@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import ClaimCard from '@/components/brain/ClaimCard'
-import MandatesPanel from '@/components/brain/MandatesPanel'
 import type { Board, BoardClaim, Reply } from '@/lib/brain/board'
 import { BOARD_ORDER, EXECUTIVES, type ExecutiveKey } from '@/lib/brain/executives'
 
@@ -108,13 +107,16 @@ export default function BoardPanel({ initialBoard }: { initialBoard: StoredBoard
         {board?.at || board?.generatedAt ? <span className="brain-meta">ultima riunione {when(board.at ?? board.generatedAt)}</span> : null}
       </div>
 
-      <p className="brain-note">
-        Cinque dirigenti leggono le loro scrivanie — calcolate, senza modello — scrivono un memo
-        ciascuno in parallelo, poi leggono i memo degli altri e rispondono: accordo, obiezione,
-        risposta. Grace chiude. <b>Ogni riga cita una fonte</b>, i memo compresi; un disaccordo non
-        si scioglie nascondendolo: resta scritto, con i nomi. Si riunisce ogni mattina da solo, e
-        quando lo chiedi.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Cinque dirigenti leggono le loro scrivanie — calcolate, senza modello — scrivono un memo
+          ciascuno in parallelo, poi leggono i memo degli altri e rispondono: accordo, obiezione,
+          risposta. Grace chiude. <b>Ogni riga cita una fonte</b>, i memo compresi; un disaccordo non
+          si scioglie nascondendolo: resta scritto, con i nomi. Si riunisce ogni mattina da solo, e
+          quando lo chiedi.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 
@@ -146,8 +148,6 @@ export default function BoardPanel({ initialBoard }: { initialBoard: StoredBoard
           <p className="brain-empty">Niente negli ultimi sette giorni. Quando il polso è acceso, qui vedi cosa ti hanno scritto e quando.</p>
         )}
       </div>
-
-      <MandatesPanel />
 
       {!board ? (
         <p className="brain-empty" style={{ marginTop: '1rem' }}>

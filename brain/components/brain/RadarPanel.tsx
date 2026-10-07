@@ -57,12 +57,15 @@ export default function RadarPanel() {
         </button>
       </div>
 
-      <p className="brain-note">
-        Gli articoli arrivano dai feed letti ogni notte (connettore <b>Web</b>, scheda Fonti). La
-        selezione la fa il codice sul tuo profilo; il modello legge solo quelli e scrive segnali,
-        prospettive e mosse — ogni riga cita l&rsquo;articolo. Un&rsquo;ipotesi comincia sempre con
-        &ldquo;Interpretazione:&rdquo;.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Gli articoli arrivano dai feed letti ogni notte (connettore <b>Web</b>, scheda Fonti). La
+          selezione la fa il codice sul tuo profilo; il modello legge solo quelli e scrive segnali,
+          prospettive e mosse — ogni riga cita l&rsquo;articolo. Un&rsquo;ipotesi comincia sempre con
+          &ldquo;Interpretazione:&rdquo;.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 

@@ -119,12 +119,15 @@ export default function PostCallPanel() {
 
   return (
     <section>
-      <p className="brain-note" style={{ marginBottom: '1rem' }}>
-        Le call arrivano da <b>Google Meet</b>: gli appunti di Gemini (o la trascrizione) finiscono
-        in Drive, e Drive è già in memoria. Con gli appunti il debrief è <b>copiato per sezioni,
-        senza modello</b>: ogni riga cita la sezione da cui viene. Con la trascrizione, ogni riga
-        cita il tratto in cui la cosa è stata detta. La mail non parte da qui: la mandi tu.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Le call arrivano da <b>Google Meet</b>: gli appunti di Gemini (o la trascrizione) finiscono
+          in Drive, e Drive è già in memoria. Con gli appunti il debrief è <b>copiato per sezioni,
+          senza modello</b>: ogni riga cita la sezione da cui viene. Con la trascrizione, ogni riga
+          cita il tratto in cui la cosa è stata detta. La mail non parte da qui: la mandi tu.
+        </p>
+      </details>
 
       <div className="brain-list">
         {(calls ?? []).map((c) => (

@@ -783,3 +783,436 @@ pre.brain-counter {
   font: inherit;
   margin: 0;
 }
+
+/* ============================================================
+   La struttura: barra laterale e pagina "Oggi"
+
+   Diciotto schede in fila non si leggono. Una colonna a sinistra con
+   le voci raggruppate per *cosa fai* (la giornata, lo studio, i
+   soldi, fuori, tu) sì — e ogni voce compare una volta sola, anche
+   se la consultano due dirigenti. A destra, una pagina alla volta,
+   con un titolo grande e la spiegazione ripiegata: chi la vuole la
+   apre, chi conosce la scheda non la rilegge ogni giorno.
+   ============================================================ */
+
+.brain-shell {
+  max-width: 76rem;
+}
+
+.brain-layout {
+  display: grid;
+  grid-template-columns: 14rem minmax(0, 1fr);
+  gap: 2.5rem;
+  margin-top: 1.5rem;
+  align-items: start;
+}
+
+.brain-side {
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+}
+
+.brain-side-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+}
+
+.brain-side-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--brain-off);
+  padding: 0 0.75rem 0.375rem;
+}
+
+.brain-side-item {
+  appearance: none;
+  background: none;
+  border: none;
+  border-radius: 0.5rem;
+  color: var(--brain-muted);
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 0.4375rem 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  transition: background 0.12s, color 0.12s;
+}
+
+.brain-side-item:hover {
+  color: var(--brain-ink);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.brain-side-item[aria-selected='true'] {
+  color: var(--brain-ink);
+  background: var(--brain-accent-soft);
+  box-shadow: inset 2px 0 0 var(--brain-accent);
+}
+
+.brain-side-item small {
+  font-size: 0.6875rem;
+  color: var(--brain-off);
+}
+
+.brain-main {
+  min-width: 0;
+}
+
+/* La testata di ogni pagina: titolo, chi risponde, e la spiegazione
+   ripiegata. */
+.brain-panel-head {
+  margin-bottom: 1.25rem;
+}
+
+.brain-h1 {
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 1.625rem;
+  letter-spacing: -0.01em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.brain-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--brain-accent);
+}
+
+.brain-panel-head .brain-agent {
+  margin: 0.375rem 0 0;
+}
+
+/* "Come funziona", ripiegato. */
+.brain-how {
+  margin: 0 0 1.25rem;
+  font-size: 0.875rem;
+  color: var(--brain-muted);
+  line-height: 1.55;
+}
+
+.brain-how summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--brain-off);
+  user-select: none;
+}
+
+.brain-how summary::-webkit-details-marker {
+  display: none;
+}
+
+.brain-how summary::before {
+  content: '?';
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--brain-line);
+  font-size: 0.625rem;
+}
+
+.brain-how[open] summary {
+  color: var(--brain-muted);
+  margin-bottom: 0.5rem;
+}
+
+.brain-how .brain-note {
+  margin: 0;
+}
+
+/* --- Oggi --- */
+
+.brain-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem;
+}
+
+.brain-hero-side {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.brain-stat {
+  font-size: 0.8125rem;
+  color: var(--brain-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.brain-stat b {
+  color: var(--brain-ink);
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-right: 0.125rem;
+}
+
+.brain-setup {
+  border: 1px solid rgba(255, 180, 84, 0.35);
+  background: linear-gradient(180deg, rgba(255, 180, 84, 0.1), rgba(255, 180, 84, 0.03));
+  border-radius: 0.875rem;
+  padding: 1.25rem 1.375rem;
+  margin-bottom: 1.5rem;
+}
+
+.brain-setup h2 {
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-size: 1.125rem;
+  margin: 0 0 0.375rem;
+}
+
+.brain-setup > p {
+  margin: 0 0 1rem;
+  color: var(--brain-muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.brain-steps {
+  margin: 0 0 0.875rem;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  gap: 0.625rem;
+}
+
+.brain-steps li {
+  counter-increment: step;
+  display: grid;
+  grid-template-columns: 1.75rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--brain-elev);
+  border: 1px solid var(--brain-line);
+  border-radius: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--brain-muted);
+}
+
+.brain-steps li::before {
+  content: counter(step);
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 999px;
+  background: var(--brain-accent-soft);
+  color: var(--brain-accent);
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 0.8125rem;
+}
+
+.brain-steps li[data-done='yes']::before {
+  content: '✓';
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--brain-ok);
+}
+
+.brain-steps li b {
+  color: var(--brain-ink);
+}
+
+.brain-steps .brain-btn {
+  white-space: nowrap;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+}
+
+.brain-step-hint {
+  grid-column: 2 / -1;
+  font-size: 0.8125rem;
+}
+
+.brain-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.875rem;
+}
+
+.brain-card {
+  background: var(--brain-elev);
+  border: 1px solid var(--brain-line);
+  border-radius: 0.875rem;
+  padding: 1rem 1.125rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-height: 9rem;
+}
+
+.brain-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.brain-card-head h2 {
+  font-family: var(--font-sora), system-ui, sans-serif;
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.brain-link {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  color: var(--brain-accent);
+  cursor: pointer;
+}
+
+.brain-link:hover {
+  text-decoration: underline;
+}
+
+.brain-plain {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.brain-plain li {
+  padding-left: 0.875rem;
+  position: relative;
+}
+
+.brain-plain li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 0.3125rem;
+  height: 0.3125rem;
+  border-radius: 999px;
+  background: var(--brain-accent);
+}
+
+.brain-who {
+  color: var(--brain-accent);
+  font-weight: 600;
+}
+
+.brain-empty-left {
+  color: var(--brain-off);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.brain-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.brain-chip-static {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.75rem;
+  color: var(--brain-muted);
+  border: 1px solid var(--brain-line);
+  border-radius: 999px;
+  padding: 0.25rem 0.625rem 0.25rem 0.5rem;
+}
+
+.brain-chip-static .brain-dot {
+  margin: 0;
+}
+
+.brain-chip-static[data-state='connected'] {
+  color: var(--brain-ink);
+}
+
+/* --- mobile: la colonna diventa una riga scorrevole --- */
+
+@media (max-width: 56rem) {
+  .brain-layout {
+    display: block;
+  }
+
+  .brain-side {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    gap: 0;
+    overflow-x: auto;
+    margin: 0 -1rem 1.25rem;
+    padding: 0 1rem 0.5rem;
+    border-bottom: 1px solid var(--brain-line);
+    scrollbar-width: none;
+  }
+
+  .brain-side::-webkit-scrollbar {
+    display: none;
+  }
+
+  .brain-side-group {
+    flex-direction: row;
+    gap: 0.125rem;
+    padding-right: 0.75rem;
+  }
+
+  .brain-side-group + .brain-side-group {
+    border-left: 1px solid var(--brain-line);
+    padding-left: 0.75rem;
+  }
+
+  .brain-side-label {
+    display: none;
+  }
+
+  .brain-side-item {
+    white-space: nowrap;
+    padding: 0.4375rem 0.625rem;
+  }
+
+  .brain-side-item small {
+    display: none;
+  }
+
+  .brain-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brain-steps li {
+    grid-template-columns: 1.75rem minmax(0, 1fr);
+  }
+
+  .brain-steps .brain-btn {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

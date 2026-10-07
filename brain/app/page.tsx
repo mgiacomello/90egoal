@@ -55,8 +55,9 @@ function Setup({ message }: { message: string }) {
         </header>
         <p className="brain-error" style={{ marginTop: '1.5rem' }}>{message}</p>
         <p className="brain-note brain-section">
-          Esegui <code>supabase/migration_brain.sql</code> e{' '}
-          <code>supabase/migration_brain_brief.sql</code> nell&apos;SQL Editor del progetto, poi
+          Esegui <code>supabase/migration_brain.sql</code>,{' '}
+          <code>supabase/migration_brain_brief.sql</code> e <code>supabase/migration_brain_mandates.sql</code>{' '}
+          nell&apos;SQL Editor del progetto, poi
           ricarica. Il dettaglio dei passi è nel <code>README.md</code>.
         </p>
       </div>

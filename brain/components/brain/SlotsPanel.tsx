@@ -85,11 +85,14 @@ export default function SlotsPanel() {
         </div>
       </form>
 
-      <p className="brain-note" style={{ marginTop: '1rem' }}>
-        Giorni lavorativi, 9–18 ora italiana, un quarto d&rsquo;ora di margine prima e dopo ogni
-        impegno, una proposta al giorno, con preferenza per le 10–12 e le 15–17. <b>Non fissa
-        niente</b>: la mail la mandi tu, e l&rsquo;evento lo crei tu quando l&rsquo;altro risponde.
-      </p>
+      <details className="brain-how">
+        <summary>Come funziona</summary>
+        <p className="brain-note">
+          Giorni lavorativi, 9–18 ora italiana, un quarto d&rsquo;ora di margine prima e dopo ogni
+          impegno, una proposta al giorno, con preferenza per le 10–12 e le 15–17. <b>Non fissa
+          niente</b>: la mail la mandi tu, e l&rsquo;evento lo crei tu quando l&rsquo;altro risponde.
+        </p>
+      </details>
 
       {error ? <p className="brain-error" style={{ marginTop: '1rem' }}>{error}</p> : null}
 
