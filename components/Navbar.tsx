@@ -93,7 +93,7 @@ export default function Navbar() {
               <Link href="/auth/login" className="text-sm text-[var(--muted)] hover:text-white transition-colors px-3 py-2">
                 Accedi
               </Link>
-              <Link href="/auth/register" className="btn-primary text-sm px-5 py-2">
+              <Link href="/prova" className="btn-primary text-sm px-5 py-2">
                 Gioca
               </Link>
             </div>

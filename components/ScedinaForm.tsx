@@ -10,6 +10,7 @@ import TeamPicker from '@/components/TeamPicker'
 import GoalStatsPanel from '@/components/GoalStatsPanel'
 import { logEvent } from '@/lib/track'
 import { nomeBreve } from '@/lib/teams'
+import { PROVA_KEY, type PronosticoProva } from '@/lib/demo'
 
 const MAX_MINUTI = 13
 
@@ -23,9 +24,11 @@ interface Props {
   userId: string
   goalStats?: GoalStats
   teamStats?: TeamGoalStats[]
+  guest?: boolean              // senza account: la schedina resta nel telefono
+  onGuestSaved?: () => void
 }
 
-export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goalStats, teamStats }: Props) {
+export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goalStats, teamStats, guest, onGuestSaved }: Props) {
   const router = useRouter()
   const isKnockout = schedina.fase === 'eliminazione'
 
@@ -69,6 +72,17 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
   async function invia() {
     setError('')
     if (!completo) { setPasso('minuti'); return }
+    if (guest) {
+      const prova: PronosticoProva = {
+        schedina_id: schedina.id, nome: nomeBreve(schedina.nome), minuti,
+        recupero: recupero ?? null, first_goal: firstGoal || null, last_goal: lastGoal || null,
+        salvato_il: new Date().toISOString(),
+      }
+      try { localStorage.setItem(PROVA_KEY, JSON.stringify(prova)) } catch {}
+      setSaved(true)
+      setTimeout(() => { onGuestSaved?.(); router.push('/prova') }, 1600)
+      return
+    }
     setSaving(true)
     const payload = {
       user_id: userId,
@@ -94,8 +108,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
     return (
       <div className="text-center py-24 animate-fade-up">
         <div className="inline-grid place-items-center w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-4xl mb-5 shadow-[0_20px_50px_-10px_rgba(0,230,118,0.6)]">✓</div>
-        <h2 className="font-display font-bold text-2xl text-gradient">Schedina giocata!</h2>
-        <p className="text-[var(--muted)] mt-2">Ora tocca al campo. Torna durante le partite: i tuoi minuti si accendono in diretta. 🍀</p>
+        <h2 className="font-display font-bold text-2xl text-gradient">{guest ? 'Schedina salvata!' : 'Schedina giocata!'}</h2>
+        <p className="text-[var(--muted)] mt-2">{guest ? 'Resta su questo telefono. Con un account entra in classifica.' : 'Ora tocca al campo. Torna durante le partite: i tuoi minuti si accendono in diretta. 🍀'}</p>
       </div>
     )
   }
@@ -105,6 +119,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
   const idx = nPassi.indexOf(passo)
 
   return (
+    <>
     <div className="max-w-lg mx-auto animate-fade-up pb-28">
       {/* Testata essenziale: nome, scadenza, passo */}
       <div className="flex items-center justify-between gap-3 mb-4">
@@ -257,7 +272,9 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
         </div>
       )}
 
-      {/* ===== Barra sotto al pollice ===== */}
+    </div>
+
+      {/* ===== Barra sotto al pollice (fuori dal blocco animato: un antenato con transform romperebbe il fixed) ===== */}
       <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           {passo === 'minuti' && (
@@ -282,6 +299,6 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
