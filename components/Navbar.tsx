@@ -5,13 +5,13 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
-// Su telefono si gioca coi pollici: le sezioni stanno in una barra in basso,
-// in alto restano solo il marchio e (per chi amministra) l'accesso al pannello.
+// Su telefono si gioca coi pollici: quattro sezioni in una barra in basso,
+// in alto solo il marchio e (per chi amministra) il pannello. Le regole
+// stanno dentro Oggi e Profilo: non meritano un posto sotto al pollice.
 const TABS = [
-  { href: '/', label: 'Home', icon: '⌂', exact: true },
+  { href: '/', label: 'Oggi', icon: '⚽', exact: true },
   { href: '/schedine', label: 'Schedine', icon: '📝' },
   { href: '/classifica', label: 'Classifica', icon: '🏆' },
-  { href: '/regole', label: 'Regole', icon: '📖' },
   { href: '/profilo', label: 'Profilo', icon: '👤' },
 ]
 
@@ -51,10 +51,13 @@ export default function Navbar() {
   }
 
   const active = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href))
-  const linkClass = (href: string) =>
+  const linkClass = (href: string, exact?: boolean) =>
     `relative text-sm font-medium transition-colors px-2.5 sm:px-3 py-2 rounded-lg ${
-      active(href) ? 'text-white bg-white/5' : 'text-[var(--muted)] hover:text-white'
+      active(href, exact) ? 'text-white bg-white/5' : 'text-[var(--muted)] hover:text-white'
     }`
+
+  // Dentro al form della schedina la barra in basso è quella del form.
+  const inForm = /^\/schedine\/\d+/.test(pathname)
 
   return (
     <>
@@ -77,49 +80,35 @@ export default function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-0.5 sm:gap-1">
-              {/* desktop: link in alto */}
               <div className="hidden sm:flex items-center gap-1">
-                <Link href="/schedine" className={linkClass('/schedine')}>Schedine</Link>
-                <Link href="/classifica" className={linkClass('/classifica')}>Classifica</Link>
-                <Link href="/regole" className={linkClass('/regole')}>Regole</Link>
-                <Link href="/profilo" className={linkClass('/profilo')}>Profilo</Link>
+                {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label}</Link>)}
               </div>
               {isAdmin && <Link href="/admin" className={linkClass('/admin')}>⚙️<span className="hidden sm:inline"> Admin</span></Link>}
-              <button
-                onClick={handleLogout}
-                className="hidden sm:inline text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-3 py-2"
-              >
+              <button onClick={handleLogout} className="hidden sm:inline text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-3 py-2">
                 Esci
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              <Link href="/regole" className={`${linkClass('/regole')} hidden sm:inline`}>Regole</Link>
               <Link href="/auth/login" className="text-sm text-[var(--muted)] hover:text-white transition-colors px-3 py-2">
                 Accedi
               </Link>
               <Link href="/auth/register" className="btn-primary text-sm px-5 py-2">
-                Registrati
+                Gioca
               </Link>
             </div>
           )}
         </div>
       </nav>
 
-      {/* telefono: barra in basso, raggiungibile col pollice */}
-      {user && (
+      {user && !inForm && (
         <nav className="sm:hidden fixed bottom-0 inset-x-0 z-50 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-          <div className="grid grid-cols-5">
+          <div className="grid grid-cols-4">
             {TABS.map(t => {
               const on = active(t.href, t.exact)
               return (
-                <Link
-                  key={t.href}
-                  href={t.href}
-                  className={`flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors ${
-                    on ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'
-                  }`}
-                >
+                <Link key={t.href} href={t.href}
+                  className={`flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors ${on ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
                   <span className={`text-lg leading-none ${on ? '' : 'grayscale opacity-70'}`}>{t.icon}</span>
                   {t.label}
                 </Link>

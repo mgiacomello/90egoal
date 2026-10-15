@@ -8,11 +8,14 @@ import { GoalStats, TeamGoalStats } from '@/lib/goalStats'
 import Flag from '@/components/Flag'
 import TeamPicker from '@/components/TeamPicker'
 import GoalStatsPanel from '@/components/GoalStatsPanel'
-import { stadiumImage } from '@/lib/stadiums'
 import { logEvent } from '@/lib/track'
 import { nomeBreve } from '@/lib/teams'
 
 const MAX_MINUTI = 13
+
+// Si gioca col telefono in mano: un passo alla volta, una cosa sola per schermo,
+// il pulsante per andare avanti sempre sotto al pollice.
+type Passo = 'minuti' | 'bonus' | 'conferma'
 
 interface Props {
   schedina: Schedina
@@ -24,9 +27,9 @@ interface Props {
 
 export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goalStats, teamStats }: Props) {
   const router = useRouter()
-
   const isKnockout = schedina.fase === 'eliminazione'
 
+  const [passo, setPasso] = useState<Passo>('minuti')
   const [minuti, setMinuti] = useState<number[]>(pronosticoEsistente?.minuti ?? [])
   const [recupero, setRecupero] = useState<'primo' | 'secondo' | null>(pronosticoEsistente?.recupero ?? null)
   const [firstGoal, setFirstGoal] = useState<string>(pronosticoEsistente?.first_goal ?? '')
@@ -52,32 +55,21 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
   useEffect(() => { if (recupero) mark('recupero_set') }, [recupero])
   useEffect(() => { if (firstGoal) mark('first_team_set') }, [firstGoal])
   useEffect(() => { if (lastGoal) mark('last_team_set') }, [lastGoal])
+  useEffect(() => { window.scrollTo({ top: 0 }) }, [passo])
+
+  const completo = minuti.length === MAX_MINUTI
+  const mancano = MAX_MINUTI - minuti.length
 
   function toggleMinuto(m: number) {
     setError('')
-    if (minuti.includes(m)) {
-      setMinuti(prev => prev.filter(x => x !== m))
-    } else {
-      if (minuti.length >= MAX_MINUTI) { setError(`Hai già scelto tutti i ${MAX_MINUTI} minuti. Deseleziona un minuto per cambiarlo.`); return }
-      setMinuti(prev => [...prev, m].sort((a, b) => a - b))
-    }
+    if (minuti.includes(m)) setMinuti(prev => prev.filter(x => x !== m))
+    else if (!completo) setMinuti(prev => [...prev, m].sort((a, b) => a - b))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function invia() {
     setError('')
-    if (minuti.length !== MAX_MINUTI) {
-      setError(`Devi inserire esattamente ${MAX_MINUTI} minuti. Ne hai inseriti ${minuti.length}.`)
-      return
-    }
-
-    // Conferma: il pronostico è definitivo
-    if (!window.confirm('Confermi l\'invio? Una volta inviato, il pronostico NON sarà più modificabile.')) {
-      return
-    }
-
+    if (!completo) { setPasso('minuti'); return }
     setSaving(true)
-    const supabase = createClient()
     const payload = {
       user_id: userId,
       schedina_id: schedina.id,
@@ -87,16 +79,13 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       last_goal: lastGoal || null,
       extra_time: isKnockout ? extraTime : null,
     }
-
-    const { error: dbError } = await supabase.from('pronostici').insert(payload)
-
-    if (dbError) setError(new Date() > new Date(schedina.deadline)
-      ? 'La schedina è chiusa: il calcio d\'inizio è già passato.'
-      : 'Errore nell\'invio. Riprova.')
-    else {
+    const { error: dbError } = await createClient().from('pronostici').insert(payload)
+    if (dbError) {
+      setError(new Date() > new Date(schedina.deadline) ? 'La schedina è chiusa: il calcio d\'inizio è già passato.' : 'Errore nell\'invio. Riprova.')
+    } else {
       logEvent('submit', { schedina_id: schedina.id, ms: Date.now() - openedAt.current })
       setSaved(true)
-      setTimeout(() => router.push('/schedine'), 1800)
+      setTimeout(() => router.push('/'), 1800)
     }
     setSaving(false)
   }
@@ -105,174 +94,194 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
     return (
       <div className="text-center py-24 animate-fade-up">
         <div className="inline-grid place-items-center w-20 h-20 rounded-3xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-4xl mb-5 shadow-[0_20px_50px_-10px_rgba(0,230,118,0.6)]">✓</div>
-        <h2 className="font-display font-bold text-2xl text-gradient">Pronostico inviato!</h2>
-        <p className="text-[var(--muted)] mt-2">Il pronostico è <strong className="text-white">definitivo</strong> e non è più modificabile. In bocca al lupo! 🍀</p>
+        <h2 className="font-display font-bold text-2xl text-gradient">Schedina giocata!</h2>
+        <p className="text-[var(--muted)] mt-2">Ora tocca al campo. Torna durante le partite: i tuoi minuti si accendono in diretta. 🍀</p>
       </div>
     )
   }
 
-  const progress = (minuti.length / MAX_MINUTI) * 100
-  const completo = minuti.length === MAX_MINUTI
+  const deadline = new Date(schedina.deadline)
+  const nPassi: Passo[] = ['minuti', 'bonus', 'conferma']
+  const idx = nPassi.indexOf(passo)
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-up">
-      {/* Header con banner stadio */}
-      <div className="relative rounded-2xl overflow-hidden glass mb-6">
-        <div className="relative h-44 sm:h-52">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={stadiumImage(schedina.id)} alt="" className="absolute inset-0 w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/55 to-[#0d1117]/10" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0d1117]/80 to-transparent" />
-
-          <button onClick={() => router.push('/schedine')}
-            className="absolute top-4 left-5 text-sm text-white/80 hover:text-white transition-colors bg-black/40 backdrop-blur border border-white/15 px-3 py-1.5 rounded-full">
-            ← Tutte le schedine
-          </button>
-
-          <div className="absolute bottom-0 inset-x-0 p-5">
-            <h1 className="font-display font-bold text-3xl sm:text-4xl drop-shadow-lg">{nomeBreve(schedina.nome)}</h1>
-            <p className="text-sm mt-1 text-white/70">
-              Scadenza <span className="text-[var(--gold)] font-medium">{new Date(schedina.deadline).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })} · {new Date(schedina.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Le partite */}
-      <div className="glass rounded-2xl p-5 mb-6">
-        <h2 className="text-xs font-semibold text-[var(--muted)] uppercase tracking-widest mb-3">
-          {isKnockout ? '⚔️ Eliminazione diretta · ' : ''}Le {schedina.partite.length} partite in gioco
-        </h2>
-        <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2.5">
-          {schedina.partite.map((p: Partita, i: number) => (
-            <div key={i} className="flex items-center gap-2 text-sm">
-              <span className="text-xs text-[var(--muted)] w-11 shrink-0 tabular-nums leading-tight">
-                {p.ora ?? new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
-                {p.competizione && <span className="block text-[9px]">{p.competizione}</span>}
-              </span>
-              <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
-              <span className="text-white/85">{p.home}</span>
-              <span className="text-white/25 text-xs">vs</span>
-              <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
-              <span className="text-white/85">{p.away}</span>
-            </div>
+    <div className="max-w-lg mx-auto animate-fade-up pb-28">
+      {/* Testata essenziale: nome, scadenza, passo */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <button type="button" onClick={() => (idx > 0 ? setPasso(nPassi[idx - 1]) : router.push('/'))}
+          className="text-sm text-[var(--muted)] hover:text-white -ml-1 px-1 py-1">← {idx > 0 ? 'Indietro' : 'Esci'}</button>
+        <div className="flex gap-1.5">
+          {nPassi.map((p, i) => (
+            <span key={p} className={`h-1.5 rounded-full transition-all ${i <= idx ? 'w-6 bg-[var(--accent)]' : 'w-3 bg-white/15'}`} />
           ))}
         </div>
       </div>
+      <h1 className="font-display font-bold text-2xl leading-tight">{nomeBreve(schedina.nome)}</h1>
+      <p className="text-xs text-[var(--muted)] mt-1 mb-5">
+        Si chiude {deadline.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} alle {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}
+      </p>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-
-        {/* Sessione tecnica — statistiche gol del torneo */}
-        {goalStats && <GoalStatsPanel stats={goalStats} teamStats={teamStats} />}
-
-        {/* STEP 1 — Minuti */}
-        <div className="glass rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="font-display font-bold text-lg flex items-center gap-2">
-              <span className="text-base">🕐</span> Scegli 13 minuti
-            </h2>
-            <span className={`font-display font-bold text-sm tabular-nums ${completo ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-              {minuti.length}/{MAX_MINUTI}
-            </span>
-          </div>
-          <p className="text-xs text-[var(--muted)] mb-4">I minuti (1–90) in cui prevedi un gol in una qualsiasi partita.</p>
-
-          {/* Progress bar */}
-          <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden mb-5">
-            <div className="h-full bg-gradient-to-r from-[var(--accent-soft)] to-[var(--accent-cyan)] rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
+      {/* ===== PASSO 1: i minuti ===== */}
+      {passo === 'minuti' && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="font-display font-bold text-lg">In quali minuti si segna?</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">Scegline {MAX_MINUTI}. Vale un gol in una qualsiasi delle {schedina.partite.length} partite.</p>
           </div>
 
-          {/* Griglia 1–90: tocca per selezionare (numeri grandi su mobile) */}
-          <div className="grid grid-cols-5 min-[420px]:grid-cols-6 sm:grid-cols-9 lg:grid-cols-10 gap-2 sm:gap-1.5">
+          <details className="glass rounded-xl overflow-hidden group">
+            <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-2.5 text-sm select-none">
+              <span className="text-white/80">Le {schedina.partite.length} partite</span>
+              <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90">▶</span>
+            </summary>
+            <div className="px-4 pb-3 space-y-1.5">
+              {schedina.partite.map((p: Partita, i: number) => (
+                <div key={i} className="flex items-center gap-2 text-sm">
+                  <span className="text-[11px] text-[var(--muted)] w-10 shrink-0 tabular-nums">{p.ora ?? ''}</span>
+                  <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
+                  <span className="truncate">{p.home}</span>
+                  <span className="text-white/25 text-xs">–</span>
+                  <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
+                  <span className="truncate">{p.away}</span>
+                </div>
+              ))}
+            </div>
+          </details>
+
+          {goalStats && (
+            <details className="glass rounded-xl overflow-hidden group">
+              <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-2.5 text-sm select-none">
+                <span className="text-white/80">📊 Quando si è segnato finora</span>
+                <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90">▶</span>
+              </summary>
+              <div className="px-2 pb-2"><GoalStatsPanel stats={goalStats} teamStats={teamStats} /></div>
+            </details>
+          )}
+
+          <div className="grid grid-cols-6 gap-1.5">
             {Array.from({ length: 90 }, (_, i) => i + 1).map(m => {
               const selected = minuti.includes(m)
-              const disabled = !selected && completo
               return (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => toggleMinuto(m)}
-                  disabled={disabled}
-                  className={`min-cell ${selected ? 'is-selected' : ''}`}
-                  title={selected ? 'Tocca per rimuovere' : 'Tocca per selezionare'}
-                >
+                <button key={m} type="button" onClick={() => toggleMinuto(m)} disabled={!selected && completo}
+                  className={`min-cell ${selected ? 'is-selected' : ''}`}>
                   {m}
                 </button>
               )
             })}
           </div>
-
-          <p className={`text-xs mt-4 ${completo ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-            {completo
-              ? '✓ Tutti i 13 minuti selezionati. Tocca un minuto verde per rimuoverlo.'
-              : 'Tocca i numeri per scegliere i minuti in cui prevedi un gol.'}
-          </p>
         </div>
+      )}
 
-        {/* Supplementari — solo eliminazione diretta */}
-        {isKnockout && (
-          <div className="glass rounded-2xl p-6">
-            <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">⏱️</span> Supplementari <span className="text-xs font-normal text-[var(--gold)]">+5 punti · facoltativo</span></h2>
-            <p className="text-xs text-[var(--muted)] mb-4">Nell&apos;eliminazione diretta le partite possono andare ai tempi supplementari. Pensi che <strong className="text-white">almeno una</strong> partita di questa schedina andrà ai supplementari?</p>
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setExtraTime(extraTime === true ? null : true)}
-                className={`seg-btn px-5 py-3 text-sm ${extraTime === true ? 'is-active' : ''}`}>
-                ⏱️ Sì, supplementari
-              </button>
-              <button type="button" onClick={() => setExtraTime(extraTime === false ? null : false)}
-                className={`seg-btn px-5 py-3 text-sm ${extraTime === false ? 'is-active' : ''}`}>
-                ✓ No, finisce nei 90&apos;
-              </button>
+      {/* ===== PASSO 2: i bonus (facoltativi) ===== */}
+      {passo === 'bonus' && (
+        <div className="space-y-7">
+          <div>
+            <h2 className="font-display font-bold text-lg">Tre bonus, se te la senti</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">Puoi anche saltarli: i tuoi {MAX_MINUTI} minuti sono già salvi.</p>
+          </div>
+
+          <section>
+            <h3 className="font-semibold mb-0.5">Gol nel recupero <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">Un gol oltre il 45&apos; o oltre il 90&apos;, in una partita qualsiasi.</p>
+            <div className="grid grid-cols-2 gap-2">
+              {(['primo', 'secondo'] as const).map(t => (
+                <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
+                  className={`seg-btn px-4 py-3.5 text-sm ${recupero === t ? 'is-active' : ''}`}>
+                  {t === 'primo' ? '1° tempo' : '2° tempo'}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          {isKnockout && (
+            <section>
+              <h3 className="font-semibold mb-0.5">Supplementari <span className="text-xs font-normal text-[var(--gold)]">+5</span></h3>
+              <p className="text-xs text-[var(--muted)] mb-3">Almeno una partita va oltre i 90&apos;?</p>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setExtraTime(extraTime === true ? null : true)} className={`seg-btn px-4 py-3.5 text-sm ${extraTime === true ? 'is-active' : ''}`}>Sì</button>
+                <button type="button" onClick={() => setExtraTime(extraTime === false ? null : false)} className={`seg-btn px-4 py-3.5 text-sm ${extraTime === false ? 'is-active' : ''}`}>No</button>
+              </div>
+            </section>
+          )}
+
+          <section>
+            <h3 className="font-semibold mb-0.5">Chi segna per primo <span className="text-xs font-normal text-[var(--gold)]">+3</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">Il primo gol di tutta la giornata, in ordine di orario.</p>
+            <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
+          </section>
+
+          <section>
+            <h3 className="font-semibold mb-0.5">Chi segna per ultimo <span className="text-xs font-normal text-[var(--gold)]">+3 · entrambe +10</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">L&apos;ultimo gol della giornata.</p>
+            <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
+          </section>
+        </div>
+      )}
+
+      {/* ===== PASSO 3: conferma ===== */}
+      {passo === 'conferma' && (
+        <div className="space-y-5">
+          <div>
+            <h2 className="font-display font-bold text-lg">Tutto giusto?</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">Dopo l&apos;invio non si cambia più.</p>
+          </div>
+
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">I tuoi {MAX_MINUTI} minuti</span>
+              <button type="button" onClick={() => setPasso('minuti')} className="text-xs text-[var(--accent-soft)]">Cambia</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {minuti.map(m => <span key={m} className="tag-static px-2.5 py-1.5 text-sm">{m}&apos;</span>)}
             </div>
           </div>
-        )}
 
-        {/* Recupero — sempre */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">➕</span> Recupero <span className="text-xs font-normal text-[var(--gold)]">+1 punto · facoltativo</span></h2>
-          <p className="text-xs text-[var(--muted)] mb-4">Prevedi un gol nei minuti di recupero (primo o secondo tempo). Tocca un pulsante (puoi anche saltarlo).</p>
-          <div className="grid grid-cols-2 gap-3">
-            {(['primo', 'secondo'] as const).map(t => (
-              <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
-                className={`seg-btn px-5 py-3 text-sm ${recupero === t ? 'is-active' : ''}`}>
-                {t === 'primo' ? 'Recupero 1° tempo' : 'Recupero 2° tempo'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Prima/Ultima rete — sempre */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="font-display font-bold text-lg flex items-center gap-2 mb-1"><span className="text-base">🏆</span> Prima e ultima rete <span className="text-xs font-normal text-[var(--gold)]">+3 / +10 · facoltativo</span></h2>
-          <p className="text-xs text-[var(--muted)] mb-5">Quale squadra segnerà il primo e l&apos;ultimo gol tra tutte le partite? Tocca una squadra (puoi anche saltarlo).</p>
-          <div className="space-y-6">
-            <div>
-              <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🥇 Prima squadra a segnare</label>
-              <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
+          <div className="glass rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Bonus</span>
+              <button type="button" onClick={() => setPasso('bonus')} className="text-xs text-[var(--accent-soft)]">Cambia</button>
             </div>
-            <div>
-              <label className="block text-xs text-[var(--muted)] mb-2 font-medium">🏁 Ultima squadra a segnare</label>
-              <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
-            </div>
+            {!recupero && !firstGoal && !lastGoal && extraTime == null ? (
+              <p className="text-sm text-[var(--muted)]">Nessuno. Va benissimo così.</p>
+            ) : (
+              <div className="space-y-2 text-sm">
+                {recupero && <div>➕ Recupero <span className="font-medium">{recupero === 'primo' ? '1° tempo' : '2° tempo'}</span></div>}
+                {extraTime != null && <div>⏱️ Supplementari: <span className="font-medium">{extraTime ? 'Sì' : 'No'}</span></div>}
+                {firstGoal && <div className="flex items-center gap-1.5">🥇 Primo gol: <Flag team={firstGoal} w={40} className="w-5 h-3.5" /> <span className="font-medium">{firstGoal}</span></div>}
+                {lastGoal && <div className="flex items-center gap-1.5">🏁 Ultimo gol: <Flag team={lastGoal} w={40} className="w-5 h-3.5" /> <span className="font-medium">{lastGoal}</span></div>}
+              </div>
+            )}
           </div>
-        </div>
 
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>
-        )}
-
-        {/* Submit */}
-        <div>
-          <button type="submit" disabled={saving || !completo} className="btn-primary w-full py-4 text-base shadow-2xl">
-            {saving ? 'Invio…' : '🔒 Invia pronostico (definitivo)'}
-          </button>
-          <p className="text-center text-[var(--muted)] text-xs mt-2">
-            {!completo
-              ? `Aggiungi ancora ${MAX_MINUTI - minuti.length} ${MAX_MINUTI - minuti.length === 1 ? 'minuto' : 'minuti'} per inviare.`
-              : 'Attenzione: dopo l’invio il pronostico non sarà più modificabile.'}
-          </p>
+          {error && <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>}
         </div>
-      </form>
+      )}
+
+      {/* ===== Barra sotto al pollice ===== */}
+      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
+        <div className="max-w-lg mx-auto flex items-center gap-3">
+          {passo === 'minuti' && (
+            <>
+              <div className="shrink-0">
+                <div className={`font-display font-extrabold text-2xl tabular-nums leading-none ${completo ? 'text-[var(--accent-soft)]' : 'text-white'}`}>{minuti.length}<span className="text-sm text-[var(--muted)] font-normal">/{MAX_MINUTI}</span></div>
+                <div className="text-[11px] text-[var(--muted)] mt-0.5">{completo ? 'fatto' : `ancora ${mancano}`}</div>
+              </div>
+              <button type="button" disabled={!completo} onClick={() => setPasso('bonus')} className="btn-primary flex-1 py-3.5 text-base">Avanti →</button>
+            </>
+          )}
+          {passo === 'bonus' && (
+            <>
+              <button type="button" onClick={() => { setRecupero(null); setFirstGoal(''); setLastGoal(''); setExtraTime(null); setPasso('conferma') }} className="btn-ghost px-5 py-3.5 text-sm">Salta</button>
+              <button type="button" onClick={() => setPasso('conferma')} className="btn-primary flex-1 py-3.5 text-base">Avanti →</button>
+            </>
+          )}
+          {passo === 'conferma' && (
+            <button type="button" disabled={saving} onClick={invia} className="btn-primary flex-1 py-4 text-base">
+              {saving ? 'Invio…' : '🔒 Gioca la schedina'}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -92,6 +92,58 @@ export function buildDettaglio(p: PartitaLive, gol: GolLive[], stato: StatoParti
   }
 }
 
+// Un gol nella cronologia della schedina: per la pagina live, dal più recente.
+export interface GolCronologia {
+  at: number              // istante stimato (ms), per l'ordine fra partite diverse
+  min: string             // "23'", "45+2'"
+  minuto: number | null   // 1–90 se vale per i minuti, altrimenti null (recupero)
+  team: string
+  home: string
+  away: string
+  score: string           // punteggio della partita subito dopo questo gol
+  doppio: boolean         // primo o ultimo gol dei 90': quel minuto vale 2
+}
+
+// Tutti i gol della schedina in ordine di orario reale, con il punteggio
+// parziale e il segno "doppio" sul primo e sull'ultimo dei tempi regolamentari.
+export function cronologiaGol(partite: PartitaLive[], dettagli: DettaglioLive[]): GolCronologia[] {
+  const byKey = new Map(dettagli.map(d => [matchKey(d), d]))
+  const out: (GolCronologia & { seq: number })[] = []
+  let seq = 0
+  for (const p of partite) {
+    const d = byKey.get(matchKey(p))
+    if (!d) continue
+    const k0 = kickoffMs(p)
+    let h = 0
+    let a = 0
+    for (const g of d.gol ?? []) {
+      const m = parseMinute(g.min)
+      if (!m) continue
+      if (g.team === p.home) h++
+      else if (g.team === p.away) a++
+      const regolamentare = m.extra === 0 && m.base >= 1 && m.base <= 90
+      out.push({
+        at: k0 + elapsed(m) * 60000,
+        min: formatMinute(m),
+        minuto: regolamentare ? m.base : null,
+        team: g.team,
+        home: p.home,
+        away: p.away,
+        score: `${h}-${a}`,
+        doppio: false,
+        seq: seq++,
+      })
+    }
+  }
+  out.sort((a, b) => a.at - b.at || a.seq - b.seq)
+  const reg = out.filter(g => g.minuto !== null)
+  if (reg.length) {
+    reg[0].doppio = true
+    reg[reg.length - 1].doppio = true
+  }
+  return out.map(g => { const { seq, ...resto } = g; void seq; return resto })
+}
+
 export interface RisultatoDerivato {
   minuti_gol: number[]
   recupero: 'primo' | 'secondo' | 'entrambi' | 'nessuno'
