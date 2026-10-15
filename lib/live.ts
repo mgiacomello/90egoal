@@ -97,6 +97,8 @@ export interface RisultatoDerivato {
   recupero: 'primo' | 'secondo' | 'entrambi' | 'nessuno'
   first_goal_team: string | null
   last_goal_team: string | null
+  minuto_primo_gol: number | null   // minuto (1–90) del primo gol nei tempi regolamentari: vale doppio
+  minuto_ultimo_gol: number | null  // minuto (1–90) dell'ultimo gol nei tempi regolamentari: vale doppio
   finite: number
   inCorso: number
   completa: boolean
@@ -106,13 +108,14 @@ export interface RisultatoDerivato {
 // - valgono per i minuti solo i gol dall'1' al 90' (recupero e supplementari esclusi);
 // - più gol nello stesso minuto contano una volta sola;
 // - il recupero conta per il bonus, primo tempo (45+) o secondo (90+);
-// - prima e ultima squadra: in ordine di orario reale fra tutte le partite.
+// - prima e ultima squadra: in ordine di orario reale fra tutte le partite;
+// - il minuto del primo e dell'ultimo gol fra 1' e 90' (stesso ordine reale) vale 2 punti.
 export function deriveRisultato(partite: PartitaLive[], dettagli: DettaglioLive[]): RisultatoDerivato {
   const byKey = new Map(dettagli.map(d => [matchKey(d), d]))
   const minuti = new Set<number>()
   let rec1 = false
   let rec2 = false
-  const cronologia: { at: number; seq: number; team: string }[] = []
+  const cronologia: { at: number; seq: number; team: string; minuto: number | null }[] = []
   let seq = 0
   let finite = 0
   let inCorso = 0
@@ -126,19 +129,23 @@ export function deriveRisultato(partite: PartitaLive[], dettagli: DettaglioLive[
     for (const g of d.gol ?? []) {
       const m = parseMinute(g.min)
       if (!m) continue
-      if (m.extra === 0 && m.base >= 1 && m.base <= 90) minuti.add(m.base)
+      const regolamentare = m.extra === 0 && m.base >= 1 && m.base <= 90
+      if (regolamentare) minuti.add(m.base)
       if (m.extra > 0 && m.base === 45) rec1 = true
       if (m.extra > 0 && m.base === 90) rec2 = true
-      cronologia.push({ at: k0 + elapsed(m) * 60000, seq: seq++, team: g.team })
+      cronologia.push({ at: k0 + elapsed(m) * 60000, seq: seq++, team: g.team, minuto: regolamentare ? m.base : null })
     }
   }
 
   cronologia.sort((a, b) => a.at - b.at || a.seq - b.seq)
+  const regolamentari = cronologia.filter(c => c.minuto !== null)
   return {
     minuti_gol: [...minuti].sort((a, b) => a - b),
     recupero: rec1 && rec2 ? 'entrambi' : rec1 ? 'primo' : rec2 ? 'secondo' : 'nessuno',
     first_goal_team: cronologia[0]?.team ?? null,
     last_goal_team: cronologia[cronologia.length - 1]?.team ?? null,
+    minuto_primo_gol: regolamentari[0]?.minuto ?? null,
+    minuto_ultimo_gol: regolamentari[regolamentari.length - 1]?.minuto ?? null,
     finite,
     inCorso,
     completa: partite.length > 0 && finite === partite.length,

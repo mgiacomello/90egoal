@@ -5,6 +5,7 @@ export const metadata: Metadata = { title: 'Regole — 90 & Goal' }
 
 const PUNTI = [
   { p: '+1', t: 'per ogni tuo minuto in cui viene segnato almeno un gol, in una qualsiasi delle partite', c: 'text-[var(--accent)]' },
+  { p: '+2', t: 'se quel minuto è quello del primo o dell’ultimo gol della schedina (nei 90 minuti, in ordine di orario)', c: 'text-[var(--accent)]' },
   { p: '+1', t: 'se c’è almeno un gol nel recupero del tempo che hai scelto (1° o 2°)', c: 'text-[var(--accent)]' },
   { p: '+3', t: 'se indovini la squadra che segna il primo gol OPPURE l’ultimo', c: 'text-[var(--gold)]' },
   { p: '+10', t: 'se le indovini entrambe (non si somma al +3)', c: 'text-[var(--gold)]' },
@@ -18,6 +19,10 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   {
     q: 'E i gol nel recupero?',
     a: <>Un gol al 45+2&apos; o al 90+3&apos; <strong className="text-white">non vale per i minuti</strong> (non puoi sceglierlo), ma fa scattare il bonus recupero di quel tempo.</>,
+  },
+  {
+    q: 'Quali minuti valgono doppio?',
+    a: <>Il minuto del <strong className="text-white">primo gol</strong> e quello dell&apos;<strong className="text-white">ultimo gol</strong> segnati nei tempi regolamentari, considerando tutte le partite della schedina in ordine di orario reale. Se li hai in schedina, valgono 2 punti ciascuno invece di 1. I gol nel recupero non contano per questa regola.</>,
   },
   {
     q: 'Due gol nello stesso minuto?',

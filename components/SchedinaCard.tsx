@@ -172,10 +172,12 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
             {pronostico.minuti.map((m: number) => {
               // Durante il live un minuto non ancora uscito non è "sbagliato": lo diventa a schedina conclusa.
               const hit = !!risultato && risultato.minuti_gol.includes(m)
+              const doppio = hit && (m === risultato?.minuto_primo_gol || m === risultato?.minuto_ultimo_gol)
               const miss = !!risultato && !hit && conclusa
               return (
-                <span key={m} className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2.5 py-1 text-xs`}>
-                  {m}&apos;
+                <span key={m} title={doppio ? 'Primo o ultimo gol della schedina: vale 2 punti' : undefined}
+                  className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2.5 py-1 text-xs`}>
+                  {m}&apos;{doppio && <span className="text-[var(--gold)] ml-0.5">×2</span>}
                 </span>
               )
             })}

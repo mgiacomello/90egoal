@@ -89,6 +89,8 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
       recupero: d.recupero,
       first_goal_team: d.first_goal_team,
       last_goal_team: d.last_goal_team,
+      minuto_primo_gol: d.minuto_primo_gol,
+      minuto_ultimo_gol: d.minuto_ultimo_gol,
       extra_time: prec?.extra_time ?? null,
       note: prec?.note ?? null,
     }
@@ -171,6 +173,9 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               {' · '}Prima: <span className="text-white">{riepilogo.first_goal_team ?? '—'}</span>
               {' · '}Ultima: <span className="text-white">{riepilogo.last_goal_team ?? '—'}</span>
               {!riepilogo.completa && riepilogo.last_goal_team && <span className="text-[var(--gold)]"> (provvisoria)</span>}
+            </div>
+            <div className="text-[var(--muted)]">
+              Valgono doppio: <span className="text-white font-mono">{[riepilogo.minuto_primo_gol, riepilogo.minuto_ultimo_gol].filter((m, i, a) => m !== null && a.indexOf(m) === i).map(m => `${m}'`).join(' ') || '—'}</span>
             </div>
             {error && <div className="text-red-300">{error}</div>}
             <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">
