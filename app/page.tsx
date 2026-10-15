@@ -188,8 +188,9 @@ function Landing() {
       </div>
 
       <div className="mt-8 space-y-3">
-        <Link href="/auth/register" className="btn-primary w-full py-4 text-base">Gioca →</Link>
+        <Link href="/prova" className="btn-primary w-full py-4 text-base">Gioca →</Link>
         <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">Ho già un account</Link>
+        <p className="text-xs text-[var(--muted)]">Si prova subito, senza registrarsi. L&apos;account serve solo per entrare in classifica.</p>
         <InstallButton />
       </div>
 
