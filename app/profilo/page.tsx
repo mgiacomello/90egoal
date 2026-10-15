@@ -59,7 +59,7 @@ export default async function ProfiloPage() {
     : `⚽ Sto giocando a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
 
   return (
-    <div className="animate-fade-up max-w-2xl mx-auto">
+    <div className="animate-fade-up mx-auto">
       {/* Header profilo */}
       <div className="glass rounded-2xl p-6 mb-6 flex items-center gap-4">
         <div className="grid place-items-center w-16 h-16 rounded-2xl text-2xl font-extrabold text-[#04130b] shrink-0" style={{ background: 'linear-gradient(135deg,#1aff8c,#22d3ee)' }}>

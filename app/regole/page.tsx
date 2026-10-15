@@ -56,7 +56,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
 
 export default function RegolePage() {
   return (
-    <div className="max-w-2xl mx-auto animate-fade-up">
+    <div className="mx-auto animate-fade-up">
       <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Come si gioca</span>
       <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">📖 Regole</h1>
       <p className="text-[var(--muted)] mt-3">

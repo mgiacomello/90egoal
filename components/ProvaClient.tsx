@@ -26,7 +26,7 @@ export default function ProvaClient({ schedina }: { schedina: Schedina }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto animate-fade-up space-y-5">
+    <div className="mx-auto animate-fade-up space-y-5">
       <div>
         <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">La tua schedina di prova</span>
         <h1 className="font-display font-bold text-2xl mt-1 leading-tight">{salvato.nome}</h1>

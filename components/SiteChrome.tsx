@@ -16,14 +16,19 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
 
   if (STANDALONE.some((prefix) => pathname?.startsWith(prefix))) return <>{children}</>
 
+  // Il gioco è pensato per il telefono: anche su un computer resta una colonna
+  // larga come un telefono, con la navigazione in basso. Solo il pannello admin
+  // usa tutto lo schermo, perché lì si lavora da scrivania.
+  const admin = pathname?.startsWith('/admin')
+
   return (
     <>
-      <Navbar />
+      <Navbar wide={admin} />
       <ActivityTracker />
-      {/* Su telefono la navigazione sta in basso: lo spazio sotto evita che copra il contenuto. */}
-      <main className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6 sm:py-8 flex-1">{children}</main>
-      <footer className="border-t border-white/5 mt-12 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-0">
-        <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-sm text-[var(--muted)]">
+      {/* La navigazione sta in basso: lo spazio sotto evita che copra il contenuto. */}
+      <main className={`${admin ? 'max-w-5xl px-4 sm:px-6' : 'max-w-md px-4'} mx-auto w-full py-5 flex-1`}>{children}</main>
+      <footer className={`border-t border-white/5 mt-12 ${admin ? 'sm:pb-0' : ''} pb-[calc(4.5rem+env(safe-area-inset-bottom))]`}>
+        <div className={`${admin ? 'max-w-5xl' : 'max-w-md'} mx-auto px-4 py-5 flex items-center justify-between text-xs text-[var(--muted)]`}>
           <span className="font-display font-semibold">
             <span className="text-gradient">90</span>
             <span className="text-white/40"> &amp; </span>

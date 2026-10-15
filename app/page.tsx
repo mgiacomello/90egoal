@@ -52,7 +52,7 @@ export default async function Home() {
 
   if (!s) {
     return (
-      <div className="max-w-lg mx-auto animate-fade-up text-center py-20">
+      <div className="mx-auto animate-fade-up text-center py-20">
         <div className="text-5xl mb-4">⚽</div>
         <h1 className="font-display font-bold text-2xl">Nessuna giornata in programma</h1>
         <p className="text-[var(--muted)] mt-2">Appena c&apos;è una schedina la trovi qui.</p>
@@ -68,7 +68,7 @@ export default async function Home() {
   const live = !aperta && !!r && !conclusa(s)
 
   return (
-    <div className="max-w-lg mx-auto animate-fade-up space-y-5">
+    <div className="mx-auto animate-fade-up space-y-5">
       {live && <LiveRefresh seconds={45} generatedAt={nowIso} />}
 
       {/* Testata: cosa, quando */}

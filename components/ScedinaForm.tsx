@@ -120,7 +120,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
 
   return (
     <>
-    <div className="max-w-lg mx-auto animate-fade-up pb-28">
+    <div className="mx-auto animate-fade-up pb-28">
       {/* Testata essenziale: nome, scadenza, passo */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <button type="button" onClick={() => (idx > 0 ? setPasso(nPassi[idx - 1]) : router.push('/'))}
@@ -276,7 +276,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
 
       {/* ===== Barra sotto al pollice (fuori dal blocco animato: un antenato con transform romperebbe il fixed) ===== */}
       <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
-        <div className="max-w-lg mx-auto flex items-center gap-3">
+        <div className="max-w-md mx-auto flex items-center gap-3">
           {passo === 'minuti' && (
             <>
               <div className="shrink-0">

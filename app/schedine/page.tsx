@@ -29,7 +29,7 @@ export default async function SchedinePage() {
   const archiviate = tutte.filter(s => s.attiva === false)
 
   return (
-    <div className="animate-fade-up max-w-lg mx-auto">
+    <div className="animate-fade-up mx-auto">
       <LiveRefresh seconds={60} generatedAt={now.toISOString()} />
       <PushToggle variant="banner" />
       <div className="mb-5">

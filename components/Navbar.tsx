@@ -15,7 +15,7 @@ const TABS = [
   { href: '/profilo', label: 'Profilo', icon: '👤' },
 ]
 
-export default function Navbar() {
+export default function Navbar({ wide = false }: { wide?: boolean }) {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
@@ -66,7 +66,7 @@ export default function Navbar() {
           scrolled ? 'border-b border-white/8 bg-[#07090d]/80 backdrop-blur-xl' : 'border-b border-transparent'
         }`}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+        <div className={`${wide ? 'max-w-5xl px-4 sm:px-6' : 'max-w-md px-4'} mx-auto h-14 flex items-center justify-between`}>
           <Link href="/" className="flex items-center gap-2.5 group">
             <span className="relative grid place-items-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-[#04130b] text-lg shadow-[0_8px_24px_-8px_rgba(0,230,118,0.7)] group-hover:scale-105 transition-transform">
               ⚽
@@ -80,13 +80,17 @@ export default function Navbar() {
 
           {user ? (
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <div className="hidden sm:flex items-center gap-1">
-                {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label}</Link>)}
-              </div>
+              {wide && (
+                <div className="hidden sm:flex items-center gap-1">
+                  {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label}</Link>)}
+                </div>
+              )}
               {isAdmin && <Link href="/admin" className={linkClass('/admin')}>⚙️<span className="hidden sm:inline"> Admin</span></Link>}
-              <button onClick={handleLogout} className="hidden sm:inline text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-3 py-2">
-                Esci
-              </button>
+              {wide && (
+                <button onClick={handleLogout} className="hidden sm:inline text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-3 py-2">
+                  Esci
+                </button>
+              )}
             </div>
           ) : (
             <div className="flex items-center gap-2">
@@ -101,9 +105,9 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {user && !inForm && (
-        <nav className="sm:hidden fixed bottom-0 inset-x-0 z-50 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-          <div className="grid grid-cols-4">
+      {user && !inForm && !wide && (
+        <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+          <div className="grid grid-cols-4 max-w-md mx-auto">
             {TABS.map(t => {
               const on = active(t.href, t.exact)
               return (
