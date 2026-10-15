@@ -29,6 +29,8 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
   const [lastGoal, setLastGoal] = useState('')
   const [extraTime, setExtraTime] = useState<boolean | null>(null)
   const [note, setNote] = useState('')
+  const [minutoPrimo, setMinutoPrimo] = useState('')
+  const [minutoUltimo, setMinutoUltimo] = useState('')
 
   function selectSchedina(id: number) {
     const r = risultatiMap[id]
@@ -39,6 +41,8 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
     setLastGoal(r?.last_goal_team ?? '')
     setExtraTime(r?.extra_time ?? null)
     setNote(r?.note ?? '')
+    setMinutoPrimo(r?.minuto_primo_gol ? String(r.minuto_primo_gol) : '')
+    setMinutoUltimo(r?.minuto_ultimo_gol ? String(r.minuto_ultimo_gol) : '')
     setMinutiInput('')
     setSaved(false)
     setError('')
@@ -57,10 +61,18 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
     if (!selected) return
     setSaving(true)
     setError('')
+    const doppio = (v: string) => (v === '' ? null : parseInt(v))
+    const mp = doppio(minutoPrimo)
+    const mu = doppio(minutoUltimo)
+    for (const m of [mp, mu]) {
+      if (m !== null && !minuti.includes(m)) { setError(`Il minuto ${m}' non è fra i gol inseriti.`); setSaving(false); return }
+    }
     const supabase = createClient()
     const payload = {
       schedina_id: selected,
       minuti_gol: minuti,
+      minuto_primo_gol: mp,
+      minuto_ultimo_gol: mu,
       recupero: recupero || 'nessuno',
       first_goal_team: firstGoal || null,
       last_goal_team: lastGoal || null,
@@ -126,6 +138,18 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
               ))}
             </div>
             <p className="text-xs text-[var(--muted)] mt-2">Totale: {minuti.length} gol</p>
+          </div>
+
+          {/* Minuti che valgono doppio */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--muted)] mb-2">⭐ Primo e ultimo gol dei 90&apos; (valgono 2 punti)</label>
+            <div className="flex gap-2 flex-wrap items-center">
+              <input type="number" min={1} max={90} value={minutoPrimo} onChange={e => setMinutoPrimo(e.target.value)}
+                placeholder="Primo" className="input-field w-24 px-3 py-2 text-center font-mono" />
+              <input type="number" min={1} max={90} value={minutoUltimo} onChange={e => setMinutoUltimo(e.target.value)}
+                placeholder="Ultimo" className="input-field w-24 px-3 py-2 text-center font-mono" />
+              <span className="text-xs text-[var(--muted)]">In ordine di orario reale fra tutte le partite. Recupero escluso. Vuoti = nessun doppio.</span>
+            </div>
           </div>
 
           {/* Supplementari — solo eliminazione */}

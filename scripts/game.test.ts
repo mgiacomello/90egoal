@@ -106,6 +106,21 @@ check('il 45+3 del primo tempo viene prima del 46 di una partita iniziata insiem
   assert.equal(r.first_goal_team, 'Carpi')
   assert.equal(r.last_goal_team, 'Torres')
 })
+check('minuto del primo e dell\'ultimo gol nei 90\': in ordine di orario, recupero escluso', () => {
+  // Reggiana (14:30) segna al 20' → 14:50. Empoli (15:00) segna al 10' → 15:10 e al 90+3 (non conta).
+  const r = deriveRisultato([REG, ASC], [
+    buildDettaglio(ASC, [{ min: '10', team: 'Empoli' }, { min: '90+3', team: 'Ascoli' }], 'finita'),
+    buildDettaglio(REG, [{ min: '20', team: 'Reggiana' }], 'finita'),
+  ])
+  assert.equal(r.minuto_primo_gol, 20)
+  assert.equal(r.minuto_ultimo_gol, 10)
+  assert.equal(r.last_goal_team, 'Ascoli')
+})
+check('solo gol nel recupero: nessun minuto doppio', () => {
+  const r = deriveRisultato([REG], [buildDettaglio(REG, [{ min: '45+1', team: 'Torres' }], 'finita')])
+  assert.equal(r.minuto_primo_gol, null)
+  assert.equal(r.minuto_ultimo_gol, null)
+})
 check('schedina a metà: conta le partite in corso e non si dichiara completa', () => {
   const r = deriveRisultato([REG, ASC], [buildDettaglio(REG, [], 'in_corso')])
   assert.equal(r.inCorso, 1)

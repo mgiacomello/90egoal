@@ -53,6 +53,8 @@ export interface Risultato {
   recupero: 'primo' | 'secondo' | 'entrambi' | 'nessuno'
   first_goal_team: string | null
   last_goal_team: string | null
+  minuto_primo_gol?: number | null   // primo gol fra 1' e 90' in ordine di orario: quel minuto vale 2
+  minuto_ultimo_gol?: number | null  // ultimo gol fra 1' e 90' in ordine di orario: quel minuto vale 2
   extra_time?: boolean | null
   note: string | null
   dettagli?: MatchDetail[]
@@ -68,6 +70,7 @@ export interface ClassificaRow {
   punti_bonus: number
   totale: number
   minuti_azzeccati?: number[]
+  punti_doppi?: number   // punti extra dal minuto del primo/ultimo gol (valgono 2)
 }
 
 export interface Profile {
