@@ -39,8 +39,6 @@
   ],
   "exclude": [
     "brain",
-    "habeas-mentem-lab",
-    "public/lab",
     "node_modules"
   ]
 }
