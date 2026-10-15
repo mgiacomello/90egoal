@@ -5,9 +5,9 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
-// Su telefono si gioca coi pollici: quattro sezioni in una barra in basso,
-// in alto solo il marchio e (per chi amministra) il pannello. Le regole
-// stanno dentro Oggi e Profilo: non meritano un posto sotto al pollice.
+// Si gioca coi pollici: quattro sezioni in una barra in basso, sempre, anche
+// su computer. In alto solo il marchio e (per chi amministra) il pannello.
+// Le regole stanno dentro Oggi e Profilo: non meritano un posto sotto al pollice.
 const TABS = [
   { href: '/', label: 'Oggi', icon: '⚽', exact: true },
   { href: '/schedine', label: 'Schedine', icon: '📝' },
@@ -15,7 +15,7 @@ const TABS = [
   { href: '/profilo', label: 'Profilo', icon: '👤' },
 ]
 
-export default function Navbar() {
+export default function Navbar({ wide = false }: { wide?: boolean }) {
   const router = useRouter()
   const pathname = usePathname()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
@@ -52,45 +52,45 @@ export default function Navbar() {
 
   const active = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href))
   const linkClass = (href: string, exact?: boolean) =>
-    `relative text-sm font-medium transition-colors px-2.5 sm:px-3 py-2 rounded-lg ${
-      active(href, exact) ? 'text-white bg-white/5' : 'text-[var(--muted)] hover:text-white'
+    `relative text-sm font-medium transition-colors px-3 py-2 rounded-full ${
+      active(href, exact) ? 'text-[var(--ink)] bg-white/8' : 'text-[var(--muted)] hover:text-[var(--ink)]'
     }`
 
   // Dentro al form della schedina la barra in basso è quella del form.
-  const inForm = /^\/schedine\/\d+/.test(pathname)
+  const inForm = /^\/schedine\/\d+/.test(pathname) || pathname === '/prova'
 
   return (
     <>
       <nav
-        className={`sticky top-0 z-50 transition-all duration-300 pt-[env(safe-area-inset-top)] ${
-          scrolled ? 'border-b border-white/8 bg-[#07090d]/80 backdrop-blur-xl' : 'border-b border-transparent'
+        className={`sticky top-0 z-50 transition-colors duration-300 pt-[env(safe-area-inset-top)] ${
+          scrolled ? 'border-b border-[var(--line)] bg-[rgba(11,34,25,0.88)] backdrop-blur-md' : 'border-b border-transparent'
         }`}
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="relative grid place-items-center w-9 h-9 rounded-xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-[#04130b] text-lg shadow-[0_8px_24px_-8px_rgba(0,230,118,0.7)] group-hover:scale-105 transition-transform">
-              ⚽
-            </span>
-            <span className="font-display font-extrabold text-lg tracking-tight">
-              <span className="text-gradient">90</span>
-              <span className="text-white/40">&amp;</span>
-              <span className="text-white">Goal</span>
+        <div className={`${wide ? 'max-w-5xl px-4 sm:px-6' : 'max-w-md px-4'} mx-auto h-14 flex items-center justify-between`}>
+          <Link href="/" className="flex items-center gap-2">
+            <span className="grid place-items-center w-8 h-8 rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] font-display font-extrabold text-base leading-none">90</span>
+            <span className="font-display font-bold text-xl tracking-wide leading-none">
+              <span className="opacity-50">&amp;</span>GOAL
             </span>
           </Link>
 
           {user ? (
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              <div className="hidden sm:flex items-center gap-1">
-                {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label}</Link>)}
-              </div>
+            <div className="flex items-center gap-1">
+              {wide && (
+                <div className="hidden sm:flex items-center gap-1">
+                  {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label}</Link>)}
+                </div>
+              )}
               {isAdmin && <Link href="/admin" className={linkClass('/admin')}>⚙️<span className="hidden sm:inline"> Admin</span></Link>}
-              <button onClick={handleLogout} className="hidden sm:inline text-sm text-[var(--muted)] hover:text-red-400 transition-colors px-3 py-2">
-                Esci
-              </button>
+              {wide && (
+                <button onClick={handleLogout} className="hidden sm:inline text-sm text-[var(--muted)] hover:text-[var(--danger)] transition-colors px-3 py-2">
+                  Esci
+                </button>
+              )}
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <Link href="/auth/login" className="text-sm text-[var(--muted)] hover:text-white transition-colors px-3 py-2">
+            <div className="flex items-center gap-1">
+              <Link href="/auth/login" className="text-sm text-[var(--muted)] hover:text-[var(--ink)] transition-colors px-3 py-2">
                 Accedi
               </Link>
               <Link href="/prova" className="btn-primary text-sm px-5 py-2">
@@ -101,15 +101,15 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {user && !inForm && (
-        <nav className="sm:hidden fixed bottom-0 inset-x-0 z-50 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
-          <div className="grid grid-cols-4">
+      {user && !inForm && !wide && (
+        <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--line)] bg-[rgba(7,26,18,0.96)] backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+          <div className="grid grid-cols-4 max-w-md mx-auto">
             {TABS.map(t => {
               const on = active(t.href, t.exact)
               return (
                 <Link key={t.href} href={t.href}
-                  className={`flex flex-col items-center justify-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors ${on ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-                  <span className={`text-lg leading-none ${on ? '' : 'grayscale opacity-70'}`}>{t.icon}</span>
+                  className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-display font-semibold uppercase tracking-wider transition-colors ${on ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}>
+                  <span className={`text-lg leading-none ${on ? '' : 'grayscale opacity-60'}`}>{t.icon}</span>
                   {t.label}
                 </Link>
               )

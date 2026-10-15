@@ -9,7 +9,7 @@ export default function Flag({ team, w = 40, className = '' }: { team: string; w
       <span
         aria-hidden
         title={team}
-        className={`inline-grid place-items-center rounded-[4px] font-display font-extrabold leading-none text-[#04130b] ring-1 ring-white/15 shadow-[0_2px_6px_rgba(0,0,0,0.5)] ${className}`}
+        className={`inline-grid place-items-center rounded-[4px] font-display font-extrabold leading-none text-[var(--accent-ink)] ring-1 ring-white/15 shadow-[0_2px_6px_rgba(0,0,0,0.5)] ${className}`}
         style={{ background: `linear-gradient(135deg, ${c}, ${c}b3)`, fontSize: w >= 80 ? 14 : 8, letterSpacing: '-0.02em' }}
       >
         {sigla(team)}

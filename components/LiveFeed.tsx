@@ -92,7 +92,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
                   </div>
                   <div className="text-xs text-[var(--muted)] truncate">{g.home} {g.score} {g.away}</div>
                 </div>
-                {mio && <span className="text-[10px] font-bold text-[#04130b] bg-[var(--accent)] rounded-full px-2 py-0.5 shrink-0">TUO</span>}
+                {mio && <span className="text-[10px] font-bold text-[var(--accent-ink)] bg-[var(--accent)] rounded-full px-2 py-0.5 shrink-0">TUO</span>}
               </div>
             )
           })}

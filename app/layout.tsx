@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora } from "next/font/google";
+import { Inter, Sora, Barlow_Condensed } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 
@@ -9,10 +9,18 @@ const inter = Inter({
   display: "swap",
 });
 
+// Sora serve ancora a ONE TAP (onetap.css); il gioco usa Barlow Condensed.
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
   weight: ["400", "600", "700", "800"],
+  display: "swap",
+});
+
+const barlow = Barlow_Condensed({
+  subsets: ["latin"],
+  variable: "--font-barlow",
+  weight: ["500", "600", "700", "800"],
   display: "swap",
 });
 
@@ -31,7 +39,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#07090d",
+  themeColor: "#0b2219",
   colorScheme: "dark",
   width: "device-width",
   initialScale: 1,
@@ -44,7 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className={`${inter.variable} ${sora.variable} h-full`}>
+    <html lang="it" className={`${inter.variable} ${sora.variable} ${barlow.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <SiteChrome>{children}</SiteChrome>
       </body>

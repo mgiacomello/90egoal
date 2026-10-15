@@ -163,38 +163,51 @@ function Partite({ s }: { s: Schedina }) {
 }
 
 // Chi arriva dal link di WhatsApp: cos'è, come si gioca, due pulsanti. Fine.
+// La fila di tessere mostra il gioco prima di spiegarlo: due minuti "presi", gli altri no.
+const ESEMPIO: { m: number; hit?: boolean }[] = [{ m: 12 }, { m: 27, hit: true }, { m: 44 }, { m: 61, hit: true }, { m: 78 }, { m: 89 }]
+
 function Landing() {
   return (
-    <div className="max-w-sm mx-auto animate-fade-up pt-6 pb-10 text-center">
-      <div className="inline-grid place-items-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-3xl shadow-[0_12px_30px_-8px_rgba(0,230,118,0.6)] mb-6">⚽</div>
-      <h1 className="font-display font-extrabold text-4xl tracking-tight leading-[1.05]">
-        Indovina il <span className="text-gradient">minuto</span> del gol
-      </h1>
-      <p className="mt-4 text-white/70">
-        Dieci partite di Serie A, B e C nello stesso pomeriggio. Tu scegli <strong className="text-white">13 minuti</strong>. Ogni gol che arriva in uno dei tuoi è un punto.
+    <div className="animate-fade-up pt-4 pb-10">
+      <div className="text-center">
+        <span className="inline-block font-display font-semibold text-[var(--accent)] uppercase tracking-[0.2em] text-xs">Serie A · B · C</span>
+        <h1 className="font-display font-extrabold uppercase text-[3.4rem] leading-[0.92] tracking-tight mt-3">
+          Indovina<br />il minuto<br /><span className="text-[var(--accent)]">del gol</span>
+        </h1>
+      </div>
+
+      <div className="grid grid-cols-6 gap-1.5 mt-7">
+        {ESEMPIO.map(t => (
+          <span key={t.m} className={`min-cell ${t.hit ? 'is-selected' : ''} pointer-events-none`}>{t.m}</span>
+        ))}
+      </div>
+      <p className="text-center text-xs text-[var(--muted)] mt-2">27&apos; e 61&apos;: gol. Due punti.</p>
+
+      <p className="mt-7 text-[17px] leading-snug text-[var(--ink)]/85">
+        Dieci partite nello stesso pomeriggio. Tu scegli <strong className="text-[var(--ink)]">13 minuti</strong>.
+        Ogni gol che arriva in uno dei tuoi, in una qualsiasi delle partite, è un punto.
       </p>
 
-      <div className="glass rounded-2xl p-5 mt-8 text-left space-y-3 text-sm">
+      <div className="mt-7 space-y-3">
+        <Link href="/prova" className="btn-primary w-full py-4 text-lg">Gioca →</Link>
+        <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">Ho già un account</Link>
+        <InstallButton />
+      </div>
+
+      <div className="mt-9 space-y-2.5 text-sm">
         {[
           ['1', 'Scegli 13 minuti, dall\'1\' al 90\'.'],
           ['2', 'Non importa in quale partita: basta che qualcuno segni.'],
           ['3', 'Durante le partite guardi i tuoi minuti accendersi.'],
         ].map(([n, t]) => (
-          <div key={n} className="flex gap-3 items-start">
-            <span className="grid place-items-center w-6 h-6 rounded-full bg-[var(--accent)]/15 text-[var(--accent-soft)] font-display font-extrabold text-xs shrink-0">{n}</span>
-            <span className="text-white/85">{t}</span>
+          <div key={n} className="flex gap-3 items-center">
+            <span className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--surface-2)] text-[var(--accent)] font-display font-extrabold text-sm shrink-0">{n}</span>
+            <span className="text-[var(--ink)]/85">{t}</span>
           </div>
         ))}
       </div>
 
-      <div className="mt-8 space-y-3">
-        <Link href="/prova" className="btn-primary w-full py-4 text-base">Gioca →</Link>
-        <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">Ho già un account</Link>
-        <p className="text-xs text-[var(--muted)]">Si prova subito, senza registrarsi. L&apos;account serve solo per entrare in classifica.</p>
-        <InstallButton />
-      </div>
-
-      <p className="text-xs text-[var(--muted)] mt-8">Versione di test, senza premi. <Link href="/regole" className="text-[var(--accent-soft)]">Regole complete</Link></p>
+      <p className="text-xs text-[var(--muted)] mt-8 text-center">Versione di test, senza premi. <Link href="/regole" className="text-[var(--accent)]">Regole complete</Link></p>
     </div>
   )
 }
