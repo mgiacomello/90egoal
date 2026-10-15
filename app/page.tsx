@@ -1,214 +1,199 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { Schedina, Partita } from '@/lib/types'
+import { Schedina, Pronostico, Risultato, ClassificaRow, MatchDetail } from '@/lib/types'
 import Flag from '@/components/Flag'
-import AskAI from '@/components/AskAI'
-import { isPlaceholder, nomeBreve } from '@/lib/teams'
+import Countdown from '@/components/Countdown'
+import LiveFeed from '@/components/LiveFeed'
+import LiveRefresh from '@/components/LiveRefresh'
+import InstallButton from '@/components/InstallButton'
+import PushToggle from '@/components/PushToggle'
+import { nomeBreve } from '@/lib/teams'
 
-const STADIUM = 'https://images.unsplash.com/photo-1762013315117-1c8005ad2b41?w=1920&q=70&auto=format&fit=crop'
-
+// La home è "Oggi": una cosa sola, quella che conta adesso.
+// Da compilare → il pulsante. Giocata → l'attesa. In corso → i gol in diretta. Finita → i punti.
 export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  const { data: schedine } = await supabase.from('schedine').select('*').order('id')
 
-  // Solo le schedine attive (fase corrente): la home mostra solo queste partite
-  const attive = ((schedine as Schedina[] | null)?.filter(s => s.attiva !== false) ?? [])
-    .sort((a, b) => a.deadline.localeCompare(b.deadline))
-  const partite: Partita[] = attive.flatMap(s => s.partite)
-  // Squadre vere, senza i segnaposto dei tabelloni ("Vinc. USA-Belgio")
-  const noto = (t: string) => !isPlaceholder(t)
-  const squadre = [...new Set(partite.flatMap(p => [p.home, p.away]))].filter(noto)
-  // La prossima schedina ancora aperta (altrimenti la prima attiva): è quella che interessa oggi.
-  const nowIso = new Date().toISOString()
-  const prossima = attive.find(s => s.deadline > nowIso) ?? attive[0]
-  const partiteReali = (prossima?.partite ?? []).filter(p => noto(p.home) && noto(p.away))
-  const torneo = prossima?.torneo ?? attive[0]?.torneo
-  const conSupplementari = attive.some(s => s.fase === 'eliminazione')
+  if (!user) return <Landing />
+
+  const now = new Date()
+  const nowIso = now.toISOString()
+  const [{ data: schedineRaw }, { data: pronRaw }, { data: risRaw }, { data: clRaw }] = await Promise.all([
+    supabase.from('schedine').select('*').order('id'),
+    supabase.from('pronostici').select('*').eq('user_id', user.id),
+    supabase.from('risultati').select('*'),
+    supabase.from('classifica').select('*'),
+  ])
+  const attive = ((schedineRaw as Schedina[] | null) ?? []).filter(s => s.attiva !== false).sort((a, b) => a.deadline.localeCompare(b.deadline))
+  const pron = new Map(((pronRaw as Pronostico[] | null) ?? []).map(p => [p.schedina_id, p]))
+  const ris = new Map(((risRaw as Risultato[] | null) ?? []).map(r => [r.schedina_id, r]))
+  const cl = (clRaw as ClassificaRow[] | null) ?? []
+
+  const conclusa = (s: Schedina) => {
+    const d = (ris.get(s.id)?.dettagli as MatchDetail[] | undefined) ?? []
+    return d.filter(x => (x.stato ?? 'finita') === 'finita').length === s.partite.length
+  }
+  // Quella del momento: in corso, altrimenti la prossima aperta, altrimenti l'ultima finita.
+  const inCorso = attive.find(s => s.deadline <= nowIso && !conclusa(s))
+  const prossima = attive.find(s => s.deadline > nowIso)
+  const ultima = [...attive].reverse().find(s => s.deadline <= nowIso)
+  const s = inCorso ?? prossima ?? ultima
+
+  // Posizione nel torneo corrente
+  const torneo = s?.torneo
+  const ids = new Set(attive.filter(x => x.torneo === torneo).map(x => x.id))
+  const tot = new Map<string, number>()
+  cl.filter(r => ids.has(r.schedina_id)).forEach(r => tot.set(r.user_id, (tot.get(r.user_id) ?? 0) + r.totale))
+  const generale = [...tot.entries()].sort((a, b) => b[1] - a[1])
+  const myPos = generale.findIndex(([id]) => id === user.id) + 1
+  const myTot = tot.get(user.id) ?? 0
+  const posizione = myPos > 0 ? { pos: myPos, su: generale.length } : undefined
+
+  if (!s) {
+    return (
+      <div className="max-w-lg mx-auto animate-fade-up text-center py-20">
+        <div className="text-5xl mb-4">⚽</div>
+        <h1 className="font-display font-bold text-2xl">Nessuna giornata in programma</h1>
+        <p className="text-[var(--muted)] mt-2">Appena c&apos;è una schedina la trovi qui.</p>
+      </div>
+    )
+  }
+
+  const p = pron.get(s.id)
+  const r = ris.get(s.id)
+  const aperta = s.deadline > nowIso
+  const deadline = new Date(s.deadline)
+  const puntiSchedina = cl.find(x => x.schedina_id === s.id && x.user_id === user.id)?.totale
+  const live = !aperta && !!r && !conclusa(s)
 
   return (
-    <div className="flex flex-col gap-20 sm:gap-28">
+    <div className="max-w-lg mx-auto animate-fade-up space-y-5">
+      {live && <LiveRefresh seconds={45} generatedAt={nowIso} />}
 
-      {/* ===== HERO immersivo ===== */}
-      <section className="relative -mx-4 sm:-mx-6 -mt-8">
-        {/* sfondo stadio */}
-        <div className="absolute inset-0 overflow-hidden">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={STADIUM} alt="" className="w-full h-full object-cover object-center scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#07090d]/70 via-[#07090d]/85 to-[#07090d]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#07090d] via-transparent to-[#07090d] opacity-60" />
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(600px 400px at 50% 20%, rgba(0,230,118,0.18), transparent 70%)' }} />
+      {/* Testata: cosa, quando */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">
+            {live ? '● In diretta' : aperta ? 'Prossima giornata' : 'Giornata conclusa'}
+          </span>
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mt-1 leading-tight">{nomeBreve(s.nome)}</h1>
         </div>
-
-        {/* contenuto hero */}
-        <div className="relative px-4 sm:px-6 pt-16 pb-14 sm:pt-24 sm:pb-20 text-center max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full glass text-xs font-medium text-white/80 mb-6 animate-fade-up">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse-glow" />
-            {torneo ? `⚽ ${torneo}` : '⚽ Nuova stagione in arrivo'}
-          </div>
-
-          <h1 className="font-display font-extrabold text-5xl sm:text-7xl tracking-tight leading-[1.02] animate-fade-up drop-shadow-2xl">
-            Indovina il <span className="text-gradient">minuto</span>
-            <br />del <span className="text-gradient-gold">gol</span>
-          </h1>
-
-          <p className="mt-6 text-lg sm:text-xl text-white/70 max-w-xl mx-auto animate-fade-up">
-            Dieci partite della stessa giornata, <strong className="text-white">13 minuti</strong> da scegliere.
-            Segui i gol in diretta, guarda i tuoi minuti illuminarsi e scala la classifica di <strong className="text-white">90 &amp; Goal</strong>.
-          </p>
-
-          <div className="mt-9 flex flex-col sm:flex-row gap-3 justify-center animate-fade-up">
-            {user ? (
-              <>
-                <Link href="/schedine" className="btn-primary px-8 py-3.5 text-base">Vai alle Schedine →</Link>
-                <Link href="/classifica" className="btn-ghost px-8 py-3.5 text-base">Classifica</Link>
-              </>
-            ) : (
-              <>
-                <Link href="/auth/register" className="btn-primary px-8 py-3.5 text-base">Gioca gratis →</Link>
-                <Link href="/auth/login" className="btn-ghost px-8 py-3.5 text-base">Ho già un account</Link>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* marquee bandiere */}
-        {squadre.length > 0 && (
-          <div className="relative overflow-hidden py-4 border-y border-white/8 bg-white/[0.02] backdrop-blur-sm">
-            <div className="flex gap-8 w-max animate-marquee">
-              {[...squadre, ...squadre].map((t, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm text-white/55 whitespace-nowrap">
-                  <Flag team={t} w={40} className="w-6 h-4" />
-                  <span className="font-medium">{t}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+        {posizione && (
+          <Link href="/classifica" className="glass rounded-xl px-3 py-2 text-right shrink-0">
+            <div className="font-display font-extrabold text-xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
+            <div className="text-[10px] text-[var(--muted)] mt-0.5">{myTot} pt</div>
+          </Link>
         )}
-      </section>
+      </div>
 
-      {/* ===== STAT STRIP ===== */}
-      <section className="-mt-4">
-        <div className="grid grid-cols-3 gap-4 max-w-2xl mx-auto stagger">
-          {[
-            { n: '13', l: 'minuti da indovinare' },
-            { n: '10', l: 'partite per schedina' },
-            { n: '+10', l: 'punti bonus max' },
-          ].map((s) => (
-            <div key={s.l} className="glass glass-hover rounded-2xl py-6 px-2 text-center">
-              <div className="font-display font-extrabold text-4xl sm:text-5xl text-gradient">{s.n}</div>
-              <div className="text-xs text-[var(--muted)] mt-1.5">{s.l}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===== COME FUNZIONA ===== */}
-      <section>
-        <div className="text-center mb-12">
-          <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Come si gioca</span>
-          <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2">Tre mosse per vincere</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger">
-          {[
-            { icon: '🕐', step: '01', title: 'Scegli 13 minuti', desc: 'Indica i minuti (1–90) in cui prevedi un gol in una qualunque delle partite della schedina.', tint: 'from-[var(--accent)]/25', glow: 'rgba(0,230,118,0.25)' },
-            conSupplementari
-              ? { icon: '⏱️', step: '02', title: 'Recupero & supplementari', desc: 'Prevedi un gol nel recupero (+1) e se una sfida andrà ai tempi supplementari (+5): due bonus in più.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' }
-              : { icon: '➕', step: '02', title: 'Il recupero', desc: 'Scegli se ci sarà un gol nel recupero del primo o del secondo tempo: +1 punto se arriva.', tint: 'from-[var(--accent-cyan)]/25', glow: 'rgba(34,211,238,0.25)' },
-            { icon: '🏆', step: '03', title: 'Primo & ultimo gol', desc: 'Indovina la squadra che segnerà la prima e l’ultima rete tra tutte le partite: bonus fino a +10 punti.', tint: 'from-[var(--gold)]/25', glow: 'rgba(255,210,74,0.22)' },
-          ].map((c) => (
-            <div key={c.step} className="group relative glass glass-hover rounded-2xl p-6 text-left overflow-hidden">
-              {/* glow d'angolo */}
-              <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{ background: c.glow }} />
-              {/* top accent line */}
-              <div className={`absolute top-0 left-0 right-0 h-px bg-gradient-to-r ${c.tint} to-transparent`} />
-              <div className="relative flex items-center justify-between mb-5">
-                <span className={`grid place-items-center w-14 h-14 rounded-2xl bg-gradient-to-br ${c.tint} to-white/[0.02] border border-white/10 text-2xl group-hover:scale-110 transition-transform duration-300`}>{c.icon}</span>
-                <span className="font-display font-extrabold text-4xl text-white/[0.07] group-hover:text-white/[0.12] transition-colors">{c.step}</span>
-              </div>
-              <h3 className="relative font-display font-bold text-lg mb-2">{c.title}</h3>
-              <p className="relative text-sm text-[var(--muted)] leading-relaxed">{c.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===== ESEMPIO PARTITE (con bandiere) ===== */}
-      {partiteReali.length > 0 && (
-        <section>
-          <div className="flex items-end justify-between mb-6">
-            <div>
-              <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">La prossima schedina</span>
-              <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2">{prossima ? nomeBreve(prossima.nome) : 'Le partite'}</h2>
-            </div>
-            {user && <Link href="/schedine" className="btn-ghost px-5 py-2.5 text-sm hidden sm:inline-flex">Tutte →</Link>}
+      {/* ===== DA COMPILARE ===== */}
+      {aperta && !p && (
+        <>
+          <div className="glass rounded-2xl p-5 text-center">
+            <p className="text-sm text-[var(--muted)]">Si chiude {deadline.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} alle {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</p>
+            <div className="my-3"><Countdown deadline={s.deadline} /></div>
+            <Link href={`/schedine/${s.id}`} className="btn-primary w-full py-4 text-base">Scegli i tuoi 13 minuti →</Link>
+            <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il primo e l&apos;ultimo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
           </div>
-
-          <div className="grid sm:grid-cols-2 gap-3 stagger">
-            {partiteReali.slice(0, 10).map((p, i) => (
-              <div key={i} className="group glass glass-hover rounded-xl p-4 flex items-center gap-4">
-                <span className="text-[10px] font-mono text-[var(--muted)] w-12 shrink-0 uppercase leading-tight">
-                  {p.ora ?? new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
-                  {p.competizione && <span className="block normal-case">{p.competizione}</span>}
-                </span>
-                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                  <Flag team={p.home} w={40} className="w-7 h-5 shrink-0" />
-                  <span className="font-semibold text-sm truncate">{p.home}</span>
-                </div>
-                <span className="font-display font-bold text-xs text-white/30 px-2">VS</span>
-                <div className="flex items-center gap-2.5 flex-1 min-w-0 justify-end">
-                  <span className="font-semibold text-sm truncate text-right">{p.away}</span>
-                  <Flag team={p.away} w={40} className="w-7 h-5 shrink-0" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+          <Partite s={s} />
+        </>
       )}
 
-      {/* ===== PUNTEGGIO ===== */}
-      <section className="relative">
-        <div className="relative glass rounded-3xl p-8 sm:p-10 overflow-hidden">
-          <div className="absolute -top-24 -right-24 w-72 h-72 bg-[var(--accent)]/12 blur-3xl rounded-full pointer-events-none" />
-          <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-[var(--accent-cyan)]/10 blur-3xl rounded-full pointer-events-none" />
-          <div className="relative grid md:grid-cols-2 gap-8 items-center">
-            <div>
-              <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Il sistema di punti</span>
-              <h2 className="font-display font-bold text-3xl sm:text-4xl mt-2 mb-4">Ogni gol vale punti</h2>
-              <p className="text-[var(--muted)]">Più minuti azzecchi, più sali in classifica. I bonus su recupero e prima/ultima squadra possono ribaltare tutto fino all’ultimo gol.</p>
-              <Link href="/regole" className="inline-block mt-4 text-sm text-[var(--accent-soft)] hover:text-white">Regole complete e casi particolari →</Link>
+      {/* ===== GIOCATA, SI ASPETTA IL CAMPO ===== */}
+      {aperta && p && (
+        <>
+          <div className="glass rounded-2xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold text-[var(--accent-soft)]">✓ Schedina giocata</span>
+              <span className="text-xs text-[var(--muted)]">si parte {deadline.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
             </div>
-            <div className="space-y-3">
-              {[
-                { p: '+1', t: 'per ogni minuto esatto in cui viene segnato un gol', c: 'text-[var(--accent)]' },
-                { p: '+1', t: 'se indovini il recupero (primo o secondo tempo)', c: 'text-[var(--accent)]' },
-                ...(conSupplementari ? [{ p: '+5', t: 'se indovini se la sfida andrà ai supplementari', c: 'text-[var(--accent-cyan)]' }] : []),
-                { p: '+3', t: 'per la squadra del primo OPPURE dell’ultimo gol', c: 'text-[var(--gold)]' },
-                { p: '+10', t: 'se indovini ENTRAMBE le squadre, prima e ultima', c: 'text-[var(--gold)]' },
-              ].map((r, i) => (
-                <div key={i} className="flex items-center gap-4 rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3 hover:border-white/15 transition-colors">
-                  <span className={`font-display font-extrabold text-2xl w-12 ${r.c}`}>{r.p}</span>
-                  <span className="text-sm text-white/80">{r.t}</span>
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-1.5">
+              {p.minuti.map(m => <span key={m} className="tag-static px-2.5 py-1.5 text-sm">{m}&apos;</span>)}
             </div>
+            <p className="text-xs text-[var(--muted)] mt-3">Torna durante le partite: i minuti che escono si accendono qui.</p>
+          </div>
+          <PushToggle variant="banner" />
+          <Partite s={s} />
+        </>
+      )}
+
+      {/* ===== IN CORSO O FINITA ===== */}
+      {!aperta && (
+        r ? (
+          <LiveFeed schedina={s} risultato={r} pronostico={p} punti={puntiSchedina} posizione={posizione} />
+        ) : (
+          <>
+            <div className="glass rounded-2xl p-5 text-center text-sm text-[var(--muted)]">
+              Le partite stanno per iniziare. I gol compaiono qui appena arrivano.
+            </div>
+            <Partite s={s} />
+          </>
+        )
+      )}
+
+      {!aperta && !p && (
+        <p className="text-center text-xs text-[var(--muted)]">Questa giornata non l&apos;hai giocata. <Link href="/schedine" className="text-[var(--accent-soft)]">Le prossime →</Link></p>
+      )}
+
+      <InstallButton className="pt-2" />
+    </div>
+  )
+}
+
+function Partite({ s }: { s: Schedina }) {
+  return (
+    <div className="glass rounded-2xl px-4 py-3 space-y-2">
+      {s.partite.map((p, i) => (
+        <div key={i} className="flex items-center gap-2 text-sm">
+          <span className="text-[11px] text-[var(--muted)] w-10 shrink-0 tabular-nums">{p.ora ?? ''}</span>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+            <span className="truncate">{p.home}</span>
+            <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
+          </div>
+          <span className="text-white/25 text-xs">–</span>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
+            <span className="truncate">{p.away}</span>
           </div>
         </div>
-      </section>
+      ))}
+    </div>
+  )
+}
 
-      {/* ===== AI MODE (solo utenti loggati) ===== */}
-      {user && <AskAI />}
+// Chi arriva dal link di WhatsApp: cos'è, come si gioca, due pulsanti. Fine.
+function Landing() {
+  return (
+    <div className="max-w-sm mx-auto animate-fade-up pt-6 pb-10 text-center">
+      <div className="inline-grid place-items-center w-16 h-16 rounded-2xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-3xl shadow-[0_12px_30px_-8px_rgba(0,230,118,0.6)] mb-6">⚽</div>
+      <h1 className="font-display font-extrabold text-4xl tracking-tight leading-[1.05]">
+        Indovina il <span className="text-gradient">minuto</span> del gol
+      </h1>
+      <p className="mt-4 text-white/70">
+        Dieci partite di Serie A, B e C nello stesso pomeriggio. Tu scegli <strong className="text-white">13 minuti</strong>. Ogni gol che arriva in uno dei tuoi è un punto.
+      </p>
 
-      {/* ===== CTA FINALE ===== */}
-      {!user && (
-        <section className="relative text-center pb-8 rounded-3xl overflow-hidden">
-          <div className="absolute inset-0 -z-10" style={{ background: 'radial-gradient(500px 300px at 50% 100%, rgba(0,230,118,0.15), transparent 70%)' }} />
-          <h2 className="font-display font-bold text-3xl sm:text-5xl mb-3">Pronto a scendere in campo?</h2>
-          <p className="text-[var(--muted)] mb-8 text-lg">Registrati in 30 secondi e compila la tua prima schedina.</p>
-          <Link href="/auth/register" className="btn-primary px-10 py-4 text-base">Crea il tuo account →</Link>
-        </section>
-      )}
+      <div className="glass rounded-2xl p-5 mt-8 text-left space-y-3 text-sm">
+        {[
+          ['1', 'Scegli 13 minuti, dall\'1\' al 90\'.'],
+          ['2', 'Non importa in quale partita: basta che qualcuno segni.'],
+          ['3', 'Durante le partite guardi i tuoi minuti accendersi.'],
+        ].map(([n, t]) => (
+          <div key={n} className="flex gap-3 items-start">
+            <span className="grid place-items-center w-6 h-6 rounded-full bg-[var(--accent)]/15 text-[var(--accent-soft)] font-display font-extrabold text-xs shrink-0">{n}</span>
+            <span className="text-white/85">{t}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 space-y-3">
+        <Link href="/auth/register" className="btn-primary w-full py-4 text-base">Gioca →</Link>
+        <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">Ho già un account</Link>
+        <InstallButton />
+      </div>
+
+      <p className="text-xs text-[var(--muted)] mt-8">Versione di test, senza premi. <Link href="/regole" className="text-[var(--accent-soft)]">Regole complete</Link></p>
     </div>
   )
 }

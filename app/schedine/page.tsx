@@ -29,13 +29,12 @@ export default async function SchedinePage() {
   const archiviate = tutte.filter(s => s.attiva === false)
 
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up max-w-lg mx-auto">
       <LiveRefresh seconds={60} generatedAt={now.toISOString()} />
       <PushToggle variant="banner" />
-      <div className="mb-8">
-        <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Le tue schedine</span>
-        <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Compila i pronostici</h1>
-        <p className="text-[var(--muted)] mt-2">Compila e invia i tuoi pronostici prima della scadenza. Una volta inviati sono <strong className="text-white">definitivi</strong>.</p>
+      <div className="mb-5">
+        <h1 className="font-display font-bold text-2xl sm:text-3xl">Schedine</h1>
+        <p className="text-sm text-[var(--muted)] mt-1">Una per giornata. Si gioca fino al primo calcio d&apos;inizio.</p>
       </div>
 
       {attive.length === 0 ? (
@@ -44,7 +43,7 @@ export default async function SchedinePage() {
           <p className="text-[var(--muted)]">Nessuna schedina attiva al momento.<br />Le prossime arriveranno a breve.</p>
         </div>
       ) : (
-        <div className="space-y-5 stagger">
+        <div className="space-y-3 stagger">
           {attive.map(s => (
             <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} />
           ))}

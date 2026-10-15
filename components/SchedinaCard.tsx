@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { Schedina, Pronostico, Risultato, MatchDetail } from '@/lib/types'
 import Flag from '@/components/Flag'
-import { stadiumImage } from '@/lib/stadiums'
 import Countdown from '@/components/Countdown'
 import { nomeBreve } from '@/lib/teams'
 
@@ -13,215 +12,105 @@ interface Props {
   punti?: number   // punti del giocatore su questa schedina (dalla classifica), anche durante il live
 }
 
+// Una schedina in una scheda: stato in alto, azione a destra, partite sotto.
+// Niente foto: su telefono pesano e non dicono niente.
 export default function SchedinaCard({ schedina: s, pronostico, risultato, now, punti }: Props) {
-  const isKnockout = s.fase === 'eliminazione'
   const deadline = new Date(s.deadline)
   const isScaduta = now > deadline
   const isCompilata = !!pronostico
-  const giorni = Math.ceil((deadline.getTime() - now.getTime()) / 86400000)
 
   const dett = (risultato?.dettagli as MatchDetail[] | undefined) ?? []
   const dettMap = new Map(dett.map(d => [`${d.home}__${d.away}`, d]))
-  // Dati vecchi senza stato: se il dettaglio c'è, la partita è finita.
   const statoDi = (d?: MatchDetail) => (d ? d.stato ?? 'finita' : 'da_giocare')
   const giocate = s.partite.filter(p => statoDi(dettMap.get(`${p.home}__${p.away}`)) === 'finita').length
   const live = s.partite.filter(p => statoDi(dettMap.get(`${p.home}__${p.away}`)) === 'in_corso').length
   const conclusa = giocate === s.partite.length
 
+  const stato = live > 0 ? 'live' : conclusa && risultato ? 'finita' : isScaduta ? 'chiusa' : isCompilata ? 'giocata' : 'aperta'
+  const quando = deadline.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Rome' }) + ' · ' + deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
+
   return (
-    <div className="glass glass-hover rounded-2xl overflow-hidden">
-      {/* Banner stadio */}
-      <div className="relative h-40 sm:h-44">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={stadiumImage(s.id)} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/60 to-[#0d1117]/10" />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0d1117]/80 to-transparent" />
-
-        <div className="absolute top-4 left-5 flex items-center gap-2">
-          {isKnockout && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--gold)] bg-black/40 backdrop-blur border border-[var(--gold)]/40 px-2.5 py-1 rounded-full">
-              ⚔️ Eliminazione
-            </span>
-          )}
-          {live > 0 && (
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-red-500/80 backdrop-blur px-2.5 py-1 rounded-full">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse-glow" /> LIVE
-            </span>
-          )}
-          {isCompilata && (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold text-[var(--accent-soft)] bg-black/40 backdrop-blur border border-[var(--accent)]/40 px-2.5 py-1 rounded-full">
-              ✓ Compilata
-            </span>
-          )}
-          {!isScaduta && !isCompilata && giorni <= 3 && (
-            <span className="text-xs font-semibold text-[var(--gold)] bg-black/40 backdrop-blur border border-[var(--gold)]/40 px-2.5 py-1 rounded-full animate-pulse-glow">
-              ⏳ {giorni === 1 ? 'Ultimo giorno' : `${giorni} giorni rimasti`}
-            </span>
-          )}
-          {isScaduta && live === 0 && (
-            <span className="text-xs font-semibold text-red-300 bg-black/40 backdrop-blur border border-red-500/40 px-2.5 py-1 rounded-full">
-              Chiusa
-            </span>
-          )}
-        </div>
-
-        <div className="absolute bottom-0 inset-x-0 p-5">
-          <h2 className="font-display font-bold text-2xl sm:text-3xl drop-shadow-lg leading-tight">{nomeBreve(s.nome)}</h2>
-        </div>
-      </div>
-
-      {/* Riga azione: scadenza + countdown + CTA (nel corpo, niente sovrapposizioni) */}
-      <div className="px-5 sm:px-6 pt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+    <div className="glass rounded-2xl overflow-hidden">
+      <div className="px-4 pt-4 pb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm">
-            {isScaduta ? (
-              <span className="text-red-300/90">Chiusa il {deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })}</span>
-            ) : (
-              <span className="text-white/70">Scadenza <span className="text-white font-medium">{deadline.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span></span>
-            )}
-          </p>
-          {!isScaduta && !isCompilata && (
-            <div className="mt-1.5"><Countdown deadline={s.deadline} /></div>
-          )}
+          <div className="flex items-center gap-2 mb-1">
+            {stato === 'live' && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-red-500/80 px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse-glow" />LIVE</span>}
+            {stato === 'giocata' && <span className="text-[10px] font-semibold text-[var(--accent-soft)] border border-[var(--accent)]/40 px-2 py-0.5 rounded-full">✓ giocata</span>}
+            {stato === 'finita' && <span className="text-[10px] font-semibold text-[var(--muted)] border border-white/15 px-2 py-0.5 rounded-full">finita</span>}
+            {stato === 'chiusa' && <span className="text-[10px] font-semibold text-[var(--muted)] border border-white/15 px-2 py-0.5 rounded-full">chiusa</span>}
+            <span className="text-[11px] text-[var(--muted)]">{quando}</span>
+          </div>
+          <h2 className="font-display font-bold text-lg leading-tight truncate">{nomeBreve(s.nome)}</h2>
+          {stato === 'aperta' && <div className="mt-1"><Countdown deadline={s.deadline} /></div>}
         </div>
         <div className="shrink-0">
-          {isCompilata && punti != null ? (
-            <span className="inline-flex flex-col items-end leading-tight">
-              <span className="font-display font-extrabold text-2xl text-[var(--accent-soft)] tabular-nums">{punti} <span className="text-xs font-normal text-[var(--muted)]">pt</span></span>
-              <span className="text-[10px] text-[var(--muted)]">{conclusa ? 'punti finali' : 'punti finora'}</span>
-            </span>
+          {stato === 'aperta' ? (
+            <Link href={`/schedine/${s.id}`} className="btn-primary px-4 py-2.5 text-sm">Gioca →</Link>
+          ) : isCompilata && punti != null ? (
+            <div className="text-right">
+              <div className="font-display font-extrabold text-2xl text-[var(--accent-soft)] tabular-nums leading-none">{punti}<span className="text-xs font-normal text-[var(--muted)] ml-0.5">pt</span></div>
+              <div className="text-[10px] text-[var(--muted)] mt-0.5">{conclusa ? 'finali' : 'finora'}</div>
+            </div>
           ) : isCompilata ? (
-            <span className="inline-flex items-center gap-1.5 text-sm text-[var(--accent-soft)] bg-[var(--accent)]/10 border border-[var(--accent)]/40 px-4 py-2 rounded-lg">
-              🔒 Inviato
-            </span>
-          ) : !isScaduta ? (
-            <Link href={`/schedine/${s.id}`} className="btn-primary px-5 py-2.5 text-sm">
-              Compila ora →
-            </Link>
+            <span className="text-xs text-[var(--muted)]">in attesa</span>
           ) : (
-            <span className="text-white/60 text-sm">Non giocata</span>
+            <span className="text-xs text-[var(--muted)]">non giocata</span>
           )}
         </div>
       </div>
 
-      {/* Partite & risultati */}
-      <div className="px-5 sm:px-6 pt-5 pb-5 sm:pb-6">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Partite &amp; risultati</p>
-          <span className="text-xs text-[var(--muted)]">
-            {live > 0 && <span className="text-red-300 font-semibold">{live} live · </span>}
-            <span className="text-[var(--accent-soft)] font-semibold">{giocate}</span>/{s.partite.length} finite
-          </span>
+      {/* I miei minuti */}
+      {pronostico && (
+        <div className="px-4 pb-3 flex flex-wrap gap-1">
+          {pronostico.minuti.map(m => {
+            const hit = !!risultato && risultato.minuti_gol.includes(m)
+            const doppio = hit && (m === risultato?.minuto_primo_gol || m === risultato?.minuto_ultimo_gol)
+            const miss = !!risultato && !hit && conclusa
+            return (
+              <span key={m} className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2 py-0.5 text-[11px]`}>
+                {m}&apos;{doppio && <span className="text-[var(--gold)] ml-0.5">×2</span>}
+              </span>
+            )
+          })}
+          {(pronostico.recupero || pronostico.first_goal || pronostico.last_goal) && (
+            <span className="text-[11px] text-[var(--muted)] self-center ml-1">
+              {pronostico.recupero && `➕ ${pronostico.recupero === 'primo' ? '1°T' : '2°T'} `}
+              {pronostico.first_goal && `🥇 ${pronostico.first_goal} `}
+              {pronostico.last_goal && `🏁 ${pronostico.last_goal}`}
+            </span>
+          )}
         </div>
+      )}
 
-        <div className="space-y-1.5">
+      {/* Partite, compatte */}
+      <details className="border-t border-white/8 group" open={stato === 'live'}>
+        <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-2.5 text-xs text-[var(--muted)] select-none">
+          <span>{s.partite.length} partite{live > 0 && <span className="text-red-300 font-semibold"> · {live} live</span>}{giocate > 0 && ` · ${giocate} finite`}</span>
+          <span className="transition-transform group-open:rotate-90">▶</span>
+        </summary>
+        <div className="px-4 pb-3 space-y-1.5">
           {s.partite.map((p, i) => {
             const d = dettMap.get(`${p.home}__${p.away}`)
-            const giocata = !!d
             const st = statoDi(d)
             return (
-              <div key={i} className={`rounded-xl border px-3 py-2.5 transition-colors ${st === 'in_corso' ? 'bg-red-500/[0.07] border-red-400/30' : giocata ? 'bg-[var(--accent)]/[0.07] border-[var(--accent)]/25' : 'bg-white/[0.02] border-white/8'}`}>
-                <div className="flex items-center gap-2 text-sm">
-                  <span className={`text-[10px] font-bold w-11 shrink-0 leading-tight ${st === 'in_corso' ? 'text-red-300' : giocata ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-                    {st === 'in_corso' ? '● LIVE' : st === 'finita' ? 'FT' : p.ora ?? new Date(p.date + 'T12:00:00').toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
-                    {p.competizione && <span className="block font-normal text-[9px] text-[var(--muted)]">{p.competizione}</span>}
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end text-right">
-                    <span className={`truncate ${giocata ? 'font-semibold text-white' : 'text-white/80'}`}>{p.home}</span>
-                    <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
-                  </div>
-                  {giocata ? (
-                    <span className="font-display font-extrabold text-base px-2 tabular-nums text-white">{d!.score}</span>
-                  ) : (
-                    <span className="text-white/25 text-xs px-2.5">vs</span>
-                  )}
-                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                    <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
-                    <span className={`truncate ${giocata ? 'font-semibold text-white' : 'text-white/80'}`}>{p.away}</span>
-                  </div>
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className={`text-[10px] font-bold w-10 shrink-0 ${st === 'in_corso' ? 'text-red-300' : st === 'finita' ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
+                  {st === 'in_corso' ? '● LIVE' : st === 'finita' ? 'FT' : p.ora ?? ''}
+                </span>
+                <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+                  <span className="truncate">{p.home}</span>
+                  <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
                 </div>
-                {giocata && d!.minuti.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1 mt-2 pl-11">
-                    <span className="text-[11px] mr-0.5">⚽</span>
-                    {d!.minuti.map((m, j) => (
-                      <span key={j} className="text-[11px] font-mono bg-white/8 text-white/80 px-1.5 py-0.5 rounded">{m}</span>
-                    ))}
-                  </div>
-                )}
+                <span className={`px-1.5 tabular-nums ${d ? 'font-display font-extrabold' : 'text-white/25 text-xs'}`}>{d ? d.score : '–'}</span>
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
+                  <span className="truncate">{p.away}</span>
+                </div>
               </div>
             )
           })}
         </div>
-
-        {/* Esito supplementari (eliminazione) */}
-        {isKnockout && risultato?.extra_time != null && (
-          <p className="text-xs text-[var(--muted)] mt-3">
-            ⏱️ Supplementari: <span className="text-white font-medium">{risultato.extra_time ? 'Sì, almeno una partita' : 'No, decise nei 90′'}</span>
-          </p>
-        )}
-      </div>
-
-      {/* Il tuo pronostico (sola lettura) */}
-      {pronostico && (
-        <div className="mx-6 mb-6 pt-4 border-t border-white/8 space-y-3">
-          <p className="text-xs text-[var(--accent)] uppercase tracking-wider font-semibold">
-            Il tuo pronostico {risultato ? (conclusa ? '· minuti azzeccati in verde' : '· in verde quelli già azzeccati') : '· definitivo 🔒'}
-          </p>
-
-          <div className="flex flex-wrap gap-1.5">
-            {pronostico.minuti.map((m: number) => {
-              // Durante il live un minuto non ancora uscito non è "sbagliato": lo diventa a schedina conclusa.
-              const hit = !!risultato && risultato.minuti_gol.includes(m)
-              const doppio = hit && (m === risultato?.minuto_primo_gol || m === risultato?.minuto_ultimo_gol)
-              const miss = !!risultato && !hit && conclusa
-              return (
-                <span key={m} title={doppio ? 'Primo o ultimo gol della schedina: vale 2 punti' : undefined}
-                  className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2.5 py-1 text-xs`}>
-                  {m}&apos;{doppio && <span className="text-[var(--gold)] ml-0.5">×2</span>}
-                </span>
-              )
-            })}
-          </div>
-
-          {(pronostico.recupero || pronostico.first_goal || pronostico.last_goal || pronostico.extra_time != null) && (
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
-              {pronostico.extra_time != null && (
-                <span className="text-[var(--muted)]">
-                  ⏱️ Supplementari: <span className="text-white font-medium">{pronostico.extra_time ? 'Sì' : 'No'}</span>
-                  {risultato?.extra_time != null && (
-                    <span className={pronostico.extra_time === risultato.extra_time ? 'text-[var(--accent-soft)]' : 'text-red-300/80'}>
-                      {' '}{pronostico.extra_time === risultato.extra_time ? '✓ +5' : '✗'}
-                    </span>
-                  )}
-                </span>
-              )}
-              {pronostico.recupero && (
-                <span className="text-[var(--muted)]">
-                  ➕ Recupero: <span className="text-white font-medium">{pronostico.recupero === 'primo' ? '1° tempo' : '2° tempo'}</span>
-                </span>
-              )}
-              {pronostico.first_goal && (
-                <span className="flex items-center gap-1.5 text-[var(--muted)]">
-                  🥇 Prima: <Flag team={pronostico.first_goal} w={40} className="w-5 h-3.5" />
-                  <span className="text-white font-medium">{pronostico.first_goal}</span>
-                </span>
-              )}
-              {pronostico.last_goal && (
-                <span className="flex items-center gap-1.5 text-[var(--muted)]">
-                  🏁 Ultima: <Flag team={pronostico.last_goal} w={40} className="w-5 h-3.5" />
-                  <span className="text-white font-medium">{pronostico.last_goal}</span>
-                </span>
-              )}
-            </div>
-          )}
-
-          {risultato && (
-            <p className="text-xs text-[var(--muted)]">
-              Minuti dei gol reali: <span className="text-white/80 font-mono">{[...risultato.minuti_gol].sort((a, b) => a - b).map(m => `${m}'`).join(', ') || '—'}</span>
-            </p>
-          )}
-        </div>
-      )}
+      </details>
     </div>
   )
 }
