@@ -275,7 +275,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
     </div>
 
       {/* ===== Barra sotto al pollice (fuori dal blocco animato: un antenato con transform romperebbe il fixed) ===== */}
-      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[#07090d]/95 backdrop-blur-xl pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
+      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[rgba(7,26,18,0.96)] backdrop-blur-md pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           {passo === 'minuti' && (
             <>

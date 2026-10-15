@@ -176,7 +176,7 @@ function Podium({ top3, currentUserId }: { top3: GeneraleRow[]; currentUserId?: 
             <div key={r.user_id} className="flex flex-col items-center flex-1 max-w-[140px]">
               <div className="podium-medal text-3xl sm:text-4xl mb-1" style={{ animationDelay: delays[i] }}>{medals[i]}</div>
               <div
-                className="grid place-items-center w-11 h-11 rounded-full text-sm font-extrabold text-[#04130b] mb-2 ring-2 ring-white/15 podium-medal"
+                className="grid place-items-center w-11 h-11 rounded-full text-sm font-extrabold text-[var(--accent-ink)] mb-2 ring-2 ring-white/15 podium-medal"
                 style={{ background: avatarFor(r.username), animationDelay: delays[i] }}
               >
                 {r.username.slice(0, 1).toUpperCase()}
@@ -229,7 +229,7 @@ function LeaderList({ rows, maxTot, currentUserId }: { rows: ListRow[]; maxTot: 
                 {r.pos <= 3 ? <span className="text-xl">{medals[r.pos - 1]}</span> : <span className="text-[var(--muted)] font-bold tabular-nums">{r.pos}</span>}
               </div>
               {/* avatar */}
-              <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-extrabold text-[#04130b] shrink-0 ring-1 ring-white/15" style={{ background: avatarFor(r.username) }}>
+              <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-extrabold text-[var(--accent-ink)] shrink-0 ring-1 ring-white/15" style={{ background: avatarFor(r.username) }}>
                 {r.username.slice(0, 1).toUpperCase()}
               </div>
               {/* name + bar */}
