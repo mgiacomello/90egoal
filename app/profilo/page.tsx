@@ -7,6 +7,7 @@ import PushToggle from '@/components/PushToggle'
 import Flag from '@/components/Flag'
 import ShareButton from '@/components/ShareButton'
 import { nomeBreve } from '@/lib/teams'
+import { IconTarget, IconStar, IconCrown, IconBook } from '@/components/Icons'
 
 export default async function ProfiloPage() {
   const supabase = await createClient()
@@ -48,15 +49,20 @@ export default async function ProfiloPage() {
   cl.forEach(c => sumMin.set(c.user_id, (sumMin.get(c.user_id) ?? 0) + c.punti_minuti))
   const cecchinoId = [...sumMin.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
   const isVeggente = cl.some(c => c.user_id === user.id && c.punti_bonus >= 10)
-  const badges: { icon: string; nome: string }[] = []
-  if (cecchinoId === user.id && (sumMin.get(user.id) ?? 0) > 0) badges.push({ icon: '🎯', nome: 'Cecchino' })
-  if (isVeggente) badges.push({ icon: '🔮', nome: 'Veggente' })
-  if (myPos === 1 && myTot > 0) badges.push({ icon: '👑', nome: 'Leader' })
+  const badges: { Icon: typeof IconTarget; nome: string }[] = []
+  if (cecchinoId === user.id && (sumMin.get(user.id) ?? 0) > 0) badges.push({ Icon: IconTarget, nome: 'Cecchino' })
+  if (isVeggente) badges.push({ Icon: IconStar, nome: 'Veggente' })
+  if (myPos === 1 && myTot > 0) badges.push({ Icon: IconCrown, nome: 'Leader' })
+
+  // Prima della prima giornata i numeri sono tutti zero: meglio una cosa sola da fare.
+  const nowIso = new Date().toISOString()
+  const prossima = tutte.filter(s => s.attiva !== false && s.deadline > nowIso && !pronById.has(s.id)).sort((a, b) => a.deadline.localeCompare(b.deadline))[0]
+  const esordiente = pronById.size === 0 && myTot === 0
 
   const nome = profile?.username ?? 'Giocatore'
   const shareText = myTot > 0
-    ? `⚽ Sono ${myPos}° su ${totGiocatori} con ${myTot} punti a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
-    : `⚽ Sto giocando a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
+    ? `Sono ${myPos}° su ${totGiocatori} con ${myTot} punti a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
+    : `Sto giocando a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
 
   return (
     <div className="animate-fade-up max-w-2xl mx-auto">
@@ -72,8 +78,16 @@ export default async function ProfiloPage() {
         </div>
       </div>
 
+      {/* Esordiente: una cosa sola */}
+      {esordiente && prossima && (
+        <div className="glass rounded-2xl p-5 mb-6 text-center">
+          <p className="text-[var(--ink)]/85">La tua prima schedina si chiude {new Date(prossima.deadline).toLocaleDateString('it-IT', { weekday: 'long', timeZone: 'Europe/Rome' })} alle {new Date(prossima.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}.</p>
+          <Link href={`/schedine/${prossima.id}`} className="btn-primary w-full py-3.5 mt-4">Gioca {nomeBreve(prossima.nome)} →</Link>
+        </div>
+      )}
+
       {/* Numeri chiave */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {!esordiente && <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="glass rounded-2xl p-4 text-center">
           <div className="font-display font-extrabold text-3xl text-gradient-gold tabular-nums">{myPos || '—'}°</div>
           <div className="text-[11px] text-[var(--muted)] mt-1">posizione (su {totGiocatori}){torneo ? ` · ${torneo}` : ''}</div>
@@ -86,14 +100,14 @@ export default async function ProfiloPage() {
           <div className="font-display font-extrabold text-3xl tabular-nums">{pronById.size}</div>
           <div className="text-[11px] text-[var(--muted)] mt-1">schedine giocate</div>
         </div>
-      </div>
+      </div>}
 
       {/* Badge */}
       {badges.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-6">
           {badges.map(b => (
             <span key={b.nome} className="inline-flex items-center gap-1.5 glass rounded-full px-3 py-1.5 text-sm">
-              <span className="text-base">{b.icon}</span> <span className="font-semibold">{b.nome}</span>
+              <b.Icon size={16} className="text-[var(--gold)]" /> <span className="font-semibold">{b.nome}</span>
             </span>
           ))}
         </div>
@@ -106,8 +120,8 @@ export default async function ProfiloPage() {
       <div className="mb-7"><PushToggle /></div>
 
       {/* Le mie schedine */}
-      <h2 className="font-display font-bold text-lg mb-3">Le tue schedine</h2>
-      <div className="space-y-3">
+      {!esordiente && <h2 className="font-display font-bold text-lg mb-3">Le tue schedine</h2>}
+      {!esordiente && <div className="space-y-3">
         {[...tutte].reverse().map(s => {
           const pron = pronById.get(s.id)
           const row = myRows.get(s.id)
@@ -134,17 +148,17 @@ export default async function ProfiloPage() {
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--muted)]">
-                {pron.recupero && <span>➕ {pron.recupero === 'primo' ? 'Rec. 1°T' : 'Rec. 2°T'}</span>}
-                {pron.first_goal && <span className="flex items-center gap-1">🥇 <Flag team={pron.first_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{pron.first_goal}</span></span>}
-                {pron.last_goal && <span className="flex items-center gap-1">🏁 <Flag team={pron.last_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{pron.last_goal}</span></span>}
+                {pron.recupero && <span>{pron.recupero === 'primo' ? 'Rec. 1°T' : 'Rec. 2°T'}</span>}
+                {pron.first_goal && <span className="flex items-center gap-1">Primo: <Flag team={pron.first_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{pron.first_goal}</span></span>}
+                {pron.last_goal && <span className="flex items-center gap-1">Ultimo: <Flag team={pron.last_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{pron.last_goal}</span></span>}
               </div>
             </div>
           )
         })}
-      </div>
+      </div>}
 
       <div className="mt-10 flex items-center justify-between border-t border-white/8 pt-5 text-sm">
-        <Link href="/regole" className="text-[var(--muted)] hover:text-white">📖 Regole del gioco</Link>
+        <Link href="/regole" className="text-[var(--muted)] hover:text-white flex items-center gap-1.5"><IconBook size={16} /> Regole del gioco</Link>
         <LogoutButton className="btn-ghost px-5 py-2 text-sm" />
       </div>
     </div>

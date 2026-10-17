@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { IconClock, IconPlus, IconTrophy } from '@/components/Icons'
 
 export const metadata: Metadata = { title: 'Regole — 90 & Goal' }
 
@@ -58,7 +59,7 @@ export default function RegolePage() {
   return (
     <div className="max-w-2xl mx-auto animate-fade-up">
       <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Come si gioca</span>
-      <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">📖 Regole</h1>
+      <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Regole</h1>
       <p className="text-[var(--muted)] mt-3">
         Ogni schedina raccoglie <strong className="text-white">10 partite della stessa giornata</strong>. Non devi indovinare i risultati:
         devi indovinare <strong className="text-white">in quali minuti arrivano i gol</strong>.
@@ -66,21 +67,21 @@ export default function RegolePage() {
 
       <section className="glass rounded-2xl p-5 sm:p-6 mt-6 space-y-4">
         <div className="flex gap-3">
-          <span className="text-2xl">🕐</span>
+          <IconClock size={24} className="text-[var(--accent)] shrink-0 mt-0.5" />
           <div>
             <h2 className="font-display font-bold">1 · Scegli 13 minuti, dall&apos;1&apos; al 90&apos;</h2>
             <p className="text-sm text-[var(--muted)] mt-1">I minuti in cui pensi che qualcuno segni, in una qualsiasi delle 10 partite.</p>
           </div>
         </div>
         <div className="flex gap-3">
-          <span className="text-2xl">➕</span>
+          <IconPlus size={24} className="text-[var(--gold)] shrink-0 mt-0.5" />
           <div>
             <h2 className="font-display font-bold">2 · Recupero <span className="text-xs font-normal text-[var(--gold)]">facoltativo</span></h2>
             <p className="text-sm text-[var(--muted)] mt-1">Scegli se ci sarà un gol nel recupero del primo tempo oppure del secondo.</p>
           </div>
         </div>
         <div className="flex gap-3">
-          <span className="text-2xl">🏆</span>
+          <IconTrophy size={24} className="text-[var(--gold)] shrink-0 mt-0.5" />
           <div>
             <h2 className="font-display font-bold">3 · Prima e ultima squadra a segnare <span className="text-xs font-normal text-[var(--gold)]">facoltativo</span></h2>
             <p className="text-sm text-[var(--muted)] mt-1">Fra tutte le squadre in campo nella schedina.</p>

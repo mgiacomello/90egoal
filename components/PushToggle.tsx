@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { IconBell } from '@/components/Icons'
 
 type Stato = 'caricamento' | 'non-supportato' | 'ios-installa' | 'non-configurato' | 'negato' | 'spento' | 'acceso'
 type Preferenza = 'tutti' | 'miei'
@@ -35,7 +36,7 @@ async function registra(sub: PushSubscription, preferenza: Preferenza) {
 
 // Attiva/disattiva le notifiche su QUESTO dispositivo.
 // variant "banner": invito compatto in cima alle schedine, sparisce quando sono attive.
-export default function PushToggle({ variant = 'card' }: { variant?: 'card' | 'banner' }) {
+export default function PushToggle({ variant = 'card', testo }: { variant?: 'card' | 'banner'; testo?: string }) {
   const [stato, setStato] = useState<Stato>('caricamento')
   const [pref, setPref] = useState<Preferenza>('tutti')
   const [chiave, setChiave] = useState<string | null>(null)
@@ -117,12 +118,12 @@ export default function PushToggle({ variant = 'card' }: { variant?: 'card' | 'b
     if (chiuso || !['spento', 'ios-installa'].includes(stato)) return null
     return (
       <div className="glass rounded-2xl px-4 py-3 mb-5 flex items-center gap-3">
-        <span className="text-2xl">🔔</span>
+        <IconBell size={24} className="text-[var(--accent)] shrink-0" />
         <div className="flex-1 min-w-0 text-sm">
           {stato === 'ios-installa' ? (
             <>Per ricevere i gol in diretta su iPhone: <strong className="text-white">Condividi → Aggiungi alla schermata Home</strong>, poi apri l&apos;app da lì.</>
           ) : (
-            <>Ricevi una notifica <strong className="text-white">quando esce un tuo minuto</strong>.</>
+            testo ? <strong className="text-[var(--ink)]">{testo}</strong> : <>Ricevi una notifica <strong className="text-[var(--ink)]">quando esce un tuo minuto</strong>.</>
           )}
         </div>
         {stato === 'spento' && (
@@ -140,7 +141,7 @@ export default function PushToggle({ variant = 'card' }: { variant?: 'card' | 'b
     <div className="glass rounded-2xl p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display font-bold flex items-center gap-2">🔔 Notifiche</h2>
+          <h2 className="font-display font-bold flex items-center gap-2"><IconBell size={18} className="text-[var(--accent)]" /> Notifiche</h2>
           <p className="text-xs text-[var(--muted)] mt-0.5">Su questo dispositivo.</p>
         </div>
         {stato === 'acceso' && <button onClick={disattiva} disabled={busy} className="btn-ghost px-4 py-2 text-sm">Disattiva</button>}
@@ -154,13 +155,13 @@ export default function PushToggle({ variant = 'card' }: { variant?: 'card' | 'b
         {stato === 'non-configurato' && 'Le notifiche non sono ancora attive sul sito.'}
         {stato === 'negato' && 'Hai bloccato le notifiche per questo sito. Per riattivarle vai nelle impostazioni del browser o del telefono, alla voce Notifiche.'}
         {stato === 'spento' && 'Gol in diretta, i tuoi minuti che escono, il risultato a fine giornata e un promemoria prima della scadenza.'}
-        {stato === 'acceso' && '✓ Attive. Arrivano i gol delle schedine che hai giocato, il risultato finale e i promemoria.'}
+        {stato === 'acceso' && 'Attive. Arrivano i gol delle schedine che hai giocato, il risultato finale e i promemoria.'}
       </div>
 
       {(stato === 'acceso' || stato === 'spento') && (
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={() => cambiaPref('tutti')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'tutti' ? 'is-active' : ''}`}>⚽ Tutti i gol</button>
-          <button onClick={() => cambiaPref('miei')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'miei' ? 'is-active' : ''}`}>🎯 Solo i miei minuti</button>
+          <button onClick={() => cambiaPref('tutti')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'tutti' ? 'is-active' : ''}`}>Tutti i gol</button>
+          <button onClick={() => cambiaPref('miei')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'miei' ? 'is-active' : ''}`}>Solo i miei minuti</button>
         </div>
       )}
       {errore && <p className="text-xs text-red-300 mt-3">{errore}</p>}

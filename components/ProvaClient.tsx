@@ -26,7 +26,7 @@ export default function ProvaClient({ schedina }: { schedina: Schedina }) {
   }
 
   return (
-    <div className="max-w-lg mx-auto animate-fade-up space-y-5">
+    <div className="animate-fade-up space-y-5">
       <div>
         <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">La tua schedina di prova</span>
         <h1 className="font-display font-bold text-2xl mt-1 leading-tight">{salvato.nome}</h1>
@@ -38,9 +38,9 @@ export default function ProvaClient({ schedina }: { schedina: Schedina }) {
         </div>
         {(salvato.recupero || salvato.first_goal || salvato.last_goal) && (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-[var(--muted)] mt-3">
-            {salvato.recupero && <span>➕ Recupero {salvato.recupero === 'primo' ? '1° tempo' : '2° tempo'}</span>}
-            {salvato.first_goal && <span className="flex items-center gap-1">🥇 <Flag team={salvato.first_goal} w={40} className="w-4 h-3" /> {salvato.first_goal}</span>}
-            {salvato.last_goal && <span className="flex items-center gap-1">🏁 <Flag team={salvato.last_goal} w={40} className="w-4 h-3" /> {salvato.last_goal}</span>}
+            {salvato.recupero && <span>Recupero {salvato.recupero === 'primo' ? '1° tempo' : '2° tempo'}</span>}
+            {salvato.first_goal && <span className="flex items-center gap-1">Primo: <Flag team={salvato.first_goal} w={40} className="w-4 h-3" /> {salvato.first_goal}</span>}
+            {salvato.last_goal && <span className="flex items-center gap-1">Ultimo: <Flag team={salvato.last_goal} w={40} className="w-4 h-3" /> {salvato.last_goal}</span>}
           </div>
         )}
         <p className="text-xs text-[var(--muted)] mt-4">È salvata solo su questo telefono. Per entrare in classifica e vedere i tuoi minuti accendersi in diretta, serve un account: ci vuole mezzo minuto.</p>

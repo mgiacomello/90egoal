@@ -40,7 +40,7 @@ function png(size, pixel) {
 }
 
 // Coordinate in una griglia 100×100.
-const INK = [4, 19, 11]
+const INK = [11, 34, 25]   // verde campo, come il testo sulla tessera in testata
 function inGlyph(u, v) {
   // "9": anello in alto + gamba a destra con estremità arrotondata
   const d9 = Math.hypot(u - 33, v - 43)
@@ -58,8 +58,9 @@ function inRounded(u, v, r) {
   return Math.hypot(u - cx, v - cy) <= r
 }
 function bg(u, v) {
+  // Lime pieno con una leggera luce in alto a sinistra.
   const t = (u + v) / 200
-  return [26 + (0 - 26) * t, 255 + (200 - 255) * t, 140 + (83 - 140) * t]
+  return [200 + (219 - 200) * (1 - t), 255, 62 + (122 - 62) * (1 - t)]
 }
 
 function draw(size, { rounded }) {
