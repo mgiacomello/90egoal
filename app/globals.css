@@ -1,42 +1,43 @@
 @import "tailwindcss";
 
 /* ============================================
-   90 & GOAL — Sistema grafico "Tabellone"
-   Verde campo, numeri condensati da stadio, lime per i tuoi minuti,
-   oro per i bonus. Superfici piene: niente vetro, niente neon.
+   90 & GOAL — Sistema grafico "Carta e inchiostro"
+   Avorio, inchiostro verde bottiglia, titoli in serif. L'arancio compare
+   solo sui minuti presi e su ciò che chiede attenzione. Un pulsante
+   colorato per schermata. Niente emoji, niente neon.
    ============================================ */
 
 @theme {
-  --color-base: #0b2219;
-  --color-elev: #123127;
-  --color-accent: #c8ff3e;
-  --color-accent-soft: #dbff7a;
-  --color-cyan: #7fe3ff;
-  --color-violet: #b7a5ff;
-  --color-gold: #ffd166;
-  --color-ink: #f4f6ee;
-  --color-muted: #9fb5a8;
-  --font-display: var(--font-barlow), system-ui, sans-serif;
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --color-base: #f3efe4;
+  --color-elev: #fbf9f3;
+  --color-accent: #e8641c;
+  --color-accent-soft: #c9530f;
+  --color-gold: #a3700f;
+  --color-ink: #14301f;
+  --color-muted: #5f6f64;
+  --font-display: var(--font-display), Georgia, serif;
+  --font-sans: var(--font-sans), system-ui, sans-serif;
 }
 
 @layer base {
   :root {
-    --bg: #0b2219;
-    --bg-deep: #071a12;
-    --surface: #123127;
-    --surface-2: #19402f;
-    --line: rgba(244, 246, 238, 0.10);
-    --line-strong: rgba(244, 246, 238, 0.22);
-    --accent: #c8ff3e;
-    --accent-soft: #dbff7a;
-    --accent-ink: #0b2219;
-    --accent-cyan: #7fe3ff;
-    --violet: #b7a5ff;
-    --gold: #ffd166;
-    --ink: #f4f6ee;
-    --muted: #9fb5a8;
-    --danger: #ff7a7a;
+    --bg: #f3efe4;            /* carta */
+    --bg-deep: #ebe6d8;       /* carta in ombra: barre, piè di pagina */
+    --surface: #fbf9f3;       /* la scheda */
+    --surface-2: #efeadd;     /* la tessera, il campo */
+    --line: rgba(20, 48, 31, 0.12);
+    --line-strong: rgba(20, 48, 31, 0.30);
+    --ink: #14301f;           /* inchiostro verde bottiglia */
+    --muted: #5f6f64;
+    --accent: #e8641c;        /* arancio segnale: il minuto preso */
+    --accent-soft: #c9530f;   /* lo stesso arancio, quando è testo */
+    --accent-ink: #fff7ef;    /* testo sull'arancio */
+    --accent-cyan: #1e4fa0;
+    --violet: #5b4a9c;
+    --gold: #a3700f;          /* bonus */
+    --danger: #b3261e;
+    --danger-soft: rgba(179, 38, 30, 0.10);
+    color-scheme: light;
   }
 
   html { scroll-behavior: smooth; }
@@ -44,76 +45,57 @@
   body {
     background-color: var(--bg);
     color: var(--ink);
-    font-family: var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     position: relative;
     overflow-x: hidden;
   }
 
-  /* Il prato: strisce di taglio appena percettibili e una luce dall'alto, come sotto ai riflettori. */
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background:
-      radial-gradient(900px 500px at 50% -10%, rgba(200, 255, 62, 0.10), transparent 65%),
-      repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.018) 0 72px, rgba(0, 0, 0, 0.035) 72px 144px),
-      linear-gradient(180deg, var(--bg) 0%, var(--bg-deep) 100%);
-  }
-
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.14); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgba(20, 48, 31, 0.18); border-radius: 10px; }
 
   h1, h2, h3 { letter-spacing: -0.01em; }
+  ::selection { background: rgba(232, 100, 28, 0.25); }
 }
 
 /* ============ UTILITIES ============ */
 
-/* Titoli e numeri: condensati, come sul tabellone. */
-.font-display {
-  font-family: var(--font-barlow), system-ui, sans-serif;
-  letter-spacing: 0.005em;
-}
+/* Titoli: il serif. Numeri: il monospazio da tabellino. */
+.font-display { font-family: var(--font-display), Georgia, serif; letter-spacing: -0.01em; }
+.font-num { font-family: var(--font-num), ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
-/* Prima erano sfumature "neon"; ora un colore solo, pieno. */
-.text-gradient { color: var(--accent); }
+/* Prima erano sfumature; ora un colore solo, pieno. */
+.text-gradient { color: var(--accent-soft); }
 .text-gradient-gold { color: var(--gold); }
 
-/* La scheda: superficie piena, bordo sottile, ombra morbida. */
+/* La scheda: carta più chiara, bordo d'inchiostro leggero, ombra appena accennata. */
 .glass {
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 14px 40px -24px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 1px 2px rgba(20, 48, 31, 0.04), 0 10px 30px -22px rgba(20, 48, 31, 0.35);
 }
-.glass-hover { transition: border-color 0.2s, transform 0.2s; }
+.glass-hover { transition: border-color 0.2s; }
 .glass-hover:hover { border-color: var(--line-strong); }
 
-.glow-accent { box-shadow: 0 0 0 2px var(--accent); }
+.glow-accent { box-shadow: 0 0 0 2px var(--ink); }
 
+/* Il pulsante principale è inchiostro pieno: uno per schermata. */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-family: var(--font-barlow), system-ui, sans-serif;
-  font-weight: 700;
-  font-size: 1.05em;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  border-radius: 999px;
-  transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
-  box-shadow: 0 10px 24px -12px rgba(200, 255, 62, 0.6);
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
+  border-radius: 12px;
+  transition: transform 0.15s, filter 0.15s;
 }
-.btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
-.btn-primary:active { transform: translateY(0) scale(0.99); }
+.btn-primary:hover { filter: brightness(1.12); }
+.btn-primary:active { transform: scale(0.99); }
 .btn-primary:disabled {
   background: var(--surface-2);
   color: var(--muted);
-  box-shadow: none;
   transform: none;
   cursor: not-allowed;
 }
@@ -126,84 +108,84 @@
   background: transparent;
   color: var(--ink);
   font-weight: 600;
-  border-radius: 999px;
+  border-radius: 12px;
   transition: border-color 0.2s, background 0.2s;
 }
-.btn-ghost:hover { border-color: var(--ink); background: rgba(255, 255, 255, 0.04); }
+.btn-ghost:hover { border-color: var(--ink); background: var(--surface); }
 
-.chip { font-variant-numeric: tabular-nums; transition: transform 0.15s; }
+.chip { font-variant-numeric: tabular-nums; }
 
 /* ===== Controlli "old-browser-safe" (solo rgba/hex, niente color-mix/oklab) ===== */
 
-/* Cella della griglia minuti 1–90: una tessera del tabellone. */
+/* Cella della griglia minuti 1–90: una casella del tabellino. Presa = arancio. */
 .min-cell {
-  font-family: var(--font-barlow), system-ui, sans-serif;
+  font-family: var(--font-num), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   color: var(--ink);
-  border-radius: 12px;
-  font-size: 1.35rem;
+  border-radius: 8px;
+  font-size: 1.15rem;
   font-weight: 600;
-  min-height: 48px;
+  min-height: 46px;
   padding: 0.4rem 0;
   text-align: center;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
 }
-.min-cell:hover { border-color: var(--line-strong); }
+.min-cell:hover { border-color: var(--ink); }
 .min-cell:active { transform: scale(0.95); }
 .min-cell.is-selected {
   background: var(--accent);
   border-color: var(--accent);
   color: var(--accent-ink);
-  font-weight: 800;
+  font-weight: 700;
 }
-.min-cell:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+.min-cell:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 .min-cell.is-selected:disabled { opacity: 1; }
 
-/* Bottone toggle a segmenti (recupero, ecc.) */
+/* Bottone toggle a segmenti (recupero, ecc.): scelto = inchiostro. */
 .seg-btn {
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   color: var(--ink);
-  border-radius: 14px;
+  border-radius: 10px;
   font-weight: 600;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   cursor: pointer;
 }
-.seg-btn:hover { border-color: var(--line-strong); }
+.seg-btn:hover { border-color: var(--ink); }
 .seg-btn.is-active {
-  background: rgba(255, 209, 102, 0.14);
-  border-color: var(--gold);
-  color: var(--gold);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
 }
 .seg-btn.is-active-green {
-  background: rgba(200, 255, 62, 0.14);
-  border-color: var(--accent);
-  color: var(--accent);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
 }
 
 /* Chip minuto rimovibile (riepilogo / admin) */
 .tag-min {
-  font-family: var(--font-barlow), system-ui, sans-serif;
+  font-family: var(--font-num), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  background: rgba(200, 255, 62, 0.14);
-  border: 1px solid rgba(200, 255, 62, 0.5);
-  color: var(--accent);
-  border-radius: 9px;
+  background: rgba(232, 100, 28, 0.12);
+  border: 1px solid rgba(232, 100, 28, 0.5);
+  color: var(--accent-soft);
+  border-radius: 7px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 .tag-min:hover {
-  background: rgba(255, 122, 122, 0.16);
-  border-color: rgba(255, 122, 122, 0.6);
+  background: var(--danger-soft);
+  border-color: var(--danger);
   color: var(--danger);
 }
 .tag-min.tag-cyan {
-  background: rgba(127, 227, 255, 0.12);
-  border-color: rgba(127, 227, 255, 0.45);
+  background: rgba(30, 79, 160, 0.10);
+  border-color: rgba(30, 79, 160, 0.45);
   color: var(--accent-cyan);
 }
 
@@ -212,40 +194,39 @@
   display: flex;
   align-items: center;
   background: var(--surface);
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   color: var(--ink);
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 0.6rem 0.65rem;
   font-size: 0.85rem;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.team-chip:hover { border-color: var(--line-strong); }
+.team-chip:hover { border-color: var(--ink); }
 .team-chip.is-on {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+  font-weight: 600;
 }
 
-/* Chip di sola lettura (riepilogo pronostico): il minuto preso è lime pieno. */
+/* Chip di sola lettura (riepilogo pronostico): preso = arancio pieno, in attesa = carta, mancato = barrato. */
 .tag-static {
   display: inline-block;
-  font-family: var(--font-barlow), system-ui, sans-serif;
+  font-family: var(--font-num), ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
-  font-size: 1.1em;
+  font-size: 1.05em;
   background: var(--accent);
   border: 1px solid var(--accent);
   color: var(--accent-ink);
-  border-radius: 8px;
-  font-weight: 700;
+  border-radius: 6px;
+  font-weight: 600;
 }
 .tag-static.is-pending {
-  background: var(--surface-2);
-  border-color: var(--line);
+  background: var(--surface);
+  border-color: var(--line-strong);
   color: var(--ink);
-  font-weight: 600;
 }
 .tag-static.is-miss {
   background: transparent;
@@ -257,20 +238,18 @@
 
 .input-field {
   background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
   color: var(--ink);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 .input-field:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(200, 255, 62, 0.15);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(20, 48, 31, 0.12);
 }
-.input-field::placeholder { color: var(--muted); opacity: 0.7; }
+.input-field::placeholder { color: var(--muted); opacity: 0.8; }
 
-/* Select nativi: sfondo solido scuro così le opzioni sono leggibili
-   anche su browser datati. */
 select.input-field {
   background-color: var(--surface);
   -webkit-appearance: menulist;
@@ -309,8 +288,8 @@ select.input-field {
 @keyframes grow-up { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes leader-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(255,209,102,0.45), 0 10px 34px -10px rgba(255,209,102,0.4); }
-  50% { box-shadow: 0 0 0 1px rgba(255,209,102,0.8), 0 16px 44px -10px rgba(255,209,102,0.65); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(163,112,15,0.35), 0 10px 34px -10px rgba(163,112,15,0.3); }
+  50% { box-shadow: 0 0 0 1px rgba(163,112,15,0.6), 0 16px 44px -10px rgba(163,112,15,0.45); }
 }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.6) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 

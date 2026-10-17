@@ -89,15 +89,15 @@ export default async function ProfiloPage() {
       {/* Numeri chiave */}
       {!esordiente && <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="glass rounded-2xl p-4 text-center">
-          <div className="font-display font-extrabold text-3xl text-gradient-gold tabular-nums">{myPos || '—'}°</div>
+          <div className="font-num font-semibold text-3xl text-gradient-gold tabular-nums">{myPos || '—'}°</div>
           <div className="text-[11px] text-[var(--muted)] mt-1">posizione (su {totGiocatori}){torneo ? ` · ${torneo}` : ''}</div>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
-          <div className="font-display font-extrabold text-3xl text-gradient tabular-nums">{myTot}</div>
+          <div className="font-num font-semibold text-3xl text-gradient tabular-nums">{myTot}</div>
           <div className="text-[11px] text-[var(--muted)] mt-1">punti totali</div>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
-          <div className="font-display font-extrabold text-3xl tabular-nums">{pronById.size}</div>
+          <div className="font-num font-semibold text-3xl tabular-nums">{pronById.size}</div>
           <div className="text-[11px] text-[var(--muted)] mt-1">schedine giocate</div>
         </div>
       </div>}
@@ -149,16 +149,16 @@ export default async function ProfiloPage() {
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--muted)]">
                 {pron.recupero && <span>{pron.recupero === 'primo' ? 'Rec. 1°T' : 'Rec. 2°T'}</span>}
-                {pron.first_goal && <span className="flex items-center gap-1">Primo: <Flag team={pron.first_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{pron.first_goal}</span></span>}
-                {pron.last_goal && <span className="flex items-center gap-1">Ultimo: <Flag team={pron.last_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{pron.last_goal}</span></span>}
+                {pron.first_goal && <span className="flex items-center gap-1">Primo: <Flag team={pron.first_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{pron.first_goal}</span></span>}
+                {pron.last_goal && <span className="flex items-center gap-1">Ultimo: <Flag team={pron.last_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{pron.last_goal}</span></span>}
               </div>
             </div>
           )
         })}
       </div>}
 
-      <div className="mt-10 flex items-center justify-between border-t border-white/8 pt-5 text-sm">
-        <Link href="/regole" className="text-[var(--muted)] hover:text-white flex items-center gap-1.5"><IconBook size={16} /> Regole del gioco</Link>
+      <div className="mt-10 flex items-center justify-between border-t border-[var(--line)] pt-5 text-sm">
+        <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center gap-1.5"><IconBook size={16} /> Regole del gioco</Link>
         <LogoutButton className="btn-ghost px-5 py-2 text-sm" />
       </div>
     </div>

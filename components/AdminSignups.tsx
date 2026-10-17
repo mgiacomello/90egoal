@@ -50,7 +50,7 @@ export default function AdminSignups({ profiles, activity }: Props) {
           <div className="flex items-end gap-2 h-40">
             {giorni.map(g => (
               <div key={g.label} className="flex-1 flex flex-col items-center justify-end h-full gap-1" title={`${g.label}: ${g.n} iscritti`}>
-                <span className="text-[10px] text-white/70 font-semibold tabular-nums">{g.n}</span>
+                <span className="text-[10px] text-[var(--ink)] font-semibold tabular-nums">{g.n}</span>
                 <div className="w-full rounded-t-md" style={{ height: `${(g.n / maxDay) * 100}%`, minHeight: 4, background: 'linear-gradient(to top, rgba(0,230,118,0.8), rgba(34,211,238,0.6))' }} />
                 <span className="text-[9px] text-[var(--muted)] whitespace-nowrap">{g.label}</span>
               </div>
@@ -74,7 +74,7 @@ export default function AdminSignups({ profiles, activity }: Props) {
 function Card({ n, l, hot }: { n: number | string; l: string; hot?: boolean }) {
   return (
     <div className="glass rounded-2xl p-4 text-center">
-      <div className={`font-display font-extrabold text-2xl tabular-nums ${hot ? 'text-[var(--accent-cyan)]' : 'text-white'}`}>{n}</div>
+      <div className={`font-num font-semibold text-2xl tabular-nums ${hot ? 'text-[var(--accent-cyan)]' : 'text-[var(--ink)]'}`}>{n}</div>
       <div className="text-[11px] text-[var(--muted)] mt-1 leading-tight">{l}</div>
     </div>
   )

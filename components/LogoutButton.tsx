@@ -11,7 +11,7 @@ export default function LogoutButton({ className = '' }: { className?: string })
     router.refresh()
   }
   return (
-    <button onClick={logout} className={className || 'text-sm text-[var(--muted)] hover:text-red-400 transition-colors'}>
+    <button onClick={logout} className={className || 'text-sm text-[var(--muted)] hover:text-[var(--danger)] transition-colors'}>
       Esci
     </button>
   )

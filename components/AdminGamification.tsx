@@ -62,8 +62,8 @@ export default function AdminGamification({ profiles, classifica, activity }: Pr
                 <span className="text-2xl">{p.pos}</span>
                 <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">{p.label}</span>
               </div>
-              <div className="font-semibold text-white mb-3 text-sm">{p.testo}</div>
-              <div className="border-t border-white/10 pt-2">
+              <div className="font-semibold text-[var(--ink)] mb-3 text-sm">{p.testo}</div>
+              <div className="border-t border-[var(--line)] pt-2">
                 <div className="text-[10px] text-[var(--muted)] uppercase tracking-wider">In testa ora</div>
                 <div className="flex items-center justify-between">
                   <span className="font-display font-bold">{w?.name ?? '—'}</span>
@@ -81,7 +81,7 @@ export default function AdminGamification({ profiles, classifica, activity }: Pr
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {badges.map(b => (
           <div key={b.nome} className="glass rounded-2xl p-4 flex items-center gap-4">
-            <span className="grid place-items-center w-12 h-12 rounded-xl bg-white/5 text-2xl shrink-0">{b.icon}</span>
+            <span className="grid place-items-center w-12 h-12 rounded-xl bg-[var(--surface-2)] text-2xl shrink-0">{b.icon}</span>
             <div className="flex-1 min-w-0">
               <div className="font-display font-bold">{b.nome}</div>
               <div className="text-xs text-[var(--muted)]">{b.desc}</div>

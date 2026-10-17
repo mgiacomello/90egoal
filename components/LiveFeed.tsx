@@ -30,7 +30,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
       {pronostico && (
         <div className="glass rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
           <div>
-            <div className="font-display font-extrabold text-4xl text-[var(--accent-soft)] tabular-nums leading-none">
+            <div className="font-num font-semibold text-4xl text-[var(--accent-soft)] tabular-nums leading-none">
               {punti ?? 0}<span className="text-sm font-normal text-[var(--muted)] ml-1">pt</span>
             </div>
             <div className="text-xs text-[var(--muted)] mt-1.5">
@@ -39,7 +39,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
           </div>
           {posizione && (
             <div className="text-right">
-              <div className="font-display font-extrabold text-3xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
+              <div className="font-num font-semibold text-3xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
               <div className="text-xs text-[var(--muted)] mt-1.5">su {posizione.su}</div>
             </div>
           )}
@@ -64,7 +64,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
       {/* Stato delle partite */}
       <div className="flex items-center justify-between text-xs text-[var(--muted)] px-1">
         <span>
-          {inCorso > 0 && <span className="text-red-300 font-semibold">● {inCorso} in corso · </span>}
+          {inCorso > 0 && <span className="text-[var(--danger)] font-semibold">● {inCorso} in corso · </span>}
           {finite}/{schedina.partite.length} finite
         </span>
         <span>{gol.length} gol</span>
@@ -80,8 +80,8 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
           {gol.map((g, i) => {
             const mio = g.minuto !== null && miei.has(g.minuto)
             return (
-              <div key={i} className={`rounded-xl border px-3 py-2.5 flex items-center gap-3 ${mio ? 'bg-[var(--accent)]/[0.12] border-[var(--accent)]/50' : 'bg-white/[0.03] border-white/8'}`}>
-                <div className={`font-display font-extrabold text-xl tabular-nums w-14 shrink-0 ${mio ? 'text-[var(--accent-soft)]' : 'text-white/80'}`}>
+              <div key={i} className={`rounded-xl border px-3 py-2.5 flex items-center gap-3 ${mio ? 'bg-[rgba(232,100,28,0.10)] border-[var(--accent)]' : 'bg-[var(--surface-2)] border-[var(--line)]'}`}>
+                <div className={`font-num font-semibold text-xl tabular-nums w-14 shrink-0 ${mio ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>
                   {g.min}
                 </div>
                 <div className="flex-1 min-w-0">

@@ -76,7 +76,7 @@ export default function AdminUsers({ profiles, pronostici, activity }: Props) {
           placeholder="Cerca utente… (nome, nickname o email)"
           className="input-field w-full pl-11 pr-10 py-3 text-sm"
         />
-        {q && <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white text-sm">✕</button>}
+        {q && <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--ink)] text-sm">✕</button>}
       </div>
 
       <p className="text-xs text-[var(--muted)] mb-3">
@@ -86,7 +86,7 @@ export default function AdminUsers({ profiles, pronostici, activity }: Props) {
       <div className="glass rounded-2xl overflow-x-auto">
         <table className="w-full text-sm min-w-[760px]">
           <thead>
-            <tr className="text-[var(--muted)] text-xs uppercase tracking-wider border-b border-white/8">
+            <tr className="text-[var(--muted)] text-xs uppercase tracking-wider border-b border-[var(--line)]">
               <th className="text-left px-4 py-3">Utente</th>
               <th className="text-left px-4 py-3">Email</th>
               <th className="text-left px-3 py-3">Registrato</th>
@@ -98,9 +98,9 @@ export default function AdminUsers({ profiles, pronostici, activity }: Props) {
           </thead>
           <tbody>
             {righe.map(({ g, act, n }) => (
-              <tr key={g.id} className="border-b border-white/5 last:border-0 hover:bg-white/[0.03] transition-colors">
+              <tr key={g.id} className="border-b border-[var(--line)] last:border-0 hover:bg-[var(--surface-2)] transition-colors">
                 <td className="px-4 py-3">
-                  <div className="font-semibold text-white">{g.username}</div>
+                  <div className="font-semibold text-[var(--ink)]">{g.username}</div>
                   {g.full_name && <div className="text-xs text-[var(--muted)]">{g.full_name}</div>}
                 </td>
                 <td className="px-4 py-3 text-[var(--muted)] text-xs">{g.email ?? '—'}</td>
@@ -108,7 +108,7 @@ export default function AdminUsers({ profiles, pronostici, activity }: Props) {
                 <td className="px-3 py-3 text-center whitespace-nowrap">
                   <span className={act?.minuti_attivi ? 'text-[var(--accent-soft)] font-semibold' : 'text-[var(--muted)]'}>{fmtDurata(act?.minuti_attivi ?? 0)}</span>
                 </td>
-                <td className="px-3 py-3 text-center text-white/70 tabular-nums">{act?.giorni_attivi ?? 0}</td>
+                <td className="px-3 py-3 text-center text-[var(--ink)] tabular-nums">{act?.giorni_attivi ?? 0}</td>
                 <td className="px-3 py-3 text-[var(--muted)] text-xs whitespace-nowrap">{fmtDataOra(act?.ultimo_accesso)}</td>
                 <td className="px-3 py-3 text-center tabular-nums">{n}</td>
               </tr>
@@ -127,7 +127,7 @@ export default function AdminUsers({ profiles, pronostici, activity }: Props) {
 function Card({ n, l }: { n: number | string; l: string }) {
   return (
     <div className="glass rounded-2xl p-4 text-center">
-      <div className="font-display font-extrabold text-2xl text-gradient tabular-nums">{n}</div>
+      <div className="font-num font-semibold text-2xl text-gradient tabular-nums">{n}</div>
       <div className="text-[11px] text-[var(--muted)] mt-1 leading-tight">{l}</div>
     </div>
   )

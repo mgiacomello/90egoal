@@ -49,7 +49,7 @@ export default function ProvaClient({ schedina }: { schedina: Schedina }) {
       <div className="space-y-3">
         <Link href="/auth/register" className="btn-primary w-full py-4 text-base">Crea l&apos;account e gioca davvero →</Link>
         <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">Ho già un account</Link>
-        <button type="button" onClick={() => setRifai(true)} className="w-full text-sm text-[var(--muted)] hover:text-white py-2">Rifai la schedina</button>
+        <button type="button" onClick={() => setRifai(true)} className="w-full text-sm text-[var(--muted)] hover:text-[var(--ink)] py-2">Rifai la schedina</button>
         <InstallButton />
       </div>
     </div>

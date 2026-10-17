@@ -54,7 +54,7 @@ export default async function Home() {
   if (!s) {
     return (
       <div className="max-w-lg mx-auto animate-fade-up text-center py-20">
-        <IconBall size={40} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
+        <IconBall size={40} className="inline-block text-[var(--ink)] mb-4" strokeWidth={1.4} />
         <h1 className="font-display font-bold text-2xl">Nessuna giornata in programma</h1>
         <p className="text-[var(--muted)] mt-2">Appena c&apos;è una schedina la trovi qui.</p>
       </div>
@@ -75,14 +75,14 @@ export default async function Home() {
       {/* Testata: cosa, quando */}
       <div className="flex items-start justify-between gap-3">
         <div>
-          <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">
+          <span className={`text-[11px] font-semibold tracking-widest uppercase ${live ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
             {live ? '● In diretta' : aperta ? 'Prossima giornata' : 'Giornata conclusa'}
           </span>
           <h1 className="font-display font-bold text-2xl sm:text-3xl mt-1 leading-tight">{nomeBreve(s.nome)}</h1>
         </div>
         {posizione && (
           <Link href="/classifica" className="glass rounded-xl px-3 py-2 text-right shrink-0">
-            <div className="font-display font-extrabold text-xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
+            <div className="font-num font-semibold text-xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
             <div className="text-[10px] text-[var(--muted)] mt-0.5">{myTot} pt</div>
           </Link>
         )}
@@ -105,7 +105,7 @@ export default async function Home() {
         <>
           <div className="glass rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-semibold text-[var(--accent)] flex items-center gap-1.5"><IconCheck size={16} /> Schedina giocata</span>
+              <span className="font-semibold text-[var(--ink)] flex items-center gap-1.5"><IconCheck size={16} className="text-[var(--accent-soft)]" /> Schedina giocata</span>
               <span className="text-xs text-[var(--muted)]">si parte {deadline.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -151,7 +151,7 @@ function Partite({ s }: { s: Schedina }) {
             <span className="truncate">{p.home}</span>
             <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
           </div>
-          <span className="text-white/25 text-xs">–</span>
+          <span className="text-[var(--muted)] text-xs">–</span>
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <Flag team={p.away} w={40} className="w-5 h-3.5 shrink-0" />
             <span className="truncate">{p.away}</span>
@@ -170,9 +170,9 @@ function Landing() {
   return (
     <div className="animate-fade-up pt-4 pb-10">
       <div className="text-center">
-        <span className="inline-block font-display font-semibold text-[var(--accent)] uppercase tracking-[0.2em] text-xs">Serie A · B · C</span>
-        <h1 className="font-display font-extrabold uppercase text-[3.4rem] leading-[0.92] tracking-tight mt-3">
-          Indovina<br />il minuto<br /><span className="text-[var(--accent)]">del gol</span>
+        <span className="inline-block font-semibold text-[var(--muted)] uppercase tracking-[0.18em] text-[11px]">Serie A · B · C</span>
+        <h1 className="font-display font-semibold text-[2.9rem] leading-[1.02] tracking-tight mt-3">
+          Indovina il minuto<br /><span className="text-[var(--accent-soft)]">del gol</span>
         </h1>
       </div>
 
@@ -181,7 +181,7 @@ function Landing() {
           <span key={t.m} className={`min-cell ${t.hit ? 'is-selected' : ''} pointer-events-none`}>{t.m}</span>
         ))}
       </div>
-      <p className="text-center text-xs text-[var(--muted)] mt-2">27&apos; e 61&apos;: gol. Due punti.</p>
+      <p className="text-center text-xs text-[var(--muted)] mt-2">Al 27&apos; e al 61&apos; qualcuno ha segnato: due punti.</p>
 
       <p className="mt-7 text-[17px] leading-snug text-[var(--ink)]/85">
         Dieci partite nello stesso pomeriggio. Tu scegli <strong className="text-[var(--ink)]">13 minuti</strong>.
@@ -201,7 +201,7 @@ function Landing() {
           ['3', 'Durante le partite guardi i tuoi minuti accendersi.'],
         ].map(([n, t]) => (
           <div key={n} className="flex gap-3 items-center">
-            <span className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--surface-2)] text-[var(--accent)] font-display font-extrabold text-sm shrink-0">{n}</span>
+            <span className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--ink)] text-[var(--bg)] font-num font-semibold text-xs shrink-0">{n}</span>
             <span className="text-[var(--ink)]/85">{t}</span>
           </div>
         ))}

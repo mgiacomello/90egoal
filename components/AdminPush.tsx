@@ -58,15 +58,15 @@ export default function AdminPush({ schedine }: { schedine: Schedina[] }) {
     <div className="space-y-5">
       {stato && (
         <div className="grid grid-cols-3 gap-3">
-          <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3 text-center">
+          <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] p-3 text-center">
             <div className="font-display font-extrabold text-2xl">{stato.giocatori}</div>
             <div className="text-[11px] text-[var(--muted)]">giocatori iscritti</div>
           </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3 text-center">
+          <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] p-3 text-center">
             <div className="font-display font-extrabold text-2xl">{stato.dispositivi}</div>
             <div className="text-[11px] text-[var(--muted)]">dispositivi</div>
           </div>
-          <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3 text-center">
+          <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] p-3 text-center">
             <div className="font-display font-extrabold text-2xl">{stato.soloMiei}</div>
             <div className="text-[11px] text-[var(--muted)]">solo i loro minuti</div>
           </div>
@@ -87,7 +87,7 @@ export default function AdminPush({ schedine }: { schedine: Schedina[] }) {
             <button onClick={async () => setChiavi(await generaChiavi())} className="btn-ghost px-4 py-2 text-sm">Genera le chiavi</button>
           ) : (
             <>
-              <pre className="text-[11px] bg-black/40 rounded-lg p-3 overflow-x-auto select-all whitespace-pre-wrap break-all">{`VAPID_PUBLIC_KEY=${chiavi.pub}
+              <pre className="text-[11px] bg-[var(--surface)] rounded-lg p-3 overflow-x-auto select-all whitespace-pre-wrap break-all">{`VAPID_PUBLIC_KEY=${chiavi.pub}
 VAPID_PRIVATE_KEY=${chiavi.priv}
 VAPID_SUBJECT=mailto:tua@email.it`}</pre>
               <p className="text-xs text-[var(--muted)]">
@@ -115,7 +115,7 @@ VAPID_SUBJECT=mailto:tua@email.it`}</pre>
             Il promemoria va solo a chi non ha ancora inviato il pronostico.
           </p>
 
-          <div className="rounded-xl border border-white/10 p-4 space-y-2">
+          <div className="rounded-xl border border-[var(--line)] p-4 space-y-2">
             <p className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Messaggio a tutti gli iscritti</p>
             <input value={titolo} onChange={e => setTitolo(e.target.value)} maxLength={80} placeholder="Titolo" className="input-field w-full px-3 py-2 text-sm" />
             <textarea value={testo} onChange={e => setTesto(e.target.value)} maxLength={200} rows={2} placeholder="Testo (max 200 caratteri)" className="input-field w-full px-3 py-2 text-sm resize-none" />

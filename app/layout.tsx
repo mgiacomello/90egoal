@@ -1,15 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora, Barlow_Condensed } from "next/font/google";
+import { Inter, Sora, Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 
-const inter = Inter({
+const plexSans = IBM_Plex_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-sans",
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 
-// Sora serve ancora a ONE TAP (onetap.css); il gioco usa Barlow Condensed.
+const plexMono = IBM_Plex_Mono({
+  subsets: ["latin"],
+  variable: "--font-num",
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
+
+// Inter e Sora servono ancora a ONE TAP (onetap.css); il gioco usa Fraunces, Plex Sans e Plex Mono.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+
 const sora = Sora({
   subsets: ["latin"],
   variable: "--font-sora",
@@ -17,10 +27,11 @@ const sora = Sora({
   display: "swap",
 });
 
-const barlow = Barlow_Condensed({
+const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: "--font-barlow",
-  weight: ["500", "600", "700", "800"],
+  variable: "--font-display",
+  weight: "variable",
+  axes: ["opsz"],
   display: "swap",
 });
 
@@ -35,7 +46,7 @@ export const metadata: Metadata = {
     locale: "it_IT",
     type: "website",
   },
-  appleWebApp: { capable: true, title: "90 & Goal", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "90 & Goal", statusBarStyle: "default" },
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
     apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
@@ -46,8 +57,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0b2219",
-  colorScheme: "dark",
+  themeColor: "#f3efe4",
+  colorScheme: "light",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -59,7 +70,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className={`${inter.variable} ${sora.variable} ${barlow.variable} h-full`}>
+    <html lang="it" className={`${plexSans.variable} ${plexMono.variable} ${inter.variable} ${sora.variable} ${fraunces.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <SiteChrome>{children}</SiteChrome>
       </body>

@@ -97,7 +97,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
           <p className="text-[var(--muted)] mt-2">Inserisci i risultati reali per calcolare automaticamente le classifiche.</p>
         </div>
       )}
-      {embedded && <p className="text-[var(--muted)] text-sm mb-6">Solo per correggere il riepilogo a mano. Di norma si usa il pannello <strong className="text-white">Live</strong>: se poi si aggiunge un gol da lì, questo riepilogo viene ricalcolato e sovrascritto.</p>}
+      {embedded && <p className="text-[var(--muted)] text-sm mb-6">Solo per correggere il riepilogo a mano. Di norma si usa il pannello <strong className="text-[var(--ink)]">Live</strong>: se poi si aggiunge un gol da lì, questo riepilogo viene ricalcolato e sovrascritto.</p>}
 
       {/* Selezione schedina */}
       <div className="grid sm:grid-cols-2 gap-4 mb-8">
@@ -126,7 +126,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addMinuto() } }}
                 placeholder="Min" className="input-field w-24 px-3 py-2 text-center font-mono" />
               <button type="button" onClick={addMinuto} className="btn-primary px-4 py-2 text-sm">+ Aggiungi</button>
-              <button type="button" onClick={() => setMinuti([])} className="text-sm text-[var(--muted)] hover:text-red-400 transition-colors ml-1">Svuota</button>
+              <button type="button" onClick={() => setMinuti([])} className="text-sm text-[var(--muted)] hover:text-[var(--danger)] transition-colors ml-1">Svuota</button>
             </div>
             <div className="flex flex-wrap gap-1.5 min-h-[2rem]">
               {minuti.length === 0 && <span className="text-[var(--muted)] text-sm self-center">Nessun gol inserito.</span>}
@@ -162,7 +162,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
                 <button type="button" onClick={() => setExtraTime(extraTime === false ? null : false)}
                   className={`seg-btn px-4 py-2 text-sm ${extraTime === false ? 'is-active' : ''}`}>No</button>
                 <button type="button" onClick={() => setExtraTime(null)}
-                  className="text-sm text-[var(--muted)] hover:text-red-400 transition-colors ml-1">Azzera</button>
+                  className="text-sm text-[var(--muted)] hover:text-[var(--danger)] transition-colors ml-1">Azzera</button>
               </div>
             </div>
           )}
@@ -199,7 +199,7 @@ export default function AdminPanel({ schedine, risultatiMap, pronosticiBySched, 
               className="input-field w-full px-3 py-2 text-sm resize-none" placeholder="Eventuali note…" />
           </div>
 
-          {error && <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>}
+          {error && <div className="bg-[var(--danger-soft)] border border-[var(--danger)] text-[var(--danger)] text-sm rounded-xl px-4 py-3">{error}</div>}
           {saved && <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/40 text-[var(--accent-soft)] text-sm rounded-xl px-4 py-3">✓ Risultati salvati! La classifica è aggiornata.</div>}
 
           <button onClick={handleSave} disabled={saving} className="btn-primary w-full py-3.5">

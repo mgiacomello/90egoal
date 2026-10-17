@@ -77,7 +77,7 @@ export default function RegisterPage() {
 
       <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 space-y-4">
         {error && (
-          <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">
+          <div className="bg-[var(--danger-soft)] border border-[var(--danger)] text-[var(--danger)] text-sm rounded-xl px-4 py-3">
             {error}
           </div>
         )}
@@ -89,7 +89,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-[var(--muted)] mb-1.5">Nickname <span className="text-white/30">(in classifica)</span></label>
+          <label className="block text-sm text-[var(--muted)] mb-1.5">Nickname <span className="text-[var(--muted)]">(in classifica)</span></label>
           <input type="text" required value={form.username} onChange={e => update('username', e.target.value)}
             className="input-field w-full px-4 py-2.5" placeholder="mariorossi" maxLength={20} />
         </div>
@@ -115,7 +115,7 @@ export default function RegisterPage() {
 
         {serveInvito && (
           <div>
-            <label className="block text-sm text-[var(--muted)] mb-1.5">Codice invito <span className="text-white/30">(test chiuso)</span></label>
+            <label className="block text-sm text-[var(--muted)] mb-1.5">Codice invito <span className="text-[var(--muted)]">(test chiuso)</span></label>
             <input type="text" required value={form.invito} onChange={e => update('invito', e.target.value)}
               className="input-field w-full px-4 py-2.5 uppercase tracking-wider" placeholder="Te l'ha dato chi ti ha invitato" autoCapitalize="characters" />
           </div>

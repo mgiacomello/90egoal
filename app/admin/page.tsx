@@ -61,36 +61,36 @@ export default async function AdminPage() {
     <div className="space-y-12">
       {/* LIVE — il giorno delle partite si lavora da qui */}
       <details open className="glass rounded-2xl overflow-hidden group">
-        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors">
+        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-[var(--surface-2)] transition-colors">
           <span className="font-display font-bold text-lg flex items-center gap-2">⚡ Live · inserimento gol</span>
           <span className="text-[var(--muted)] text-sm group-open:hidden">Apri ▾</span>
           <span className="text-[var(--muted)] text-sm hidden group-open:inline">Chiudi ▴</span>
         </summary>
-        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-white/8">
+        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-[var(--line)]">
           <AdminLive schedine={(schedine as Schedina[]) ?? []} risultatiMap={Object.fromEntries(risultatiMap)} />
         </div>
       </details>
 
       {/* SCHEDINE — creazione e modifica */}
       <details className="glass rounded-2xl overflow-hidden group">
-        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors">
+        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-[var(--surface-2)] transition-colors">
           <span className="font-display font-bold text-lg flex items-center gap-2">🗓️ Gestione schedine</span>
           <span className="text-[var(--muted)] text-sm group-open:hidden">Apri ▾</span>
           <span className="text-[var(--muted)] text-sm hidden group-open:inline">Chiudi ▴</span>
         </summary>
-        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-white/8">
+        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-[var(--line)]">
           <AdminSchedine schedine={(schedine as Schedina[]) ?? []} pronosticiBySched={Object.fromEntries(pronosticiBySched)} />
         </div>
       </details>
 
       {/* NOTIFICHE — stato, prova, promemoria, messaggi */}
       <details className="glass rounded-2xl overflow-hidden group">
-        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors">
+        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-[var(--surface-2)] transition-colors">
           <span className="font-display font-bold text-lg flex items-center gap-2">🔔 Notifiche push</span>
           <span className="text-[var(--muted)] text-sm group-open:hidden">Apri ▾</span>
           <span className="text-[var(--muted)] text-sm hidden group-open:inline">Chiudi ▴</span>
         </summary>
-        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-white/8">
+        <div className="px-4 sm:px-6 pb-6 pt-2 border-t border-[var(--line)]">
           <AdminPush schedine={(schedine as Schedina[]) ?? []} />
         </div>
       </details>
@@ -154,7 +154,7 @@ export default async function AdminPage() {
 
       {/* INSERIMENTO RISULTATI — in fondo, richiudibile */}
       <details className="glass rounded-2xl overflow-hidden group">
-        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-white/[0.03] transition-colors">
+        <summary className="cursor-pointer select-none list-none px-6 py-5 flex items-center justify-between hover:bg-[var(--surface-2)] transition-colors">
           <span className="font-display font-bold text-lg flex items-center gap-2">
             🛠️ Correzione manuale risultati
             <span className="text-xs font-normal text-[var(--muted)]">(riepilogo senza dettaglio partite)</span>
@@ -162,7 +162,7 @@ export default async function AdminPage() {
           <span className="text-[var(--muted)] text-sm group-open:hidden">Apri ▾</span>
           <span className="text-[var(--muted)] text-sm hidden group-open:inline">Chiudi ▴</span>
         </summary>
-        <div className="px-6 pb-6 pt-2 border-t border-white/8">
+        <div className="px-6 pb-6 pt-2 border-t border-[var(--line)]">
           <AdminPanel
             schedine={schedine ?? []}
             risultatiMap={Object.fromEntries(risultatiMap)}
