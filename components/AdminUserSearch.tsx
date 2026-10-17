@@ -61,7 +61,7 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
           placeholder="Cerca giocatore… (nome, nickname o email)"
           className="input-field w-full pl-11 pr-10 py-3 text-sm"
         />
-        {q && <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-white text-sm">✕</button>}
+        {q && <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--ink)] text-sm">✕</button>}
       </div>
 
       <p className="text-xs text-[var(--muted)] mb-3">
@@ -79,7 +79,7 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
             <div key={p.id} className="glass rounded-xl overflow-hidden">
               <button
                 onClick={() => setOpenId(isOpen ? null : p.id)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-white/[0.03] transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--surface-2)] transition-colors"
               >
                 <span className="text-[var(--muted)] text-xs w-4 shrink-0">{isOpen ? '▾' : '▸'}</span>
                 <div className="flex-1 min-w-0">
@@ -91,13 +91,13 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
               </button>
 
               {isOpen && (
-                <div className="px-4 pb-4 pt-1 border-t border-white/8 space-y-3">
+                <div className="px-4 pb-4 pt-1 border-t border-[var(--line)] space-y-3">
                   {prons.length === 0 && <p className="text-sm text-[var(--muted)] pt-2">Nessuna scommessa inviata.</p>}
                   {prons.map(g => {
                     const c = classByKey.get(`${g.schedina_id}:${g.user_id}`)
                     const azz = new Set(c?.minuti_azzeccati ?? [])
                     return (
-                      <div key={g.id} className="bg-white/[0.03] border border-white/8 rounded-lg p-3">
+                      <div key={g.id} className="bg-[var(--surface-2)] border border-[var(--line)] rounded-lg p-3">
                         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
                           <span className="font-semibold text-sm">{schedinaNome(g.schedina_id)}</span>
                           {c ? (
@@ -113,8 +113,8 @@ export default function AdminUserSearch({ schedine, profiles, pronostici, classi
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--muted)]">
                           {g.recupero && <span>➕ {g.recupero === 'primo' ? 'Rec. 1°T' : 'Rec. 2°T'}</span>}
-                          {g.first_goal && <span className="flex items-center gap-1">🥇 <Flag team={g.first_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{g.first_goal}</span></span>}
-                          {g.last_goal && <span className="flex items-center gap-1">🏁 <Flag team={g.last_goal} w={40} className="w-4 h-3" /><span className="text-white/80">{g.last_goal}</span></span>}
+                          {g.first_goal && <span className="flex items-center gap-1">🥇 <Flag team={g.first_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{g.first_goal}</span></span>}
+                          {g.last_goal && <span className="flex items-center gap-1">🏁 <Flag team={g.last_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{g.last_goal}</span></span>}
                         </div>
                       </div>
                     )

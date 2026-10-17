@@ -13,8 +13,8 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: '/',
     display: 'standalone',
     orientation: 'portrait',
-    background_color: '#0b2219',
-    theme_color: '#0b2219',
+    background_color: '#f3efe4',
+    theme_color: '#f3efe4',
     categories: ['sports', 'games'],
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

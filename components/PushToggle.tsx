@@ -121,7 +121,7 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
         <IconBell size={24} className="text-[var(--accent)] shrink-0" />
         <div className="flex-1 min-w-0 text-sm">
           {stato === 'ios-installa' ? (
-            <>Per ricevere i gol in diretta su iPhone: <strong className="text-white">Condividi → Aggiungi alla schermata Home</strong>, poi apri l&apos;app da lì.</>
+            <>Per ricevere i gol in diretta su iPhone: <strong className="text-[var(--ink)]">Condividi → Aggiungi alla schermata Home</strong>, poi apri l&apos;app da lì.</>
           ) : (
             testo ? <strong className="text-[var(--ink)]">{testo}</strong> : <>Ricevi una notifica <strong className="text-[var(--ink)]">quando esce un tuo minuto</strong>.</>
           )}
@@ -131,7 +131,7 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
         )}
         <button
           onClick={() => { setChiuso(true); try { localStorage.setItem('push-banner-chiuso', '1') } catch { /* ignora */ } }}
-          className="text-[var(--muted)] hover:text-white text-sm shrink-0" aria-label="Chiudi"
+          className="text-[var(--muted)] hover:text-[var(--ink)] text-sm shrink-0" aria-label="Chiudi"
         >✕</button>
       </div>
     )
@@ -150,7 +150,7 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
 
       <div className="text-sm text-[var(--muted)] mt-3">
         {stato === 'caricamento' && 'Controllo…'}
-        {stato === 'ios-installa' && <>Su iPhone le notifiche funzionano solo nell&apos;app installata: in Safari tocca <strong className="text-white">Condividi → Aggiungi alla schermata Home</strong>, poi apri 90 &amp; Goal dall&apos;icona e torna qui.</>}
+        {stato === 'ios-installa' && <>Su iPhone le notifiche funzionano solo nell&apos;app installata: in Safari tocca <strong className="text-[var(--ink)]">Condividi → Aggiungi alla schermata Home</strong>, poi apri 90 &amp; Goal dall&apos;icona e torna qui.</>}
         {stato === 'non-supportato' && 'Questo browser non supporta le notifiche. Prova con Chrome su Android o con l’app installata su iPhone (iOS 16.4 o successivo).'}
         {stato === 'non-configurato' && 'Le notifiche non sono ancora attive sul sito.'}
         {stato === 'negato' && 'Hai bloccato le notifiche per questo sito. Per riattivarle vai nelle impostazioni del browser o del telefono, alla voce Notifiche.'}
@@ -164,7 +164,7 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
           <button onClick={() => cambiaPref('miei')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'miei' ? 'is-active' : ''}`}>Solo i miei minuti</button>
         </div>
       )}
-      {errore && <p className="text-xs text-red-300 mt-3">{errore}</p>}
+      {errore && <p className="text-xs text-[var(--danger)] mt-3">{errore}</p>}
     </div>
   )
 }

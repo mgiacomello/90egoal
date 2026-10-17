@@ -9,8 +9,8 @@ export default function Flag({ team, w = 40, className = '' }: { team: string; w
       <span
         aria-hidden
         title={team}
-        className={`inline-grid place-items-center rounded-[4px] font-display font-extrabold leading-none text-[var(--accent-ink)] ring-1 ring-white/15 shadow-[0_2px_6px_rgba(0,0,0,0.5)] ${className}`}
-        style={{ background: `linear-gradient(135deg, ${c}, ${c}b3)`, fontSize: w >= 80 ? 14 : 8, letterSpacing: '-0.02em' }}
+        className={`inline-grid place-items-center rounded-full font-num font-bold leading-none text-white ring-1 ring-black/10 ${className}`}
+        style={{ background: c, fontSize: w >= 80 ? 13 : 7.5, letterSpacing: '0' }}
       >
         {sigla(team)}
       </span>
@@ -22,7 +22,7 @@ export default function Flag({ team, w = 40, className = '' }: { team: string; w
       src={flagUrl(team, w)}
       alt={team}
       loading="lazy"
-      className={`inline-block rounded-[3px] object-cover shadow-[0_2px_6px_rgba(0,0,0,0.5)] ring-1 ring-white/10 ${className}`}
+      className={`inline-block rounded-[3px] object-cover ring-1 ring-black/10 ${className}`}
     />
   )
 }

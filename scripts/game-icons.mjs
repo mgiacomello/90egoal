@@ -40,7 +40,7 @@ function png(size, pixel) {
 }
 
 // Coordinate in una griglia 100×100.
-const INK = [11, 34, 25]   // verde campo, come il testo sulla tessera in testata
+const INK = [243, 239, 228]   // avorio: il "90" sulla tessera d'inchiostro
 function inGlyph(u, v) {
   // "9": anello in alto + gamba a destra con estremità arrotondata
   const d9 = Math.hypot(u - 33, v - 43)
@@ -57,10 +57,8 @@ function inRounded(u, v, r) {
   const cy = Math.min(Math.max(v, r), 100 - r)
   return Math.hypot(u - cx, v - cy) <= r
 }
-function bg(u, v) {
-  // Lime pieno con una leggera luce in alto a sinistra.
-  const t = (u + v) / 200
-  return [200 + (219 - 200) * (1 - t), 255, 62 + (122 - 62) * (1 - t)]
+function bg() {
+  return [20, 48, 31]   // inchiostro verde bottiglia, pieno
 }
 
 function draw(size, { rounded }) {

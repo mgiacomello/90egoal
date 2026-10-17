@@ -50,7 +50,7 @@ export default function AskAI() {
             Le tue domande sul giorno della partita, con le risposte dell&apos;AI
           </h2>
           <p className="text-[var(--muted)] mt-3 max-w-2xl">
-            Dubbi sulle regole, curiosità sulle partite in schedina, risultati o classifica di <strong className="text-white">90 &amp; Goal</strong>?
+            Dubbi sulle regole, curiosità sulle partite in schedina, risultati o classifica di <strong className="text-[var(--ink)]">90 &amp; Goal</strong>?
             Chiedi pure.
           </p>
 
@@ -65,7 +65,7 @@ export default function AskAI() {
               onChange={(e) => setQuestion(e.target.value)}
               placeholder="Chiedi qualcosa sul gioco o sulle partite…"
               maxLength={300}
-              className="flex-1 rounded-xl bg-white/[0.04] border border-white/10 px-4 py-3 text-[15px] outline-none focus:border-[var(--accent-cyan)]/50 transition-colors placeholder:text-white/30"
+              className="flex-1 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3 text-[15px] outline-none focus:border-[var(--accent-cyan)]/50 transition-colors placeholder:text-[var(--muted)]"
             />
             <button
               type="submit"
@@ -83,7 +83,7 @@ export default function AskAI() {
                 <button
                   key={s}
                   onClick={() => { setQuestion(s); ask(s) }}
-                  className="text-xs text-white/70 bg-white/[0.04] hover:bg-white/[0.08] border border-white/8 hover:border-white/15 rounded-full px-3 py-1.5 transition-colors"
+                  className="text-xs text-[var(--ink)] bg-[var(--surface-2)] hover:bg-[var(--surface-2)] border border-[var(--line)] hover:border-[var(--line)] rounded-full px-3 py-1.5 transition-colors"
                 >
                   {s}
                 </button>
@@ -100,14 +100,14 @@ export default function AskAI() {
           )}
 
           {answer && (
-            <div className="mt-6 rounded-2xl bg-white/[0.03] border border-white/10 p-5 animate-fade-up">
+            <div className="mt-6 rounded-2xl bg-[var(--surface-2)] border border-[var(--line)] p-5 animate-fade-up">
               <div className="flex items-center gap-2 mb-2 text-xs font-semibold text-[var(--accent-cyan)] uppercase tracking-wider">
                 ✨ Risposta AI
               </div>
-              <p className="text-white/90 leading-relaxed whitespace-pre-line text-[15px]">{answer}</p>
+              <p className="text-[var(--ink)] leading-relaxed whitespace-pre-line text-[15px]">{answer}</p>
               <button
                 onClick={() => { setAnswer(''); setQuestion(''); inputRef.current?.focus() }}
-                className="mt-4 text-xs text-[var(--muted)] hover:text-white transition-colors"
+                className="mt-4 text-xs text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
               >
                 ← Fai un&apos;altra domanda
               </button>
@@ -115,7 +115,7 @@ export default function AskAI() {
           )}
 
           {error && (
-            <p className="mt-5 text-sm text-red-300/90 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+            <p className="mt-5 text-sm text-[var(--danger)] bg-[var(--danger-soft)] border border-[var(--danger)] rounded-xl px-4 py-3">
               {error}
             </p>
           )}

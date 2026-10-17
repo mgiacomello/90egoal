@@ -45,7 +45,7 @@ export default function LiveRefresh({ seconds = 60, generatedAt }: { seconds?: n
       <span>Aggiornato alle {ora}</span>
       <button
         onClick={() => { setSpinning(true); router.refresh() }}
-        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 hover:text-white hover:border-white/20 transition-colors"
+        className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1 hover:text-[var(--ink)] hover:border-[var(--line)] transition-colors"
         aria-label="Aggiorna"
       >
         <span className={spinning ? 'inline-block animate-spin' : 'inline-block'}>↻</span> Aggiorna

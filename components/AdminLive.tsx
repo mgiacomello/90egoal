@@ -141,7 +141,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     <div>
       <p className="text-[var(--muted)] text-sm mb-4">
         Durante le partite: scrivi il minuto e tocca la squadra che ha segnato (autogol: la squadra che ne beneficia).
-        Ogni tocco salva subito. Chi apre l&apos;app vede punteggi e classifica aggiornati. <strong className="text-white">Una sola persona per schedina</strong>, altrimenti ci si sovrascrive.
+        Ogni tocco salva subito. Chi apre l&apos;app vede punteggi e classifica aggiornati. <strong className="text-[var(--ink)]">Una sola persona per schedina</strong>, altrimenti ci si sovrascrive.
       </p>
 
       <div className="flex flex-wrap gap-2 mb-2">
@@ -151,14 +151,14 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
           </button>
         ))}
       </div>
-      <button onClick={() => setMostraArchivio(v => !v)} className="text-xs text-[var(--muted)] hover:text-white mb-5">
+      <button onClick={() => setMostraArchivio(v => !v)} className="text-xs text-[var(--muted)] hover:text-[var(--ink)] mb-5">
         {mostraArchivio ? 'Solo schedine attive' : 'Mostra anche l\'archivio'}
       </button>
 
       {schedina && riepilogo && (
         <>
           {/* Riepilogo: quello che vale per i punti */}
-          <div className="rounded-2xl bg-white/[0.03] border border-white/10 p-4 mb-4 text-sm space-y-1.5 sticky top-14 sm:top-16 z-10 backdrop-blur-xl">
+          <div className="rounded-2xl bg-[var(--surface-2)] border border-[var(--line)] p-4 mb-4 text-sm space-y-1.5 sticky top-14 sm:top-16 z-10 backdrop-blur-xl">
             <div className="flex items-center justify-between gap-2">
               <span className="font-semibold">{riepilogo.finite}/{schedina.partite.length} finite · {riepilogo.inCorso} live</span>
               <span className="text-xs text-[var(--muted)]">
@@ -166,22 +166,22 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               </span>
             </div>
             <div className="text-[var(--muted)]">
-              Minuti validi: <span className="text-white font-mono">{riepilogo.minuti_gol.map(m => `${m}'`).join(' ') || '—'}</span>
+              Minuti validi: <span className="text-[var(--ink)] font-mono">{riepilogo.minuti_gol.map(m => `${m}'`).join(' ') || '—'}</span>
             </div>
             <div className="text-[var(--muted)]">
-              Recupero: <span className="text-white">{riepilogo.recupero}</span>
-              {' · '}Prima: <span className="text-white">{riepilogo.first_goal_team ?? '—'}</span>
-              {' · '}Ultima: <span className="text-white">{riepilogo.last_goal_team ?? '—'}</span>
+              Recupero: <span className="text-[var(--ink)]">{riepilogo.recupero}</span>
+              {' · '}Prima: <span className="text-[var(--ink)]">{riepilogo.first_goal_team ?? '—'}</span>
+              {' · '}Ultima: <span className="text-[var(--ink)]">{riepilogo.last_goal_team ?? '—'}</span>
               {!riepilogo.completa && riepilogo.last_goal_team && <span className="text-[var(--gold)]"> (provvisoria)</span>}
             </div>
             <div className="text-[var(--muted)]">
-              Valgono doppio: <span className="text-white font-mono">{[riepilogo.minuto_primo_gol, riepilogo.minuto_ultimo_gol].filter((m, i, a) => m !== null && a.indexOf(m) === i).map(m => `${m}'`).join(' ') || '—'}</span>
+              Valgono doppio: <span className="text-[var(--ink)] font-mono">{[riepilogo.minuto_primo_gol, riepilogo.minuto_ultimo_gol].filter((m, i, a) => m !== null && a.indexOf(m) === i).map(m => `${m}'`).join(' ') || '—'}</span>
             </div>
-            {error && <div className="text-red-300">{error}</div>}
+            {error && <div className="text-[var(--danger)]">{error}</div>}
             <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">
               <input type="checkbox" checked={notifiche} onChange={e => setNotifiche(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
               📣 Notifica i giocatori a ogni gol
-              {esitoPush && <span className="text-white/80 truncate">· {esitoPush}</span>}
+              {esitoPush && <span className="text-[var(--ink)] truncate">· {esitoPush}</span>}
             </label>
           </div>
 
@@ -192,13 +192,13 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               if (!st) return null
               const d = buildDettaglio(p, st.gol, st.stato)
               return (
-                <div key={key} className={`rounded-2xl border p-3 ${st.stato === 'in_corso' ? 'border-[var(--accent)]/50 bg-[var(--accent)]/[0.06]' : 'border-white/10 bg-white/[0.02]'}`}>
+                <div key={key} className={`rounded-2xl border p-3 ${st.stato === 'in_corso' ? 'border-[var(--accent)]/50 bg-[var(--accent)]/[0.06]' : 'border-[var(--line)] bg-[var(--surface-2)]'}`}>
                   <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] mb-2">
                     <span>{p.competizione ?? ''}{p.ora ? ` · ${p.ora}` : ''}</span>
                     <div className="flex gap-1">
                       {STATI.map(x => (
                         <button key={x.v} onClick={() => cambiaStato(key, x.v)} disabled={saving}
-                          className={`px-2 py-1 rounded-md border text-[11px] ${st.stato === x.v ? 'border-[var(--accent)] text-white bg-[var(--accent)]/15' : 'border-white/10'}`}>
+                          className={`px-2 py-1 rounded-md border text-[11px] ${st.stato === x.v ? 'border-[var(--accent)] text-[var(--ink)] bg-[var(--accent)]/15' : 'border-[var(--line)]'}`}>
                           {x.l}
                         </button>
                       ))}
@@ -208,7 +208,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
                   <div className="flex items-center gap-2 font-semibold">
                     <Flag team={p.home} className="w-6 h-5 shrink-0" />
                     <span className="flex-1 truncate">{p.home}</span>
-                    <span className="font-display font-extrabold text-xl tabular-nums px-2">{d.score}</span>
+                    <span className="font-num font-semibold text-xl tabular-nums px-2">{d.score}</span>
                     <span className="flex-1 truncate text-right">{p.away}</span>
                     <Flag team={p.away} className="w-6 h-5 shrink-0" />
                   </div>
@@ -217,7 +217,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {d.gol.map((g, i) => (
                         <button key={i} onClick={() => togliGol(key, st.gol.findIndex(x => x.min === g.min && x.team === g.team))} disabled={saving}
-                          className="text-[11px] font-mono bg-white/8 hover:bg-red-500/20 text-white/85 px-2 py-1 rounded" title="Tocca per togliere">
+                          className="text-[11px] font-mono bg-[var(--surface-2)] hover:bg-[var(--danger-soft)] text-[var(--ink)] px-2 py-1 rounded" title="Tocca per togliere">
                           {g.min} {g.team} ✕
                         </button>
                       ))}
