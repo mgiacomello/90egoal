@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { trasferisciProva } from '@/lib/prova'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -17,11 +18,12 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
       setError('Email o password non corretti.')
     } else {
-      router.push('/schedine')
+      if (data.user) await trasferisciProva(supabase, data.user.id)
+      router.push('/')
       router.refresh()
     }
     setLoading(false)
@@ -30,7 +32,7 @@ export default function LoginPage() {
   return (
     <div className="max-w-sm mx-auto mt-12 sm:mt-20 animate-fade-up">
       <div className="text-center mb-8">
-        <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-2xl shadow-[0_12px_30px_-8px_rgba(0,230,118,0.6)] mb-4">⚽</div>
+        <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-[var(--accent)] text-[var(--accent-ink)] font-display font-extrabold text-2xl mb-4">90</div>
         <h1 className="font-display font-bold text-2xl">Bentornato</h1>
         <p className="text-[var(--muted)] text-sm mt-1">Accedi per giocare la tua schedina</p>
       </div>

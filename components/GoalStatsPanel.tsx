@@ -50,7 +50,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
         {/* Recupero + minuti caldi */}
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
-            <div className="text-xs text-[var(--muted)] mb-1">➕ Gol nel recupero</div>
+            <div className="text-xs text-[var(--muted)] mb-1">Gol nel recupero</div>
             <div className="text-sm text-white/85">
               <strong className="text-[var(--gold)]">{stats.recuperoPct}%</strong> del totale
               <span className="text-[var(--muted)]"> · 1°T: {stats.recupero1} · 2°T: {stats.recupero2}</span>
@@ -58,7 +58,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
           </div>
           {stats.topMinutes.length > 0 && (
             <div className="rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
-              <div className="text-xs text-[var(--muted)] mb-1.5">⚽ Minuti più frequenti</div>
+              <div className="text-xs text-[var(--muted)] mb-1.5">Minuti più frequenti</div>
               <div className="flex flex-wrap gap-1.5">
                 {stats.topMinutes.map(t => (
                   <span key={t.m} className="text-[11px] font-mono bg-white/8 text-white/80 px-1.5 py-0.5 rounded">

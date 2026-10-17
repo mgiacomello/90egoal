@@ -4,15 +4,16 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
+import { IconBall, IconTicket, IconTrophy, IconUser } from '@/components/Icons'
 
 // Si gioca coi pollici: quattro sezioni in una barra in basso, sempre, anche
 // su computer. In alto solo il marchio e (per chi amministra) il pannello.
 // Le regole stanno dentro Oggi e Profilo: non meritano un posto sotto al pollice.
 const TABS = [
-  { href: '/', label: 'Oggi', icon: '⚽', exact: true },
-  { href: '/schedine', label: 'Schedine', icon: '📝' },
-  { href: '/classifica', label: 'Classifica', icon: '🏆' },
-  { href: '/profilo', label: 'Profilo', icon: '👤' },
+  { href: '/', label: 'Oggi', Icon: IconBall, exact: true },
+  { href: '/schedine', label: 'Schedine', Icon: IconTicket },
+  { href: '/classifica', label: 'Classifica', Icon: IconTrophy },
+  { href: '/profilo', label: 'Profilo', Icon: IconUser },
 ]
 
 export default function Navbar({ wide = false }: { wide?: boolean }) {
@@ -109,7 +110,7 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
               return (
                 <Link key={t.href} href={t.href}
                   className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-display font-semibold uppercase tracking-wider transition-colors ${on ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}>
-                  <span className={`text-lg leading-none ${on ? '' : 'grayscale opacity-60'}`}>{t.icon}</span>
+                  <t.Icon size={22} strokeWidth={on ? 2.4 : 1.8} />
                   {t.label}
                 </Link>
               )

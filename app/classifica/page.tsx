@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ClassificaRow, MatchDetail, Partita } from '@/lib/types'
 import LiveRefresh from '@/components/LiveRefresh'
 import { nomeBreve } from '@/lib/teams'
+import { IconTrophy, IconBall } from '@/components/Icons'
 
 interface GeneraleRow { user_id: string; username: string; full_name: string; totale: number; pos: number }
 
@@ -20,7 +21,7 @@ function avatarFor(name: string) {
   return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
 }
 
-interface SchedinaLite { id: number; nome: string; attiva: boolean; torneo?: string; partite: Partita[] }
+interface SchedinaLite { id: number; nome: string; attiva: boolean; torneo?: string; partite: Partita[]; deadline: string }
 
 export default async function ClassificaPage({ searchParams }: { searchParams: Promise<{ torneo?: string }> }) {
   const supabase = await createClient()
@@ -50,6 +51,13 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
     return finite < s.partite.length
   })
 
+  // Quando si parte: la prima scadenza ancora da venire, detta come la direbbe una persona.
+  const nowIso = new Date().toISOString()
+  const prossima = all.filter(s => s.attiva !== false && s.deadline > nowIso).sort((a, b) => a.deadline.localeCompare(b.deadline))[0]
+  const prossimaApertura = prossima
+    ? `${new Date(prossima.deadline).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} alle ${new Date(prossima.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}`
+    : null
+
   const bySchedina = new Map<number, ClassificaRow[]>()
   classifica?.forEach((r: ClassificaRow) => {
     const arr = bySchedina.get(r.schedina_id) ?? []
@@ -75,10 +83,9 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
 
   return (
     <div className="animate-fade-up">
-      <div className="mb-6">
-        <span className="text-xs font-semibold tracking-widest text-[var(--gold)] uppercase">Leaderboard</span>
-        <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">🏆 Classifica</h1>
-        {torneo && <p className="text-[var(--muted)] mt-1">{torneo}</p>}
+      <div className="mb-5">
+        <h1 className="font-display font-bold text-2xl sm:text-3xl">Classifica</h1>
+        {torneo && <p className="text-sm text-[var(--muted)] mt-1">{torneo}</p>}
       </div>
 
       {tornei.length > 1 && (
@@ -91,7 +98,7 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
         </div>
       )}
 
-      <LiveRefresh seconds={60} generatedAt={new Date().toISOString()} />
+      {provvisoria && <LiveRefresh seconds={60} generatedAt={new Date().toISOString()} />}
       {provvisoria && (
         <p className="text-xs text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/30 rounded-xl px-3 py-2 mb-5">
           ⚡ Partite in corso: classifica provvisoria. Diventa definitiva al fischio finale dell&apos;ultima partita.
@@ -99,9 +106,13 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
       )}
 
       {generale.length === 0 ? (
-        <div className="glass rounded-2xl py-20 text-center">
-          <div className="text-5xl mb-4 animate-float inline-block">⏳</div>
-          <p className="text-[var(--muted)]">Le classifiche saranno disponibili<br />dopo la pubblicazione dei risultati.</p>
+        <div className="glass rounded-2xl py-14 px-6 text-center">
+          <IconTrophy size={36} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
+          {prossimaApertura ? (
+            <p className="text-[var(--ink)]/85">Si parte {prossimaApertura}.<br /><span className="text-[var(--muted)]">Qui vedrai i punti salire a ogni gol.</span></p>
+          ) : (
+            <p className="text-[var(--muted)]">I punti compaiono qui durante le partite.</p>
+          )}
         </div>
       ) : (
         <>
@@ -114,14 +125,14 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
 
           {albo.length > 0 && (
             <section className="mb-10">
-              <h2 className="font-display font-bold text-lg mb-1 text-[var(--gold)]">🏅 Albo d&apos;oro</h2>
+              <h2 className="font-display font-bold text-lg mb-1 text-[var(--gold)]">Albo d&apos;oro</h2>
               <p className="text-[var(--muted)] text-sm mb-3">Il miglior Tredicista di ogni fase conclusa.</p>
               <div className="space-y-2">
                 {albo.map((c, i) => (
                   <div key={i} className="glass rounded-xl px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-xs text-[var(--muted)]">{c.nome}</div>
-                      <div className="font-display font-semibold truncate">🏆 {c.champ.username}</div>
+                      <div className="font-display font-semibold truncate">{c.champ.username}</div>
                     </div>
                     <span className="font-display font-extrabold text-[var(--gold)] tabular-nums shrink-0">{c.champ.totale} pt</span>
                   </div>
@@ -156,7 +167,7 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
 function Podium({ top3, currentUserId }: { top3: GeneraleRow[]; currentUserId?: string }) {
   const order = [top3[1], top3[0], top3[2]] // 2°, 1°, 3°
   const heights = ['h-20', 'h-32', 'h-16']
-  const medals = ['🥈', '🥇', '🥉']
+  const medalColor = ['#c9ced6', 'var(--gold)', '#d8a070']
   const ranks = [2, 1, 3]
   const delays = ['0.15s', '0s', '0.3s']
   const colCol = [
@@ -174,7 +185,7 @@ function Podium({ top3, currentUserId }: { top3: GeneraleRow[]; currentUserId?: 
           const isFirst = ranks[i] === 1
           return (
             <div key={r.user_id} className="flex flex-col items-center flex-1 max-w-[140px]">
-              <div className="podium-medal text-3xl sm:text-4xl mb-1" style={{ animationDelay: delays[i] }}>{medals[i]}</div>
+              <div className="podium-medal font-display font-extrabold text-2xl mb-1" style={{ animationDelay: delays[i], color: medalColor[i] }}>{ranks[i]}°</div>
               <div
                 className="grid place-items-center w-11 h-11 rounded-full text-sm font-extrabold text-[var(--accent-ink)] mb-2 ring-2 ring-white/15 podium-medal"
                 style={{ background: avatarFor(r.username), animationDelay: delays[i] }}
@@ -210,7 +221,7 @@ interface ListRow {
 }
 
 function LeaderList({ rows, maxTot, currentUserId }: { rows: ListRow[]; maxTot: number; currentUserId?: string }) {
-  const medals = ['🥇', '🥈', '🥉']
+  const medalColor = ['var(--gold)', '#c9ced6', '#d8a070']
   return (
     <div className="space-y-2">
       {rows.map((r, idx) => {
@@ -226,7 +237,7 @@ function LeaderList({ rows, maxTot, currentUserId }: { rows: ListRow[]; maxTot: 
             <div className="flex items-center gap-3">
               {/* rank */}
               <div className="w-8 shrink-0 text-center">
-                {r.pos <= 3 ? <span className="text-xl">{medals[r.pos - 1]}</span> : <span className="text-[var(--muted)] font-bold tabular-nums">{r.pos}</span>}
+                <span className="font-display font-extrabold tabular-nums text-lg" style={{ color: r.pos <= 3 ? medalColor[r.pos - 1] : 'var(--muted)' }}>{r.pos}</span>
               </div>
               {/* avatar */}
               <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-extrabold text-[var(--accent-ink)] shrink-0 ring-1 ring-white/15" style={{ background: avatarFor(r.username) }}>
@@ -258,7 +269,7 @@ function LeaderList({ rows, maxTot, currentUserId }: { rows: ListRow[]; maxTot: 
                 </span>
                 {azzeccati.length > 0 && (
                   <span className="flex flex-wrap items-center gap-1">
-                    <span className="text-[var(--muted)]">⚽</span>
+                    <IconBall size={12} className="text-[var(--muted)]" />
                     {azzeccati.map(m => (
                       <span key={m} className="tag-static px-1.5 py-0.5 text-[10px]">{m}&apos;</span>
                     ))}

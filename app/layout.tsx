@@ -28,6 +28,13 @@ export const metadata: Metadata = {
   title: "90 & Goal — Indovina il minuto del gol",
   description: "Dieci partite, tredici minuti da scegliere, la classifica in diretta. Il gioco di pronostici sui minuti dei gol.",
   applicationName: "90 & Goal",
+  metadataBase: new URL("https://90egoal.vercel.app"),
+  openGraph: {
+    title: "90 & Goal — Indovina il minuto del gol",
+    description: "Dieci partite di Serie A, B e C. Tu scegli 13 minuti. Ogni gol in uno dei tuoi è un punto.",
+    locale: "it_IT",
+    type: "website",
+  },
   appleWebApp: { capable: true, title: "90 & Goal", statusBarStyle: "black-translucent" },
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],

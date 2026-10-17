@@ -8,6 +8,7 @@ import LiveRefresh from '@/components/LiveRefresh'
 import InstallButton from '@/components/InstallButton'
 import PushToggle from '@/components/PushToggle'
 import { nomeBreve } from '@/lib/teams'
+import { IconBall, IconCheck } from '@/components/Icons'
 
 // La home è "Oggi": una cosa sola, quella che conta adesso.
 // Da compilare → il pulsante. Giocata → l'attesa. In corso → i gol in diretta. Finita → i punti.
@@ -53,7 +54,7 @@ export default async function Home() {
   if (!s) {
     return (
       <div className="max-w-lg mx-auto animate-fade-up text-center py-20">
-        <div className="text-5xl mb-4">⚽</div>
+        <IconBall size={40} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
         <h1 className="font-display font-bold text-2xl">Nessuna giornata in programma</h1>
         <p className="text-[var(--muted)] mt-2">Appena c&apos;è una schedina la trovi qui.</p>
       </div>
@@ -91,8 +92,7 @@ export default async function Home() {
       {aperta && !p && (
         <>
           <div className="glass rounded-2xl p-5 text-center">
-            <p className="text-sm text-[var(--muted)]">Si chiude {deadline.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} alle {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</p>
-            <div className="my-3"><Countdown deadline={s.deadline} /></div>
+            <div className="mb-4"><Countdown deadline={s.deadline} /></div>
             <Link href={`/schedine/${s.id}`} className="btn-primary w-full py-4 text-base">Scegli i tuoi 13 minuti →</Link>
             <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il primo e l&apos;ultimo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
           </div>
@@ -105,7 +105,7 @@ export default async function Home() {
         <>
           <div className="glass rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-semibold text-[var(--accent-soft)]">✓ Schedina giocata</span>
+              <span className="font-semibold text-[var(--accent)] flex items-center gap-1.5"><IconCheck size={16} /> Schedina giocata</span>
               <span className="text-xs text-[var(--muted)]">si parte {deadline.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">

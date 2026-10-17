@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { IconShare } from '@/components/Icons'
 
 export default function ShareButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
@@ -16,10 +17,10 @@ export default function ShareButton({ text }: { text: string }) {
   return (
     <div className="flex flex-wrap gap-2">
       <a href={waUrl} target="_blank" rel="noopener noreferrer" className="btn-primary px-5 py-2.5 text-sm inline-flex items-center gap-2">
-        <span>💬</span> Condividi su WhatsApp
+        <IconShare size={16} /> Condividi su WhatsApp
       </a>
       <button onClick={nativeOrCopy} className="btn-ghost px-4 py-2.5 text-sm">
-        {copied ? '✓ Copiato!' : '🔗 Copia link'}
+        {copied ? 'Copiato' : 'Copia link'}
       </button>
     </div>
   )

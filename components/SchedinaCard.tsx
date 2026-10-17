@@ -35,7 +35,7 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             {stato === 'live' && <span className="inline-flex items-center gap-1 text-[10px] font-bold text-white bg-red-500/80 px-2 py-0.5 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse-glow" />LIVE</span>}
-            {stato === 'giocata' && <span className="text-[10px] font-semibold text-[var(--accent-soft)] border border-[var(--accent)]/40 px-2 py-0.5 rounded-full">✓ giocata</span>}
+            {stato === 'giocata' && <span className="text-[10px] font-semibold text-[var(--accent)] border border-[var(--accent)]/40 px-2 py-0.5 rounded-full">giocata</span>}
             {stato === 'finita' && <span className="text-[10px] font-semibold text-[var(--muted)] border border-white/15 px-2 py-0.5 rounded-full">finita</span>}
             {stato === 'chiusa' && <span className="text-[10px] font-semibold text-[var(--muted)] border border-white/15 px-2 py-0.5 rounded-full">chiusa</span>}
             <span className="text-[11px] text-[var(--muted)]">{quando}</span>
@@ -74,9 +74,9 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
           })}
           {(pronostico.recupero || pronostico.first_goal || pronostico.last_goal) && (
             <span className="text-[11px] text-[var(--muted)] self-center ml-1">
-              {pronostico.recupero && `➕ ${pronostico.recupero === 'primo' ? '1°T' : '2°T'} `}
-              {pronostico.first_goal && `🥇 ${pronostico.first_goal} `}
-              {pronostico.last_goal && `🏁 ${pronostico.last_goal}`}
+              {pronostico.recupero && `Rec. ${pronostico.recupero === 'primo' ? '1°T' : '2°T'} · `}
+              {pronostico.first_goal && `Primo: ${pronostico.first_goal} · `}
+              {pronostico.last_goal && `Ultimo: ${pronostico.last_goal}`}
             </span>
           )}
         </div>

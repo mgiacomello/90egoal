@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
+import { IconInstall } from '@/components/Icons'
 
 // Il link gira su WhatsApp: chi lo apre deve poter mettere 90 & Goal sulla
 // schermata Home con un tocco. Android chiede al browser; iPhone non lo
@@ -53,7 +54,7 @@ export default function InstallButton({ className = '' }: { className?: string }
   return (
     <div className={className}>
       <button type="button" onClick={installa} className="btn-ghost w-full py-3 text-sm inline-flex items-center gap-2">
-        <span>📲</span> Metti 90 &amp; Goal sulla Home
+        <IconInstall size={18} /> Metti 90 &amp; Goal sulla Home
       </button>
       {guida && stato === 'ios' && (
         <div className="glass rounded-xl p-4 mt-2 text-sm text-white/80 space-y-1.5 animate-fade-up">

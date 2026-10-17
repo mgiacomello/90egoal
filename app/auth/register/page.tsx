@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logEvent } from '@/lib/track'
+import { trasferisciProva } from '@/lib/prova'
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -44,7 +45,7 @@ export default function RegisterPage() {
     if (libero === false) { setError('Nickname già in uso: scegline un altro.'); setLoading(false); return }
     if (invitoOk === false) { setError('Codice invito non valido. Chiedilo a chi ti ha mandato il link.'); setLoading(false); return }
 
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: { data: { username: form.username.toLowerCase(), full_name: form.fullName, invito: form.invito.trim() } },
@@ -58,7 +59,9 @@ export default function RegisterPage() {
       )
     } else {
       await logEvent('register', { ms: Date.now() - startedAt.current })
-      router.push('/schedine')
+      // La schedina di prova, se c'è, diventa quella vera: niente da rifare.
+      if (data.user) await trasferisciProva(supabase, data.user.id)
+      router.push('/')
       router.refresh()
     }
     setLoading(false)
@@ -67,7 +70,7 @@ export default function RegisterPage() {
   return (
     <div className="max-w-sm mx-auto mt-8 sm:mt-14 animate-fade-up">
       <div className="text-center mb-7">
-        <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-2xl shadow-[0_12px_30px_-8px_rgba(0,230,118,0.6)] mb-4">⚽</div>
+        <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-[var(--accent)] text-[var(--accent-ink)] font-display font-extrabold text-2xl mb-4">90</div>
         <h1 className="font-display font-bold text-2xl">Crea il tuo account</h1>
         <p className="text-[var(--muted)] text-sm mt-1">Indovina i minuti dei gol, giornata dopo giornata</p>
       </div>

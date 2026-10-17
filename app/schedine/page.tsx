@@ -5,6 +5,7 @@ import LiveRefresh from '@/components/LiveRefresh'
 import SchedinaCard from '@/components/SchedinaCard'
 import PushToggle from '@/components/PushToggle'
 import { nomeBreve } from '@/lib/teams'
+import { IconTicket } from '@/components/Icons'
 
 export default async function SchedinePage() {
   const supabase = await createClient()
@@ -27,10 +28,17 @@ export default async function SchedinePage() {
   // La prossima a scadere in cima.
   const attive = tutte.filter(s => s.attiva !== false).sort((a, b) => a.deadline.localeCompare(b.deadline))
   const archiviate = tutte.filter(s => s.attiva === false)
+  // Il pulsante "Aggiorna" ha senso solo mentre si gioca.
+  const inDiretta = attive.some(s => {
+    const r = risultatoMap.get(s.id)
+    if (!r || s.deadline > now.toISOString()) return false
+    const d = (r.dettagli ?? []) as { stato?: string }[]
+    return d.filter(x => (x.stato ?? 'finita') === 'finita').length < s.partite.length
+  })
 
   return (
     <div className="animate-fade-up max-w-lg mx-auto">
-      <LiveRefresh seconds={60} generatedAt={now.toISOString()} />
+      {inDiretta && <LiveRefresh seconds={60} generatedAt={now.toISOString()} />}
       <PushToggle variant="banner" />
       <div className="mb-5">
         <h1 className="font-display font-bold text-2xl sm:text-3xl">Schedine</h1>
@@ -39,7 +47,7 @@ export default async function SchedinePage() {
 
       {attive.length === 0 ? (
         <div className="glass rounded-2xl py-16 text-center">
-          <div className="text-5xl mb-4">⚔️</div>
+          <IconTicket size={36} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
           <p className="text-[var(--muted)]">Nessuna schedina attiva al momento.<br />Le prossime arriveranno a breve.</p>
         </div>
       ) : (
@@ -53,7 +61,7 @@ export default async function SchedinePage() {
       {/* ===== ARCHIVIO (compatto, espandibile) ===== */}
       {archiviate.length > 0 && (
         <div className="mt-12">
-          <span className="text-xs font-semibold tracking-widest text-[var(--muted)] uppercase">📦 Archivio</span>
+          <span className="text-xs font-semibold tracking-widest text-[var(--muted)] uppercase">Archivio</span>
           <p className="text-[var(--muted)] text-sm mt-1 mb-4">Schedine concluse. Tocca una riga per espanderla. I punti restano validi in classifica.</p>
           <div className="space-y-2">
             {archiviate.map(s => (
