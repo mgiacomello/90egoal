@@ -1,24 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Sora, Fraunces, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { Inter, Sora, Poppins } from "next/font/google";
 import "./globals.css";
 import SiteChrome from "@/components/SiteChrome";
 
-const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  variable: "--font-num",
-  weight: ["500", "600", "700"],
-  display: "swap",
-});
-
-// Inter e Sora servono ancora a ONE TAP (onetap.css); il gioco usa Fraunces, Plex Sans e Plex Mono.
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
+// Inter è il testo del gioco (e di ONE TAP); Sora serve solo a ONE TAP.
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans", display: "swap" });
 
 const sora = Sora({
   subsets: ["latin"],
@@ -27,11 +13,11 @@ const sora = Sora({
   display: "swap",
 });
 
-const fraunces = Fraunces({
+// Titoli e numeri: geometrico e pieno, come le app del cartellone.
+const poppins = Poppins({
   subsets: ["latin"],
   variable: "--font-display",
-  weight: "variable",
-  axes: ["opsz"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -57,7 +43,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f3efe4",
+  themeColor: "#eef3fb",
   colorScheme: "light",
   width: "device-width",
   initialScale: 1,
@@ -70,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="it" className={`${plexSans.variable} ${plexMono.variable} ${inter.variable} ${sora.variable} ${fraunces.variable} h-full`}>
+    <html lang="it" className={`${inter.variable} ${sora.variable} ${poppins.variable} h-full`}>
       <body className="min-h-full flex flex-col">
         <SiteChrome>{children}</SiteChrome>
       </body>

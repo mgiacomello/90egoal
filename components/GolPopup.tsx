@@ -22,25 +22,30 @@ export default function GolPopup() {
   const mkParam = q.get('mk') ?? ''
   const teamParam = q.get('t') ?? ''
   // La foto vera, se esiste a licenza libera; intanto (e altrimenti) la statuina.
-  const [foto, setFoto] = useState<{ chiave: string; foto: FotoLibera | null } | null>(null)
+  // Le foto candidate si provano in ordine: la prima che si ritaglia come figura sola vince;
+  // altrimenti la prima che si ritaglia; altrimenti la prima a cartoncino.
+  // Finché non è pronta, esulta la statuina d'argilla: niente riquadro vuoto.
   const chiaveFoto = `${mkParam}|${teamParam}`
+  const [scelta, setScelta] = useState<{ chiave: string; foto: FotoLibera; sagoma: Sagoma } | null>(null)
   useEffect(() => {
     if (!aperto || !mkParam) return
     let vivo = true
-    fotoGiocatore(parseMarcatore(mkParam).nome, teamParam).then(f => { if (vivo) setFoto({ chiave: chiaveFoto, foto: f }) })
+    ;(async () => {
+      const candidate = await fotoGiocatore(parseMarcatore(mkParam).nome, teamParam)
+      let ripiego: { foto: FotoLibera; sagoma: Sagoma } | null = null
+      for (const foto of candidate) {
+        const sagoma = await sagomaDa(foto.url)
+        if (!vivo) return
+        if (!sagoma) continue
+        if (sagoma.ritagliata && sagoma.singola) { setScelta({ chiave: chiaveFoto, foto, sagoma }); return }
+        if (!ripiego || (sagoma.ritagliata && !ripiego.sagoma.ritagliata)) ripiego = { foto, sagoma }
+      }
+      if (vivo && ripiego) setScelta({ chiave: chiaveFoto, ...ripiego })
+    })()
     return () => { vivo = false }
   }, [aperto, mkParam, teamParam, chiaveFoto])
-  const fotoOra = foto?.chiave === chiaveFoto ? foto.foto : null
-  // La foto diventa una statuina che esulta: ritagliata dallo sfondo e messa sul piedistallo.
-  // Finché non è pronta, esulta la statuina d'argilla: niente riquadro vuoto.
-  const [sagoma, setSagoma] = useState<{ url: string; s: Sagoma | null } | null>(null)
-  useEffect(() => {
-    if (!fotoOra) return
-    let vivo = true
-    sagomaDa(fotoOra.url).then(s => { if (vivo) setSagoma({ url: fotoOra.url, s }) })
-    return () => { vivo = false }
-  }, [fotoOra])
-  const sagomaOra = fotoOra && sagoma?.url === fotoOra.url ? sagoma.s : null
+  const fotoOra = scelta?.chiave === chiaveFoto ? scelta.foto : null
+  const sagomaOra = scelta?.chiave === chiaveFoto ? scelta.sagoma : null
 
   const chiudi = () => {
     const resto = new URLSearchParams(q.toString())
@@ -69,25 +74,25 @@ export default function GolPopup() {
   const { nome } = parseMarcatore(mk)
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-[rgba(20,48,31,0.55)] backdrop-blur-sm animate-fade-up"
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-5 bg-[rgba(11,31,77,0.55)] backdrop-blur-sm gol-velo"
       onClick={chiudi} role="dialog" aria-modal="true" aria-label={`Gol al ${min} di ${nome || team}`}>
-      <div className="w-full max-w-md bg-[var(--bg)] rounded-t-3xl sm:rounded-3xl overflow-hidden pb-[env(safe-area-inset-bottom)] shadow-2xl"
+      <div className="w-full max-w-[340px] bg-[var(--surface)] rounded-[28px] overflow-hidden shadow-[0_30px_80px_-20px_rgba(11,31,77,0.6)] gol-foglio"
         onClick={e => e.stopPropagation()}>
         <div className="relative">
-          <div className="absolute inset-x-0 top-0 px-5 pt-5 flex items-start justify-between z-10 pointer-events-none">
+          <div className="absolute inset-x-0 top-0 px-4 pt-4 flex items-start justify-between z-10 pointer-events-none">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Gol</div>
-              <div className="font-num font-semibold text-5xl leading-none text-[var(--ink)] mt-1">{min}</div>
+              <div className="font-num font-semibold text-4xl leading-none text-[var(--ink)] mt-1 gol-pop" style={{ animationDelay: '0.45s' }}>{min}</div>
             </div>
             {tuo && (
-              <div className="rounded-2xl bg-[var(--accent)] text-[var(--accent-ink)] px-3 py-2 text-right">
+              <div className="rounded-2xl bg-[var(--accent)] text-[var(--accent-ink)] px-3 py-2 text-right gol-pop" style={{ animationDelay: '0.75s' }}>
                 <div className="text-[10px] font-semibold uppercase tracking-wider">È tuo</div>
                 <div className="font-num font-semibold text-xl leading-none">+1</div>
               </div>
             )}
           </div>
           <GolStatuina team={team} marcatore={mk} esultanza={esultanzaPer(`${home}-${away}-${min}-${team}`)} foto={sagomaOra?.canvas ?? null}
-            className="h-[380px] w-full bg-[radial-gradient(120%_90%_at_50%_10%,var(--surface)_0%,var(--bg)_60%,var(--bg-deep)_100%)]" />
+            className="h-[300px] w-full bg-[radial-gradient(120%_90%_at_50%_10%,#ffffff_0%,#eef3fb_55%,#dbe7ff_100%)]" />
           {sagomaOra && fotoOra ? (
             <a href={fotoOra.fonte} target="_blank" rel="noopener noreferrer" className="absolute bottom-1.5 inset-x-3 text-center text-[10px] text-[var(--muted)] truncate">
               Foto: {fotoOra.autore} · {fotoOra.licenza} · Wikimedia Commons
@@ -97,12 +102,12 @@ export default function GolPopup() {
           )}
         </div>
 
-        <div className="px-5 pt-3 pb-5 space-y-4">
+        <div className="px-4 pt-2 pb-4 space-y-3">
           <div>
             <h2 className="font-display font-semibold text-2xl leading-tight">{nome || team}</h2>
             {nome && <p className="text-sm text-[var(--muted)]">{team}</p>}
           </div>
-          <div className="glass rounded-2xl px-4 py-3 flex items-center gap-2 text-sm">
+          <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-2 text-sm">
             <Flag team={home} w={40} className="w-5 h-5 shrink-0" />
             <span className={`flex-1 truncate ${team === home ? 'font-semibold' : ''}`}>{home}</span>
             <span className="font-num font-semibold text-lg tabular-nums px-2">{score || '–'}</span>
@@ -110,7 +115,7 @@ export default function GolPopup() {
             <Flag team={away} w={40} className="w-5 h-5 shrink-0" />
           </div>
           {tuo === 'rec' && <p className="text-sm text-[var(--accent-soft)] font-semibold">Gol nel recupero che avevi scelto: bonus.</p>}
-          <button type="button" onClick={chiudi} className="btn-primary w-full py-3.5">Torna alla partita</button>
+          <button type="button" onClick={chiudi} className="btn-primary w-full py-3">Torna alla partita</button>
         </div>
       </div>
     </div>

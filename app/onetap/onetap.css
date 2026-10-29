@@ -23,7 +23,7 @@
   -webkit-overflow-scrolling: touch;
   background: var(--ot-bg);
   color: var(--ot-ink);
-  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
 }
@@ -40,14 +40,14 @@
 }
 
 .ot-display {
-  font-family: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sora), var(--font-sans), system-ui, sans-serif;
   letter-spacing: -0.02em;
   /* Sora stretta le parole: senza questo "What do you" si legge attaccato. */
   word-spacing: 0.06em;
 }
 
 .ot-wordmark {
-  font-family: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sora), var(--font-sans), system-ui, sans-serif;
   font-weight: 800;
   letter-spacing: 0.34em;
   text-transform: uppercase;
@@ -66,7 +66,7 @@
   border-radius: 999px;
   background: #fff;
   color: #08080a;
-  font-family: var(--font-sora), var(--font-inter), system-ui, sans-serif;
+  font-family: var(--font-sora), var(--font-sans), system-ui, sans-serif;
   font-weight: 700;
   font-size: 1.0625rem;
   letter-spacing: 0.22em;
