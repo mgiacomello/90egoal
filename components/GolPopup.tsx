@@ -7,6 +7,7 @@ import { esultanzaPer } from '@/components/GolStatuina'
 import { parseMarcatore } from '@/lib/kits'
 import Flag from '@/components/Flag'
 import { fotoGiocatore, type FotoLibera } from '@/lib/fotoGiocatore'
+import { sagomaDa, type Sagoma } from '@/lib/ritaglio'
 
 // three.js si scarica solo quando c'è un gol da festeggiare.
 const GolStatuina = dynamic(() => import('@/components/GolStatuina'), { ssr: false })
@@ -30,9 +31,16 @@ export default function GolPopup() {
     return () => { vivo = false }
   }, [aperto, mkParam, teamParam, chiaveFoto])
   const fotoOra = foto?.chiave === chiaveFoto ? foto.foto : null
-  // La statuina resta finché la foto non è davvero arrivata: niente riquadro vuoto.
-  const [caricata, setCaricata] = useState<string | null>(null)
-  const fotoPronta = !!fotoOra && caricata === fotoOra.url
+  // La foto diventa una statuina che esulta: ritagliata dallo sfondo e messa sul piedistallo.
+  // Finché non è pronta, esulta la statuina d'argilla: niente riquadro vuoto.
+  const [sagoma, setSagoma] = useState<{ url: string; s: Sagoma | null } | null>(null)
+  useEffect(() => {
+    if (!fotoOra) return
+    let vivo = true
+    sagomaDa(fotoOra.url).then(s => { if (vivo) setSagoma({ url: fotoOra.url, s }) })
+    return () => { vivo = false }
+  }, [fotoOra])
+  const sagomaOra = fotoOra && sagoma?.url === fotoOra.url ? sagoma.s : null
 
   const chiudi = () => {
     const resto = new URLSearchParams(q.toString())
@@ -78,17 +86,14 @@ export default function GolPopup() {
               </div>
             )}
           </div>
-          <GolStatuina team={team} marcatore={mk} esultanza={esultanzaPer(`${home}-${away}-${min}-${team}`)} className="h-[380px] w-full bg-[radial-gradient(120%_90%_at_50%_10%,var(--surface)_0%,var(--bg)_60%,var(--bg-deep)_100%)]" />
-          {!fotoPronta && <p className="absolute bottom-2 inset-x-0 text-center text-[11px] text-[var(--muted)] pointer-events-none">Trascina per girarla</p>}
-          {fotoOra && (
-            <div className={`absolute inset-0 bg-[var(--bg-deep)] transition-opacity duration-500 ${fotoPronta ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={fotoOra.url} alt={nome} onLoad={() => setCaricata(fotoOra.url)} className="absolute inset-0 w-full h-full object-cover object-top" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(243,239,228,0.85)_0%,rgba(243,239,228,0)_30%,rgba(243,239,228,0)_70%,rgba(243,239,228,0.95)_100%)]" />
-              <a href={fotoOra.fonte} target="_blank" rel="noopener noreferrer" className="absolute bottom-1.5 right-2 text-[10px] text-[var(--muted)] max-w-[85%] truncate">
-                Foto: {fotoOra.autore} · {fotoOra.licenza} · Wikimedia Commons
-              </a>
-            </div>
+          <GolStatuina team={team} marcatore={mk} esultanza={esultanzaPer(`${home}-${away}-${min}-${team}`)} foto={sagomaOra?.canvas ?? null}
+            className="h-[380px] w-full bg-[radial-gradient(120%_90%_at_50%_10%,var(--surface)_0%,var(--bg)_60%,var(--bg-deep)_100%)]" />
+          {sagomaOra && fotoOra ? (
+            <a href={fotoOra.fonte} target="_blank" rel="noopener noreferrer" className="absolute bottom-1.5 inset-x-3 text-center text-[10px] text-[var(--muted)] truncate">
+              Foto: {fotoOra.autore} · {fotoOra.licenza} · Wikimedia Commons
+            </a>
+          ) : (
+            <p className="absolute bottom-2 inset-x-0 text-center text-[11px] text-[var(--muted)] pointer-events-none">Trascina per girarla</p>
           )}
         </div>
 

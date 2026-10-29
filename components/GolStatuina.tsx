@@ -27,10 +27,12 @@ interface Props {
   team: string
   marcatore?: string
   esultanza: Esultanza
+  // La foto del marcatore già ritagliata (o a cartoncino): se c'è, la statuina è la foto.
+  foto?: HTMLCanvasElement | null
   className?: string
 }
 
-export default function GolStatuina({ team, marcatore, esultanza, className = '' }: Props) {
+export default function GolStatuina({ team, marcatore, esultanza, foto, className = '' }: Props) {
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -40,10 +42,10 @@ export default function GolStatuina({ team, marcatore, esultanza, className = ''
     let pulizia = () => {}
     Promise.all([import('three'), import('three/examples/jsm/environments/RoomEnvironment.js')]).then(([THREE, env]) => {
       if (!vivo || !host.current) return
-      pulizia = monta(THREE, env.RoomEnvironment, el, magliaDi(team), parseMarcatore(marcatore ?? ''), esultanza)
+      pulizia = monta(THREE, env.RoomEnvironment, el, magliaDi(team), parseMarcatore(marcatore ?? ''), esultanza, foto ?? null)
     })
     return () => { vivo = false; pulizia() }
-  }, [team, marcatore, esultanza])
+  }, [team, marcatore, esultanza, foto])
 
   return <div ref={host} className={`relative touch-none select-none ${className}`} aria-label={`Statuina di un calciatore con la maglia ${team} che esulta`} role="img" />
 }
@@ -163,7 +165,7 @@ function posaPer(esultanza: Esultanza, t: number): Posa {
 
 /* ------------------------------------------------------------------ */
 
-function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivElement, kit: Maglia, chi: { nome: string; numero: string }, esultanza: Esultanza): () => void {
+function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivElement, kit: Maglia, chi: { nome: string; numero: string }, esultanza: Esultanza, foto: HTMLCanvasElement | null): () => void {
   const w = el.clientWidth || 320
   const h = el.clientHeight || 360
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
@@ -252,144 +254,228 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
     return g
   }
 
-  // ---- Lo scheletro
-  const radice = new THREE.Group()
-  tutto.add(radice)
-  const bacino = new THREE.Group()
-  bacino.position.y = 0.98
-  radice.add(bacino)
+  // ---- Il corpo: la statuina fotografica (se c'è la foto) o la statuina d'argilla.
+  const anima: (t: number) => void = foto ? statuinaFoto(foto) : statuinaArgilla()
 
-  const vita = pezzo(new THREE.CylinderGeometry(0.19, 0.215, 0.2, 28), mCalzoncini)
-  vita.scale.set(1, 1, 0.74)
-  vita.position.y = -0.02
-  bacino.add(vita)
-
-  const busto = new THREE.Group()
-  busto.position.y = 0.06
-  bacino.add(busto)
-  // Busto a V: stretto in vita, largo alle spalle. Le strisce seguono la circonferenza.
-  const profilo = [
-    [0.0, 0.0], [0.175, 0.0], [0.185, 0.06], [0.19, 0.16], [0.215, 0.28], [0.25, 0.4], [0.262, 0.47], [0.24, 0.53], [0.16, 0.58], [0.085, 0.6], [0.0, 0.6],
-  ].map(([x, y]) => new THREE.Vector2(x, y))
-  const torace = pezzo(new THREE.LatheGeometry(profilo, 40), mMaglia)
-  torace.scale.set(1, 1, 0.66)
-  busto.add(torace)
-  const colletto = pezzo(new THREE.TorusGeometry(0.085, 0.022, 10, 28), mSecondo)
-  colletto.rotation.x = Math.PI / 2
-  colletto.position.y = 0.6
-  colletto.scale.set(1, 0.8, 1)
-  busto.add(colletto)
-
-  if (chi.nome || chi.numero) {
-    const schiena = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.34, 0.34),
-      new THREE.MeshStandardMaterial({ map: scritta(THREE, chi, kit.numero), transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2 }),
+  function statuinaFoto(sagoma: HTMLCanvasElement): (t: number) => void {
+    // La foto ritagliata in piedi sul piedistallo, come un cartonato: davanti il giocatore,
+    // dietro il cartoncino della squadra con nome e numero (si vede quando gira su sé stessa).
+    const altezza = 1.9
+    const larghezza = altezza * (sagoma.width / sagoma.height)
+    const lato = Math.min(larghezza, 1.7)
+    const scala = lato / larghezza
+    const H = altezza * scala, W = larghezza * scala
+    const davantiTex = new THREE.CanvasTexture(sagoma)
+    davantiTex.colorSpace = THREE.SRGBColorSpace
+    davantiTex.anisotropy = 8
+    const perno = new THREE.Group()        // ruota attorno ai piedi: schiaccia e allunga da lì
+    tutto.add(perno)
+    const davanti = new THREE.Mesh(
+      new THREE.PlaneGeometry(W, H),
+      new THREE.MeshStandardMaterial({ map: davantiTex, transparent: true, alphaTest: 0.08, roughness: 0.55, side: THREE.FrontSide }),
     )
-    schiena.position.set(0, 0.33, -0.158)
-    schiena.rotation.y = Math.PI
-    busto.add(schiena)
+    davanti.position.y = H / 2
+    davanti.castShadow = true
+    perno.add(davanti)
+    // Il retro: la stessa sagoma piena nei colori della maglia, con nome e numero.
+    const retroCanvas = document.createElement('canvas')
+    retroCanvas.width = sagoma.width; retroCanvas.height = sagoma.height
+    const rg = retroCanvas.getContext('2d')!
+    rg.drawImage(sagoma, 0, 0)
+    rg.globalCompositeOperation = 'source-in'
+    rg.fillStyle = kit.maglia
+    rg.fillRect(0, 0, retroCanvas.width, retroCanvas.height)
+    rg.globalCompositeOperation = 'source-atop'
+    rg.fillStyle = kit.numero
+    rg.textAlign = 'center'; rg.textBaseline = 'middle'
+    const cx = retroCanvas.width / 2, cy = retroCanvas.height * 0.45
+    if (chi.nome) { rg.font = `700 ${Math.round(retroCanvas.width * 0.09)}px "IBM Plex Sans", system-ui, sans-serif`; rg.fillText(chi.nome.toUpperCase().slice(0, 12), cx, cy - retroCanvas.width * 0.16) }
+    if (chi.numero) { rg.font = `700 ${Math.round(retroCanvas.width * 0.32)}px "IBM Plex Mono", ui-monospace, monospace`; rg.fillText(chi.numero, cx, cy + retroCanvas.width * 0.05) }
+    const retroTex = new THREE.CanvasTexture(retroCanvas)
+    retroTex.colorSpace = THREE.SRGBColorSpace
+    const retro = new THREE.Mesh(
+      new THREE.PlaneGeometry(W, H),
+      new THREE.MeshStandardMaterial({ map: retroTex, transparent: true, alphaTest: 0.08, roughness: 0.7 }),
+    )
+    retro.rotation.y = Math.PI
+    retro.position.set(0, H / 2, -0.004)
+    perno.add(retro)
+
+    // Esultanza a pose chiave sul cartonato: rincorsa, salto, atterraggio, giro, balletto.
+    type P = { y?: number; ry?: number; rz?: number; sx?: number; sy?: number; rx?: number }
+    const tr: [number, P][] = [
+      [0.0, {}],
+      [0.28, { sy: 0.9, sx: 1.07, rx: 0.06 }],
+      [0.6, { y: 0.5, sy: 1.08, sx: 0.95, rz: 0.1, rx: -0.08 }],
+      [0.9, { y: 0.0, sy: 0.86, sx: 1.1 }],
+      [1.1, {}],
+      [1.35, { y: 0.18, ry: Math.PI, sy: 1.04, sx: 0.97 }],
+      [1.65, { y: 0.0, ry: Math.PI * 2, sy: 0.93, sx: 1.05 }],
+      [1.85, { ry: Math.PI * 2 }],
+      [2.1, { ry: Math.PI * 2, rz: 0.13, y: 0.06 }],
+      [2.35, { ry: Math.PI * 2, rz: -0.13 }],
+      [2.6, { ry: Math.PI * 2, rz: 0.1, y: 0.06 }],
+      [2.85, { ry: Math.PI * 2, rz: -0.06 }],
+      [3.3, { ry: Math.PI * 2 }],
+    ]
+    const durata = tr[tr.length - 1][0]
+    const ritmo: Record<Esultanza, number> = { aeroplano: 0.9, pugno: 1, scivolata: 1.12 }
+    return (t: number) => {
+      const tt = ((t * ritmo[esultanza]) % durata + durata) % durata
+      let i = 0
+      while (i < tr.length - 2 && tr[i + 1][0] <= tt) i++
+      const [t0, a] = tr[i], [t1, b] = tr[i + 1]
+      const u = dolce(Math.min(1, Math.max(0, (tt - t0) / (t1 - t0 || 1))))
+      const v = (k: keyof P, d: number) => (a[k] ?? d) + ((b[k] ?? d) - (a[k] ?? d)) * u
+      perno.position.y = v('y', 0)
+      perno.rotation.set(v('rx', 0), v('ry', 0) + Math.sin(t * 1.3) * 0.12, v('rz', 0))
+      perno.scale.set(v('sx', 1), v('sy', 1), 1)
+    }
   }
 
-  const collo = pezzo(new THREE.CylinderGeometry(0.062, 0.075, 0.12, 20), mPelle)
-  collo.position.y = 0.64
-  busto.add(collo)
-  const testa = new THREE.Group()
-  testa.position.y = 0.72
-  busto.add(testa)
-  const cranio = pezzo(new THREE.SphereGeometry(0.135, 40, 30), mPelle)
-  cranio.position.y = 0.1
-  cranio.scale.set(0.9, 1.08, 1.0)
-  testa.add(cranio)
-  const mento = pezzo(new THREE.SphereGeometry(0.08, 24, 16), mPelle)
-  mento.position.set(0, 0.035, 0.035)
-  mento.scale.set(1, 0.9, 1)
-  testa.add(mento)
-  for (const lato of [-1, 1]) {
-    const orecchio = pezzo(new THREE.SphereGeometry(0.028, 12, 10), mPelle)
-    orecchio.position.set(0.118 * lato, 0.09, -0.005)
-    orecchio.scale.set(0.5, 1, 0.8)
-    testa.add(orecchio)
-  }
-  const capelli = pezzo(new THREE.SphereGeometry(0.142, 40, 20, 0, Math.PI * 2, 0, Math.PI * 0.46), mCapelli)
-  capelli.position.y = 0.112
-  capelli.rotation.x = -0.32
-  capelli.scale.set(0.93, 1.05, 1.04)
-  testa.add(capelli)
+  function statuinaArgilla(): (t: number) => void {
+    // ---- Lo scheletro
+    const radice = new THREE.Group()
+    tutto.add(radice)
+    const bacino = new THREE.Group()
+    bacino.position.y = 0.98
+    radice.add(bacino)
 
-  const braccio = (lato: 1 | -1) => {
-    const spalla = new THREE.Group()
-    spalla.position.set(0.262 * lato, 0.48, 0)
-    busto.add(spalla)
-    const deltoide = pezzo(new THREE.SphereGeometry(0.078, 20, 14), mManica)
-    spalla.add(deltoide)
-    const manica = pezzo(new THREE.CylinderGeometry(0.078, 0.07, 0.15, 20), mManica)
-    manica.position.y = -0.08
-    spalla.add(manica)
-    const orlo = pezzo(new THREE.TorusGeometry(0.069, 0.01, 8, 24), mSecondo)
-    orlo.rotation.x = Math.PI / 2
-    orlo.position.y = -0.155
-    spalla.add(orlo)
-    const omero = segmento(0.052, 0.2, mPelle, 0.046)
-    omero.position.y = -0.07
-    spalla.add(omero)
-    const gomito = new THREE.Group()
-    gomito.position.y = -0.29
-    spalla.add(gomito)
-    gomito.add(segmento(0.044, 0.2, mPelle, 0.036))
-    const mano = pezzo(new THREE.SphereGeometry(0.05, 16, 12), mPelle)
-    mano.position.y = -0.25
-    mano.scale.set(0.85, 1.15, 0.7)
-    gomito.add(mano)
-    return { spalla, gomito }
-  }
-  const gamba = (lato: 1 | -1) => {
-    const anca = new THREE.Group()
-    anca.position.set(0.1 * lato, -0.05, 0)
-    bacino.add(anca)
-    const pantaloncino = pezzo(new THREE.CylinderGeometry(0.1, 0.097, 0.17, 20), mCalzoncini)
-    pantaloncino.position.y = -0.06
-    anca.add(pantaloncino)
-    const coscia = segmento(0.078, 0.3, mPelle, 0.06)
-    coscia.position.y = -0.05
-    anca.add(coscia)
-    const ginocchio = new THREE.Group()
-    ginocchio.position.y = -0.4
-    anca.add(ginocchio)
-    ginocchio.add(segmento(0.064, 0.3, mCalze, 0.042))
-    const fascia = pezzo(new THREE.TorusGeometry(0.066, 0.012, 8, 24), mSecondo)
-    fascia.rotation.x = Math.PI / 2
-    fascia.position.y = -0.05
-    ginocchio.add(fascia)
-    const caviglia = new THREE.Group()
-    caviglia.position.y = -0.34
-    ginocchio.add(caviglia)
-    const scarpa = pezzo(new THREE.CapsuleGeometry(0.048, 0.13, 8, 16), mScarpe)
-    scarpa.rotation.x = Math.PI / 2
-    scarpa.position.set(0, -0.045, 0.05)
-    scarpa.scale.set(1.05, 1, 0.75)
-    caviglia.add(scarpa)
-    return { anca, ginocchio, caviglia }
-  }
-  const bs = braccio(-1), bd = braccio(1)
-  const gs = gamba(-1), gd = gamba(1)
+    const vita = pezzo(new THREE.CylinderGeometry(0.19, 0.215, 0.2, 28), mCalzoncini)
+    vita.scale.set(1, 1, 0.74)
+    vita.position.y = -0.02
+    bacino.add(vita)
 
-  const applica = (p: Posa) => {
-    const v = (k: Chiave) => p[k] ?? 0
-    radice.position.set(v('x'), v('y'), v('z'))
-    radice.rotation.set(0, v('ry'), 0)
-    bacino.position.y = 0.98 - v('pel')
-    busto.rotation.set(v('spX'), v('spY'), v('spZ'))
-    testa.rotation.set(v('hdX'), v('hdY'), v('hdZ'))
-    bs.spalla.rotation.set(v('sLx'), v('sLy'), v('sLz'))
-    bd.spalla.rotation.set(v('sRx'), v('sRy'), v('sRz'))
-    bs.gomito.rotation.set(v('eL'), 0, 0)
-    bd.gomito.rotation.set(v('eR'), 0, 0)
-    gs.anca.rotation.set(v('hLx'), 0, v('hLz'))
-    gd.anca.rotation.set(v('hRx'), 0, v('hRz'))
-    gs.ginocchio.rotation.set(v('kL'), 0, 0)
-    gd.ginocchio.rotation.set(v('kR'), 0, 0)
-    gs.caviglia.rotation.set(v('aL'), 0, 0)
-    gd.caviglia.rotation.set(v('aR'), 0, 0)
+    const busto = new THREE.Group()
+    busto.position.y = 0.06
+    bacino.add(busto)
+    // Busto a V: stretto in vita, largo alle spalle. Le strisce seguono la circonferenza.
+    const profilo = [
+      [0.0, 0.0], [0.175, 0.0], [0.185, 0.06], [0.19, 0.16], [0.215, 0.28], [0.25, 0.4], [0.262, 0.47], [0.24, 0.53], [0.16, 0.58], [0.085, 0.6], [0.0, 0.6],
+    ].map(([x, y]) => new THREE.Vector2(x, y))
+    const torace = pezzo(new THREE.LatheGeometry(profilo, 40), mMaglia)
+    torace.scale.set(1, 1, 0.66)
+    busto.add(torace)
+    const colletto = pezzo(new THREE.TorusGeometry(0.085, 0.022, 10, 28), mSecondo)
+    colletto.rotation.x = Math.PI / 2
+    colletto.position.y = 0.6
+    colletto.scale.set(1, 0.8, 1)
+    busto.add(colletto)
+
+    if (chi.nome || chi.numero) {
+      const schiena = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.34, 0.34),
+        new THREE.MeshStandardMaterial({ map: scritta(THREE, chi, kit.numero), transparent: true, roughness: 0.7, polygonOffset: true, polygonOffsetFactor: -2 }),
+      )
+      schiena.position.set(0, 0.33, -0.158)
+      schiena.rotation.y = Math.PI
+      busto.add(schiena)
+    }
+
+    const collo = pezzo(new THREE.CylinderGeometry(0.062, 0.075, 0.12, 20), mPelle)
+    collo.position.y = 0.64
+    busto.add(collo)
+    const testa = new THREE.Group()
+    testa.position.y = 0.72
+    busto.add(testa)
+    const cranio = pezzo(new THREE.SphereGeometry(0.135, 40, 30), mPelle)
+    cranio.position.y = 0.1
+    cranio.scale.set(0.9, 1.08, 1.0)
+    testa.add(cranio)
+    const mento = pezzo(new THREE.SphereGeometry(0.08, 24, 16), mPelle)
+    mento.position.set(0, 0.035, 0.035)
+    mento.scale.set(1, 0.9, 1)
+    testa.add(mento)
+    for (const lato of [-1, 1]) {
+      const orecchio = pezzo(new THREE.SphereGeometry(0.028, 12, 10), mPelle)
+      orecchio.position.set(0.118 * lato, 0.09, -0.005)
+      orecchio.scale.set(0.5, 1, 0.8)
+      testa.add(orecchio)
+    }
+    const capelli = pezzo(new THREE.SphereGeometry(0.142, 40, 20, 0, Math.PI * 2, 0, Math.PI * 0.46), mCapelli)
+    capelli.position.y = 0.112
+    capelli.rotation.x = -0.32
+    capelli.scale.set(0.93, 1.05, 1.04)
+    testa.add(capelli)
+
+    const braccio = (lato: 1 | -1) => {
+      const spalla = new THREE.Group()
+      spalla.position.set(0.262 * lato, 0.48, 0)
+      busto.add(spalla)
+      const deltoide = pezzo(new THREE.SphereGeometry(0.078, 20, 14), mManica)
+      spalla.add(deltoide)
+      const manica = pezzo(new THREE.CylinderGeometry(0.078, 0.07, 0.15, 20), mManica)
+      manica.position.y = -0.08
+      spalla.add(manica)
+      const orlo = pezzo(new THREE.TorusGeometry(0.069, 0.01, 8, 24), mSecondo)
+      orlo.rotation.x = Math.PI / 2
+      orlo.position.y = -0.155
+      spalla.add(orlo)
+      const omero = segmento(0.052, 0.2, mPelle, 0.046)
+      omero.position.y = -0.07
+      spalla.add(omero)
+      const gomito = new THREE.Group()
+      gomito.position.y = -0.29
+      spalla.add(gomito)
+      gomito.add(segmento(0.044, 0.2, mPelle, 0.036))
+      const mano = pezzo(new THREE.SphereGeometry(0.05, 16, 12), mPelle)
+      mano.position.y = -0.25
+      mano.scale.set(0.85, 1.15, 0.7)
+      gomito.add(mano)
+      return { spalla, gomito }
+    }
+    const gamba = (lato: 1 | -1) => {
+      const anca = new THREE.Group()
+      anca.position.set(0.1 * lato, -0.05, 0)
+      bacino.add(anca)
+      const pantaloncino = pezzo(new THREE.CylinderGeometry(0.1, 0.097, 0.17, 20), mCalzoncini)
+      pantaloncino.position.y = -0.06
+      anca.add(pantaloncino)
+      const coscia = segmento(0.078, 0.3, mPelle, 0.06)
+      coscia.position.y = -0.05
+      anca.add(coscia)
+      const ginocchio = new THREE.Group()
+      ginocchio.position.y = -0.4
+      anca.add(ginocchio)
+      ginocchio.add(segmento(0.064, 0.3, mCalze, 0.042))
+      const fascia = pezzo(new THREE.TorusGeometry(0.066, 0.012, 8, 24), mSecondo)
+      fascia.rotation.x = Math.PI / 2
+      fascia.position.y = -0.05
+      ginocchio.add(fascia)
+      const caviglia = new THREE.Group()
+      caviglia.position.y = -0.34
+      ginocchio.add(caviglia)
+      const scarpa = pezzo(new THREE.CapsuleGeometry(0.048, 0.13, 8, 16), mScarpe)
+      scarpa.rotation.x = Math.PI / 2
+      scarpa.position.set(0, -0.045, 0.05)
+      scarpa.scale.set(1.05, 1, 0.75)
+      caviglia.add(scarpa)
+      return { anca, ginocchio, caviglia }
+    }
+    const bs = braccio(-1), bd = braccio(1)
+    const gs = gamba(-1), gd = gamba(1)
+
+    const applica = (p: Posa) => {
+      const v = (k: Chiave) => p[k] ?? 0
+      radice.position.set(v('x'), v('y'), v('z'))
+      radice.rotation.set(0, v('ry'), 0)
+      bacino.position.y = 0.98 - v('pel')
+      busto.rotation.set(v('spX'), v('spY'), v('spZ'))
+      testa.rotation.set(v('hdX'), v('hdY'), v('hdZ'))
+      bs.spalla.rotation.set(v('sLx'), v('sLy'), v('sLz'))
+      bd.spalla.rotation.set(v('sRx'), v('sRy'), v('sRz'))
+      bs.gomito.rotation.set(v('eL'), 0, 0)
+      bd.gomito.rotation.set(v('eR'), 0, 0)
+      gs.anca.rotation.set(v('hLx'), 0, v('hLz'))
+      gd.anca.rotation.set(v('hRx'), 0, v('hRz'))
+      gs.ginocchio.rotation.set(v('kL'), 0, 0)
+      gd.ginocchio.rotation.set(v('kR'), 0, 0)
+      gs.caviglia.rotation.set(v('aL'), 0, 0)
+      gd.caviglia.rotation.set(v('aR'), 0, 0)
+    }
+
+
+    return (t: number) => applica(posaPer(esultanza, t))
   }
 
   // ---- Coriandoli nei colori della squadra e dell'arancio del sito.
@@ -446,7 +532,7 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
     const t = ferma ? POSA_FERMA[esultanza] : (ora - inizio) / 1000
     const dt = Math.min(0.05, (ora - prima) / 1000)
     prima = ora
-    applica(posaPer(esultanza, t))
+    anima(t)
     if (N) muoviCoriandoli(dt, t)
     if (!trascina) { giro += velocita; velocita *= 0.94 }
     tutto.rotation.y = giro
