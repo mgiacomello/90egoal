@@ -64,13 +64,13 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
     <>
       <nav
         className={`sticky top-0 z-50 transition-colors duration-300 pt-[env(safe-area-inset-top)] ${
-          scrolled ? 'border-b border-[var(--line)] bg-[rgba(243,239,228,0.92)] backdrop-blur-md' : 'border-b border-transparent'
+          scrolled ? 'border-b border-[var(--line)] bg-[rgba(238,243,251,0.9)] backdrop-blur-md' : 'border-b border-transparent'
         }`}
       >
         <div className={`${wide ? 'max-w-5xl px-4 sm:px-6' : 'max-w-md px-4'} mx-auto h-14 flex items-center justify-between`}>
           <Link href="/" className="flex items-center gap-2">
-            <span className="grid place-items-center w-8 h-8 rounded-lg bg-[var(--ink)] text-[var(--bg)] font-num font-bold text-sm leading-none">90</span>
-            <span className="font-display font-semibold text-xl leading-none">
+            <span className="grid place-items-center w-8 h-8 rounded-[10px] bg-[var(--accent)] text-white font-num font-bold text-sm leading-none">90</span>
+            <span className="font-display font-bold text-xl leading-none">
               <span className="text-[var(--muted)]">&amp; </span>Goal
             </span>
           </Link>

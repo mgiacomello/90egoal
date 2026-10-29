@@ -1,42 +1,44 @@
 @import "tailwindcss";
 
 /* ============================================
-   90 & GOAL — Sistema grafico "Carta e inchiostro"
-   Avorio, inchiostro verde bottiglia, titoli in serif. L'arancio compare
-   solo sui minuti presi e su ciò che chiede attenzione. Un pulsante
-   colorato per schermata. Niente emoji, niente neon.
+   90 & GOAL — Sistema grafico "Fantallenatore"
+   Come le app del cartellone della Lega: fondo chiarissimo azzurrato, schede
+   bianche con angoli tondi, blu reale per il pulsante e per quello che conta,
+   chip azzurro tenue per le scelte, verde solo per un invito. Testo blu notte.
    ============================================ */
 
 @theme {
-  --color-base: #f3efe4;
-  --color-elev: #fbf9f3;
-  --color-accent: #e8641c;
-  --color-accent-soft: #c9530f;
-  --color-gold: #a3700f;
-  --color-ink: #14301f;
-  --color-muted: #5f6f64;
-  --font-display: var(--font-display), Georgia, serif;
+  --color-base: #eef3fb;
+  --color-elev: #ffffff;
+  --color-accent: #1d4fd7;
+  --color-accent-soft: #4f7bff;
+  --color-gold: #c98a06;
+  --color-ink: #0b1f4d;
+  --color-muted: #5b6b8c;
+  --font-display: var(--font-display), system-ui, sans-serif;
   --font-sans: var(--font-sans), system-ui, sans-serif;
 }
 
 @layer base {
   :root {
-    --bg: #f3efe4;            /* carta */
-    --bg-deep: #ebe6d8;       /* carta in ombra: barre, piè di pagina */
-    --surface: #fbf9f3;       /* la scheda */
-    --surface-2: #efeadd;     /* la tessera, il campo */
-    --line: rgba(20, 48, 31, 0.12);
-    --line-strong: rgba(20, 48, 31, 0.30);
-    --ink: #14301f;           /* inchiostro verde bottiglia */
-    --muted: #5f6f64;
-    --accent: #e8641c;        /* arancio segnale: il minuto preso */
-    --accent-soft: #c9530f;   /* lo stesso arancio, quando è testo */
-    --accent-ink: #fff7ef;    /* testo sull'arancio */
-    --accent-cyan: #1e4fa0;
-    --violet: #5b4a9c;
-    --gold: #a3700f;          /* bonus */
-    --danger: #b3261e;
-    --danger-soft: rgba(179, 38, 30, 0.10);
+    --bg: #eef3fb;             /* chiarissimo, un filo d'azzurro */
+    --bg-deep: #e2eaf7;        /* barre, piè di pagina */
+    --surface: #ffffff;        /* la scheda */
+    --surface-solid: #ffffff;
+    --surface-2: #e8efff;      /* la tessera, il chip, il campo */
+    --line: rgba(11, 31, 77, 0.10);
+    --line-strong: rgba(11, 31, 77, 0.22);
+    --ink: #0b1f4d;            /* blu notte, per il testo */
+    --muted: #5b6b8c;
+    --accent: #1d4fd7;         /* blu reale: il minuto preso, il pulsante */
+    --accent-soft: #1d4fd7;    /* lo stesso blu, quando è testo */
+    --accent-ink: #ffffff;
+    --accent-cyan: #0ea5e9;
+    --violet: #6d5bd0;
+    --gold: #c98a06;           /* bonus */
+    --green: #16a34a;          /* un invito: "gioca" */
+    --danger: #d93545;
+    --danger-soft: rgba(217, 53, 69, 0.10);
     color-scheme: light;
   }
 
@@ -51,81 +53,85 @@
     overflow-x: hidden;
   }
 
+  /* Una luce azzurra in alto, poi il fondo piatto: le schede bianche devono staccare. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(110% 40% at 50% -5%, #dbe7ff 0%, rgba(219, 231, 255, 0) 70%), var(--bg);
+  }
+
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(20, 48, 31, 0.18); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb { background: rgba(11, 31, 77, 0.18); border-radius: 10px; }
 
-  h1, h2, h3 { letter-spacing: -0.01em; }
-  ::selection { background: rgba(232, 100, 28, 0.25); }
+  ::selection { background: rgba(29, 79, 215, 0.2); }
 }
 
 /* ============ UTILITIES ============ */
 
-/* Titoli: il serif. Numeri: il monospazio da tabellino. */
-.font-display { font-family: var(--font-display), Georgia, serif; letter-spacing: -0.01em; }
-.font-num { font-family: var(--font-num), ui-monospace, monospace; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+/* Titoli: geometrico e pieno. Numeri: lo stesso, tabulari. */
+.font-display { font-family: var(--font-display), system-ui, sans-serif; letter-spacing: -0.01em; }
+.font-num { font-family: var(--font-display), system-ui, sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 
-/* Prima erano sfumature; ora un colore solo, pieno. */
-.text-gradient { color: var(--accent-soft); }
+.text-gradient { color: var(--accent); }
 .text-gradient-gold { color: var(--gold); }
 
-/* La scheda: carta più chiara, bordo d'inchiostro leggero, ombra appena accennata. */
+/* La scheda: bianca, angoli tondi, ombra azzurrata morbida. */
 .glass {
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 1px 2px rgba(20, 48, 31, 0.04), 0 10px 30px -22px rgba(20, 48, 31, 0.35);
+  box-shadow: 0 1px 2px rgba(11, 31, 77, 0.04), 0 12px 32px -20px rgba(11, 31, 77, 0.25);
 }
-.glass-hover { transition: border-color 0.2s; }
+.glass-hover { transition: border-color 0.2s, box-shadow 0.2s; }
 .glass-hover:hover { border-color: var(--line-strong); }
 
-.glow-accent { box-shadow: 0 0 0 2px var(--ink); }
+.glow-accent { box-shadow: 0 0 0 2px var(--accent); }
 
-/* Il pulsante principale è inchiostro pieno: uno per schermata. */
+/* Il pulsante principale: blu reale pieno. Uno per schermata. */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--ink);
-  color: var(--bg);
-  font-weight: 600;
-  border-radius: 12px;
+  background: linear-gradient(180deg, #3b6cf0, #1d4fd7);
+  color: #ffffff;
+  font-weight: 700;
+  border-radius: 14px;
+  box-shadow: 0 10px 24px -12px rgba(29, 79, 215, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.25);
   transition: transform 0.15s, filter 0.15s;
 }
-.btn-primary:hover { filter: brightness(1.12); }
+.btn-primary:hover { filter: brightness(1.05); transform: translateY(-1px); }
 .btn-primary:active { transform: scale(0.99); }
-.btn-primary:disabled {
-  background: var(--surface-2);
-  color: var(--muted);
-  transform: none;
-  cursor: not-allowed;
-}
+.btn-primary:disabled { background: var(--surface-2); color: var(--muted); box-shadow: none; transform: none; cursor: not-allowed; }
 
 .btn-ghost {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--line-strong);
-  background: transparent;
+  background: var(--surface);
   color: var(--ink);
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 14px;
   transition: border-color 0.2s, background 0.2s;
 }
-.btn-ghost:hover { border-color: var(--ink); background: var(--surface); }
+.btn-ghost:hover { border-color: var(--accent); }
 
 .chip { font-variant-numeric: tabular-nums; }
 
-/* ===== Controlli "old-browser-safe" (solo rgba/hex, niente color-mix/oklab) ===== */
+/* ===== Controlli "old-browser-safe" ===== */
 
-/* Cella della griglia minuti 1–90: una casella del tabellino. Presa = arancio. */
+/* Cella della griglia minuti 1–90: chip azzurro tenue; presa = blu reale. */
 .min-cell {
-  font-family: var(--font-num), ui-monospace, monospace;
+  font-family: var(--font-display), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  border: 1px solid transparent;
   color: var(--ink);
-  border-radius: 8px;
-  font-size: 1.15rem;
+  border-radius: 12px;
+  font-size: 1.1rem;
   font-weight: 600;
   min-height: 46px;
   padding: 0.4rem 0;
@@ -133,132 +139,113 @@
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s, transform 0.08s;
 }
-.min-cell:hover { border-color: var(--ink); }
+.min-cell:hover { border-color: var(--accent); }
 .min-cell:active { transform: scale(0.95); }
 .min-cell.is-selected {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--accent-ink);
+  color: #ffffff;
   font-weight: 700;
+  box-shadow: 0 6px 16px -8px rgba(29, 79, 215, 0.7);
 }
-.min-cell:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.min-cell:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .min-cell.is-selected:disabled { opacity: 1; }
 
-/* Bottone toggle a segmenti (recupero, ecc.): scelto = inchiostro. */
+/* Bottone toggle a segmenti: scelto = blu reale. */
 .seg-btn {
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  border: 1px solid transparent;
   color: var(--ink);
-  border-radius: 10px;
+  border-radius: 12px;
   font-weight: 600;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
   cursor: pointer;
 }
-.seg-btn:hover { border-color: var(--ink); }
-.seg-btn.is-active {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
-}
-.seg-btn.is-active-green {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
-}
+.seg-btn:hover { border-color: var(--accent); }
+.seg-btn.is-active, .seg-btn.is-active-green { background: var(--accent); border-color: var(--accent); color: #ffffff; }
 
 /* Chip minuto rimovibile (riepilogo / admin) */
 .tag-min {
-  font-family: var(--font-num), ui-monospace, monospace;
+  font-family: var(--font-display), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
-  background: rgba(232, 100, 28, 0.12);
-  border: 1px solid rgba(232, 100, 28, 0.5);
-  color: var(--accent-soft);
-  border-radius: 7px;
+  background: var(--surface-2);
+  border: 1px solid rgba(29, 79, 215, 0.35);
+  color: var(--accent);
+  border-radius: 8px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.tag-min:hover {
-  background: var(--danger-soft);
-  border-color: var(--danger);
-  color: var(--danger);
-}
-.tag-min.tag-cyan {
-  background: rgba(30, 79, 160, 0.10);
-  border-color: rgba(30, 79, 160, 0.45);
-  color: var(--accent-cyan);
-}
+.tag-min:hover { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+.tag-min.tag-cyan { background: rgba(14, 165, 233, 0.10); border-color: rgba(14, 165, 233, 0.45); color: var(--accent-cyan); }
 
 /* Pulsante selezione squadra */
 .team-chip {
   display: flex;
   align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  border: 1px solid transparent;
   color: var(--ink);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 0.6rem 0.65rem;
   font-size: 0.85rem;
   text-align: left;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.team-chip:hover { border-color: var(--ink); }
-.team-chip.is-on {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--bg);
-  font-weight: 600;
-}
+.team-chip:hover { border-color: var(--accent); }
+.team-chip.is-on { background: var(--accent); border-color: var(--accent); color: #ffffff; font-weight: 700; }
 
-/* Chip di sola lettura (riepilogo pronostico): preso = arancio pieno, in attesa = carta, mancato = barrato. */
+/* Chip di sola lettura: preso = blu pieno, in attesa = azzurro tenue, mancato = barrato. */
 .tag-static {
   display: inline-block;
-  font-family: var(--font-num), ui-monospace, monospace;
+  font-family: var(--font-display), system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   font-size: 1.05em;
   background: var(--accent);
   border: 1px solid var(--accent);
-  color: var(--accent-ink);
-  border-radius: 6px;
-  font-weight: 600;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 700;
 }
-.tag-static.is-pending {
-  background: var(--surface);
-  border-color: var(--line-strong);
-  color: var(--ink);
-}
-.tag-static.is-miss {
-  background: transparent;
-  border-color: var(--line);
-  color: var(--muted);
-  font-weight: 500;
-  text-decoration: line-through;
-}
+.tag-static.is-pending { background: var(--surface-2); border-color: transparent; color: var(--ink); font-weight: 600; }
+.tag-static.is-miss { background: transparent; border-color: var(--line); color: var(--muted); font-weight: 500; text-decoration: line-through; }
 
 .input-field {
   background: var(--surface);
   border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border-radius: 12px;
   color: var(--ink);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
-.input-field:focus {
-  outline: none;
-  border-color: var(--ink);
-  box-shadow: 0 0 0 3px rgba(20, 48, 31, 0.12);
-}
+.input-field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(29, 79, 215, 0.15); }
 .input-field::placeholder { color: var(--muted); opacity: 0.8; }
 
-select.input-field {
-  background-color: var(--surface);
-  -webkit-appearance: menulist;
-  appearance: menulist;
-}
+select.input-field { background-color: var(--surface); -webkit-appearance: menulist; appearance: menulist; }
 .input-field option { background-color: var(--surface); color: var(--ink); }
 .input-field optgroup { background-color: var(--bg-deep); color: var(--muted); font-weight: 700; }
 
 /* ============ ANIMAZIONI ============ */
+
+/* Il popup del gol: il velo si scurisce, il foglio sale da sotto con un rimbalzo,
+   poi il minuto e il badge "È tuo" scoppiano. Con "riduci movimento" compare e basta. */
+@keyframes gol-velo { from { opacity: 0 } to { opacity: 1 } }
+@keyframes gol-foglio {
+  0% { transform: translateY(60px) scale(0.92); opacity: 0 }
+  60% { transform: translateY(-6px) scale(1.01); opacity: 1 }
+  100% { transform: translateY(0) scale(1); opacity: 1 }
+}
+@keyframes gol-pop {
+  0% { transform: scale(0.4); opacity: 0 }
+  60% { transform: scale(1.15); opacity: 1 }
+  100% { transform: scale(1) }
+}
+.gol-velo { animation: gol-velo 0.35s ease-out both; }
+.gol-foglio { animation: gol-foglio 0.6s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.gol-pop { animation: gol-pop 0.45s cubic-bezier(0.2, 1.2, 0.4, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .gol-velo, .gol-foglio, .gol-pop { animation: none; }
+}
 
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(16px); }
@@ -288,8 +275,8 @@ select.input-field {
 @keyframes grow-up { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes leader-pulse {
-  0%, 100% { box-shadow: 0 0 0 1px rgba(163,112,15,0.35), 0 10px 34px -10px rgba(163,112,15,0.3); }
-  50% { box-shadow: 0 0 0 1px rgba(163,112,15,0.6), 0 16px 44px -10px rgba(163,112,15,0.45); }
+  0%, 100% { box-shadow: 0 0 0 1px rgba(201,138,6,0.35), 0 10px 34px -10px rgba(201,138,6,0.3); }
+  50% { box-shadow: 0 0 0 1px rgba(201,138,6,0.6), 0 16px 44px -10px rgba(201,138,6,0.45); }
 }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.6) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
