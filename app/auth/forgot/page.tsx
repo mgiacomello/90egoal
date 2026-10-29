@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
       {sent ? (
         <div className="glass rounded-2xl p-6 text-center space-y-3">
           <div className="text-3xl">📩</div>
-          <p className="text-sm text-white/85">
+          <p className="text-sm text-[var(--ink)]">
             Se esiste un account con <strong className="text-[var(--accent-soft)]">{email.trim()}</strong>,
             ti è arrivata una mail con il link per reimpostare la password.
           </p>
@@ -51,7 +51,7 @@ export default function ForgotPasswordPage() {
       ) : (
         <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 space-y-4">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">
+            <div className="bg-[var(--danger-soft)] border border-[var(--danger)] text-[var(--danger)] text-sm rounded-xl px-4 py-3">
               {error}
             </div>
           )}

@@ -145,7 +145,7 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
             const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, 10).map((r, i) => ({ ...r, pos: i + 1 }))
             return (
               <section key={s.id} className="mb-8">
-                <h2 className="font-display font-semibold text-base mb-3 text-white/80">{nomeBreve(s.nome)}</h2>
+                <h2 className="font-display font-semibold text-base mb-3 text-[var(--ink)]">{nomeBreve(s.nome)}</h2>
                 {rows.length === 0 ? (
                   <div className="glass rounded-2xl p-6 text-center text-[var(--muted)] text-sm">Risultati non ancora pubblicati.</div>
                 ) : (
@@ -187,20 +187,20 @@ function Podium({ top3, currentUserId }: { top3: GeneraleRow[]; currentUserId?: 
             <div key={r.user_id} className="flex flex-col items-center flex-1 max-w-[140px]">
               <div className="podium-medal font-display font-extrabold text-2xl mb-1" style={{ animationDelay: delays[i], color: medalColor[i] }}>{ranks[i]}°</div>
               <div
-                className="grid place-items-center w-11 h-11 rounded-full text-sm font-extrabold text-[var(--accent-ink)] mb-2 ring-2 ring-white/15 podium-medal"
+                className="grid place-items-center w-11 h-11 rounded-full text-sm font-extrabold text-[var(--accent-ink)] mb-2 ring-2 ring-[var(--line)] podium-medal"
                 style={{ background: avatarFor(r.username), animationDelay: delays[i] }}
               >
                 {r.username.slice(0, 1).toUpperCase()}
               </div>
-              <div className={`font-semibold text-sm text-center truncate w-full ${isMe ? 'text-[var(--accent-soft)]' : 'text-white'}`}>
+              <div className={`font-semibold text-sm text-center truncate w-full ${isMe ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>
                 {r.username}{isMe && ' (tu)'}
               </div>
-              <div className="font-display font-extrabold text-2xl text-gradient-gold tabular-nums">{r.totale}<span className="text-xs text-[var(--muted)] font-normal ml-0.5">pt</span></div>
+              <div className="font-num font-semibold text-2xl text-gradient-gold tabular-nums">{r.totale}<span className="text-xs text-[var(--muted)] font-normal ml-0.5">pt</span></div>
               <div
-                className={`podium-col mt-2 w-full ${heights[i]} rounded-t-xl border border-white/10 border-b-0 grid place-items-start justify-center pt-2 ${isFirst ? 'is-leader' : ''}`}
+                className={`podium-col mt-2 w-full ${heights[i]} rounded-t-xl border border-[var(--line)] border-b-0 grid place-items-start justify-center pt-2 ${isFirst ? 'is-leader' : ''}`}
                 style={{ background: colCol[i], animationDelay: delays[i] }}
               >
-                <span className="font-display font-extrabold text-xl text-white/40">{ranks[i]}</span>
+                <span className="font-display font-extrabold text-xl text-[var(--muted)]">{ranks[i]}</span>
               </div>
             </div>
           )
@@ -240,17 +240,17 @@ function LeaderList({ rows, maxTot, currentUserId }: { rows: ListRow[]; maxTot: 
                 <span className="font-display font-extrabold tabular-nums text-lg" style={{ color: r.pos <= 3 ? medalColor[r.pos - 1] : 'var(--muted)' }}>{r.pos}</span>
               </div>
               {/* avatar */}
-              <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-extrabold text-[var(--accent-ink)] shrink-0 ring-1 ring-white/15" style={{ background: avatarFor(r.username) }}>
+              <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-extrabold text-[var(--accent-ink)] shrink-0 ring-1 ring-[var(--line)]" style={{ background: avatarFor(r.username) }}>
                 {r.username.slice(0, 1).toUpperCase()}
               </div>
               {/* name + bar */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <span className={`font-semibold truncate ${isMe ? 'text-[var(--accent-soft)]' : 'text-white'}`}>{r.username}</span>
+                  <span className={`font-semibold truncate ${isMe ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>{r.username}</span>
                   {isMe && <span className="text-[var(--accent)] text-[10px] font-bold">TU</span>}
                   {r.full_name && <span className="text-[var(--muted)] text-xs hidden sm:inline truncate">· {r.full_name}</span>}
                 </div>
-                <div className="h-1.5 mt-1.5 rounded-full bg-white/8 overflow-hidden">
+                <div className="h-1.5 mt-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
                   <div className="points-bar-fill h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, var(--accent-soft), var(--accent-cyan))', animationDelay: `${Math.min(idx * 0.04, 0.7) + 0.1}s` }} />
                 </div>
               </div>

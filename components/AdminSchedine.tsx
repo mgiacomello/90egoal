@@ -135,13 +135,13 @@ export default function AdminSchedine({ schedine, pronosticiBySched }: Props) {
   return (
     <div>
       <p className="text-[var(--muted)] text-sm mb-4">
-        Crea e modifica le schedine. Orari sempre in <strong className="text-white">ora italiana</strong>. La scadenza di solito è il primo calcio d&apos;inizio.
+        Crea e modifica le schedine. Orari sempre in <strong className="text-[var(--ink)]">ora italiana</strong>. La scadenza di solito è il primo calcio d&apos;inizio.
       </p>
 
       {!bozza && (
         <>
           <button onClick={() => { setBozza(vuota(torneoCorrente)); setScartate([]) }} className="btn-primary px-5 py-2.5 text-sm mb-5">+ Nuova schedina</button>
-          {msg && <p className={`text-sm mb-4 ${msg.ok ? 'text-[var(--accent-soft)]' : 'text-red-300'}`}>{msg.t}</p>}
+          {msg && <p className={`text-sm mb-4 ${msg.ok ? 'text-[var(--accent-soft)]' : 'text-[var(--danger)]'}`}>{msg.t}</p>}
           <div className="space-y-5">
             {perTorneo.map(t => (
               <div key={t || 'nessuno'}>
@@ -206,7 +206,7 @@ export default function AdminSchedine({ schedine, pronosticiBySched }: Props) {
             </div>
             <div className="space-y-2">
               {bozza.partite.map((p, i) => (
-                <div key={i} className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-[7rem_8.5rem_5rem_1fr_1fr_auto] gap-1.5 items-center rounded-xl bg-white/[0.03] border border-white/8 p-2">
+                <div key={i} className="grid grid-cols-[1fr_1fr_auto] sm:grid-cols-[7rem_8.5rem_5rem_1fr_1fr_auto] gap-1.5 items-center rounded-xl bg-[var(--surface-2)] border border-[var(--line)] p-2">
                   <select value={p.competizione ?? ''} onChange={e => setPartita(i, { competizione: e.target.value || null })} className="input-field px-2 py-1.5 text-xs">
                     <option value="">—</option>
                     {COMPETIZIONI.map(c => <option key={c} value={c}>{c}</option>)}
@@ -215,12 +215,12 @@ export default function AdminSchedine({ schedine, pronosticiBySched }: Props) {
                   <input value={p.ora ?? ''} onChange={e => setPartita(i, { ora: e.target.value })} placeholder="14:30" inputMode="numeric" className="input-field px-2 py-1.5 text-xs font-mono" />
                   <input value={p.home} onChange={e => setPartita(i, { home: e.target.value })} placeholder="Casa" className="input-field px-2 py-1.5 text-sm" />
                   <input value={p.away} onChange={e => setPartita(i, { away: e.target.value })} placeholder="Trasferta" className="input-field px-2 py-1.5 text-sm" />
-                  <button type="button" onClick={() => set('partite', bozza.partite.filter((_, j) => j !== i))} className="text-[var(--muted)] hover:text-red-400 px-2" title="Rimuovi">✕</button>
+                  <button type="button" onClick={() => set('partite', bozza.partite.filter((_, j) => j !== i))} className="text-[var(--muted)] hover:text-[var(--danger)] px-2" title="Rimuovi">✕</button>
                 </div>
               ))}
             </div>
 
-            <details className="mt-3 rounded-xl border border-white/8 bg-white/[0.02] px-3 py-2">
+            <details className="mt-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] px-3 py-2">
               <summary className="cursor-pointer text-sm text-[var(--muted)]">📋 Incolla un elenco (anche da Word)</summary>
               <p className="text-xs text-[var(--muted)] mt-2">Una partita per riga, &quot;Casa – Trasferta&quot;. Le righe &quot;Ore 14.30&quot; e i suffissi &quot;Serie C&quot; valgono per le righe che seguono.</p>
               <textarea value={incolla} onChange={e => setIncolla(e.target.value)} rows={6} className="input-field w-full px-3 py-2 text-sm mt-2 font-mono"
@@ -247,7 +247,7 @@ export default function AdminSchedine({ schedine, pronosticiBySched }: Props) {
           </div>
 
           {nPron > 0 && <p className="text-xs text-[var(--gold)]">⚠️ {nPron} pronostici già inviati su questa schedina: cambia le squadre solo se è indispensabile.</p>}
-          {msg && <div className={`text-sm rounded-xl px-4 py-3 border ${msg.ok ? 'text-[var(--accent-soft)] border-[var(--accent)]/40 bg-[var(--accent)]/10' : 'text-red-300 border-red-500/40 bg-red-500/10'}`}>{msg.t}</div>}
+          {msg && <div className={`text-sm rounded-xl px-4 py-3 border ${msg.ok ? 'text-[var(--accent-soft)] border-[var(--accent)]/40 bg-[var(--accent)]/10' : 'text-[var(--danger)] border-[var(--danger)] bg-[var(--danger-soft)]'}`}>{msg.t}</div>}
 
           <div className="flex gap-2">
             <button onClick={salva} disabled={saving} className="btn-primary flex-1 py-3">{saving ? 'Salvataggio…' : bozza.id ? 'Salva modifiche' : 'Crea schedina'}</button>

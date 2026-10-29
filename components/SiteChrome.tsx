@@ -29,11 +29,7 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
       <main className={`${wide ? 'max-w-5xl px-4 sm:px-6 py-6' : 'max-w-md px-4 py-5'} mx-auto w-full flex-1`}>{children}</main>
       <footer className={`mt-12 ${wide ? 'sm:pb-0' : ''} pb-[calc(4.5rem+env(safe-area-inset-bottom))]`}>
         <div className={`${wide ? 'max-w-5xl' : 'max-w-md'} mx-auto px-4 py-4 flex items-center justify-between text-xs text-[var(--muted)]`}>
-          <span className="font-display font-bold text-sm tracking-wide">
-            <span className="text-[var(--accent)]">90</span>
-            <span className="opacity-50"> &amp; </span>
-            <span>GOAL</span>
-          </span>
+          <span className="font-display font-semibold text-sm">90 <span className="text-[var(--muted)]">&amp;</span> Goal</span>
           <span>versione di test</span>
         </div>
       </footer>

@@ -55,7 +55,7 @@ export default function AdminTiming({ timing, sections }: Props) {
 
               <div className="space-y-2">
                 {rows.map(r => (
-                  <div key={r.key} className="flex items-center gap-3 rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
+                  <div key={r.key} className="flex items-center gap-3 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3">
                     <span className="text-lg shrink-0">{r.icon}</span>
                     <span className="flex-1 min-w-0 text-sm">{r.label}</span>
                     <div className="text-right shrink-0">
@@ -67,8 +67,8 @@ export default function AdminTiming({ timing, sections }: Props) {
               </div>
 
               <div className="mt-4 rounded-xl bg-[var(--accent)]/[0.06] border border-[var(--accent)]/20 px-4 py-3 text-xs text-[var(--muted)] leading-relaxed">
-                💡 <strong className="text-white">&quot;Di solito&quot;</strong> (mediana) = il tempo della persona &quot;di mezzo&quot;: metà sono più veloci, metà più lente. È il dato più realistico.
-                La <strong className="text-white/80">media</strong> invece può essere gonfiata da poche persone che lasciano la pagina aperta a lungo, quindi è meno indicativa.
+                💡 <strong className="text-[var(--ink)]">&quot;Di solito&quot;</strong> (mediana) = il tempo della persona &quot;di mezzo&quot;: metà sono più veloci, metà più lente. È il dato più realistico.
+                La <strong className="text-[var(--ink)]">media</strong> invece può essere gonfiata da poche persone che lasciano la pagina aperta a lungo, quindi è meno indicativa.
               </div>
             </div>
           )}
@@ -82,10 +82,10 @@ export default function AdminTiming({ timing, sections }: Props) {
                 {sezioniOrdinate.map(s => (
                   <div key={s.sezione} className="flex items-center gap-3 text-sm">
                     <span className="w-44 shrink-0 truncate">{s.sezione}</span>
-                    <div className="flex-1 h-3 rounded-full bg-white/6 overflow-hidden">
+                    <div className="flex-1 h-3 rounded-full bg-[var(--surface-2)] overflow-hidden">
                       <div className="h-full rounded-full" style={{ width: `${(s.minuti_totali / maxSezione) * 100}%`, background: 'linear-gradient(90deg, rgba(139,92,246,0.8), rgba(34,211,238,0.8))' }} />
                     </div>
-                    <span className="w-24 text-right text-white/70 tabular-nums">{s.minuti_totali} min · {s.utenti}👤</span>
+                    <span className="w-24 text-right text-[var(--ink)] tabular-nums">{s.minuti_totali} min · {s.utenti}👤</span>
                   </div>
                 ))}
               </div>

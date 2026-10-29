@@ -110,7 +110,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
     return (
       <div className="animate-fade-up pt-10 space-y-6">
         <div className="text-center">
-          <div className="inline-grid place-items-center w-20 h-20 rounded-3xl bg-[var(--accent)] text-[var(--accent-ink)] mb-5"><IconCheck size={40} strokeWidth={2.6} /></div>
+          <div className="inline-grid place-items-center w-20 h-20 rounded-3xl bg-[var(--ink)] text-[var(--bg)] mb-5"><IconCheck size={40} strokeWidth={2.6} /></div>
           <h2 className="font-display font-bold text-3xl">{guest ? 'Schedina salvata' : 'Schedina giocata'}</h2>
           <p className="text-[var(--muted)] mt-2">{guest ? 'Resta su questo telefono. Con un account entra in classifica.' : 'Ora tocca al campo. Durante le partite i tuoi minuti si accendono qui.'}</p>
         </div>
@@ -129,10 +129,10 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       {/* Testata essenziale: nome, scadenza, passo */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <button type="button" onClick={() => (idx > 0 ? setPasso(nPassi[idx - 1]) : router.push('/'))}
-          className="text-sm text-[var(--muted)] hover:text-white -ml-1 px-1 py-1">← {idx > 0 ? 'Indietro' : 'Esci'}</button>
+          className="text-sm text-[var(--muted)] hover:text-[var(--ink)] -ml-1 px-1 py-1">← {idx > 0 ? 'Indietro' : 'Esci'}</button>
         <div className="flex gap-1.5">
           {nPassi.map((p, i) => (
-            <span key={p} className={`h-1.5 rounded-full transition-all ${i <= idx ? 'w-6 bg-[var(--accent)]' : 'w-3 bg-white/15'}`} />
+            <span key={p} className={`h-1.5 rounded-full transition-all ${i <= idx ? 'w-6 bg-[var(--accent)]' : 'w-3 bg-[var(--surface-2)]'}`} />
           ))}
         </div>
       </div>
@@ -152,7 +152,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           {(['primo', 'secondo'] as const).map(tempo => (
             <div key={tempo}>
               <div className="flex items-center gap-3 mb-2">
-                <span className="font-display font-semibold uppercase tracking-wider text-xs text-[var(--muted)]">{tempo === 'primo' ? 'Primo tempo' : 'Secondo tempo'}</span>
+                <span className="font-semibold uppercase tracking-wider text-[11px] text-[var(--muted)]">{tempo === 'primo' ? 'Primo tempo' : 'Secondo tempo'}</span>
                 <span className="flex-1 h-px bg-[var(--line)]" />
               </div>
               <div className="grid grid-cols-6 gap-1.5">
@@ -281,20 +281,20 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
             )}
           </div>
 
-          {error && <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">{error}</div>}
+          {error && <div className="bg-[var(--danger-soft)] border border-[var(--danger)] text-[var(--danger)] text-sm rounded-xl px-4 py-3">{error}</div>}
         </div>
       )}
 
     </div>
 
       {/* ===== Barra sotto al pollice (fuori dal blocco animato: un antenato con transform romperebbe il fixed) ===== */}
-      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[rgba(7,26,18,0.96)] backdrop-blur-md pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
+      <div className="fixed bottom-0 inset-x-0 z-40 border-t border-[var(--line)] bg-[var(--bg-deep)] pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 px-4">
         <div className="max-w-lg mx-auto flex items-center gap-3">
           {passo === 'minuti' && (
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-3">
                 <div className="shrink-0">
-                  <div className={`font-display font-extrabold text-2xl tabular-nums leading-none ${completo ? 'text-[var(--accent)]' : 'text-[var(--ink)]'}`}>{minuti.length}<span className="text-sm text-[var(--muted)] font-normal">/{MAX_MINUTI}</span></div>
+                  <div className={`font-num font-semibold text-2xl tabular-nums leading-none ${completo ? 'text-[var(--accent)]' : 'text-[var(--ink)]'}`}>{minuti.length}<span className="text-sm text-[var(--muted)] font-normal">/{MAX_MINUTI}</span></div>
                   <div className="text-[11px] text-[var(--muted)] mt-0.5">{completo ? 'fatto' : `ancora ${mancano}`}</div>
                 </div>
                 <button type="button" disabled={!completo} onClick={() => setPasso('bonus')} className="btn-primary flex-1 py-3.5 text-base">Avanti →</button>

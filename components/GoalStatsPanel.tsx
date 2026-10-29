@@ -22,7 +22,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
 
       <div className="px-5 pb-5 -mt-1">
         {stats.hottest && (
-          <p className="text-sm text-white/80 mb-4">
+          <p className="text-sm text-[var(--ink)] mb-4">
             🔥 Fascia più calda: <strong className="text-[var(--accent-soft)]">{stats.hottest.label}</strong> ({stats.hottest.pct}% dei gol)
           </p>
         )}
@@ -32,7 +32,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
           {stats.bands.map(b => (
             <div key={b.label} className="flex items-center gap-3">
               <span className="text-xs text-[var(--muted)] w-12 shrink-0 tabular-nums">{b.label}</span>
-              <div className="flex-1 h-3 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="flex-1 h-3 rounded-full bg-[var(--surface-2)] overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{
@@ -42,26 +42,26 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
                   }}
                 />
               </div>
-              <span className="text-xs text-white/70 w-10 text-right tabular-nums shrink-0">{b.pct}%</span>
+              <span className="text-xs text-[var(--ink)] w-10 text-right tabular-nums shrink-0">{b.pct}%</span>
             </div>
           ))}
         </div>
 
         {/* Recupero + minuti caldi */}
         <div className="grid sm:grid-cols-2 gap-3">
-          <div className="rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
+          <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3">
             <div className="text-xs text-[var(--muted)] mb-1">Gol nel recupero</div>
-            <div className="text-sm text-white/85">
+            <div className="text-sm text-[var(--ink)]">
               <strong className="text-[var(--gold)]">{stats.recuperoPct}%</strong> del totale
               <span className="text-[var(--muted)]"> · 1°T: {stats.recupero1} · 2°T: {stats.recupero2}</span>
             </div>
           </div>
           {stats.topMinutes.length > 0 && (
-            <div className="rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
+            <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3">
               <div className="text-xs text-[var(--muted)] mb-1.5">Minuti più frequenti</div>
               <div className="flex flex-wrap gap-1.5">
                 {stats.topMinutes.map(t => (
-                  <span key={t.m} className="text-[11px] font-mono bg-white/8 text-white/80 px-1.5 py-0.5 rounded">
+                  <span key={t.m} className="text-[11px] font-mono bg-[var(--surface-2)] text-[var(--ink)] px-1.5 py-0.5 rounded">
                     {t.m}&apos; <span className="text-[var(--muted)]">×{t.count}</span>
                   </span>
                 ))}
@@ -76,7 +76,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
             <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">Quando segnano le squadre</div>
             <div className="grid sm:grid-cols-2 gap-1.5">
               {teamStats.slice(0, 12).map(t => (
-                <div key={t.team} className="flex items-center gap-2 rounded-lg bg-white/[0.03] border border-white/8 px-3 py-2 text-sm">
+                <div key={t.team} className="flex items-center gap-2 rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm">
                   <Flag team={t.team} w={40} className="w-5 h-3.5 shrink-0" />
                   <span className="font-medium truncate">{t.team}</span>
                   <span className="text-[var(--muted)] text-xs ml-auto shrink-0">

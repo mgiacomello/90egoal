@@ -57,10 +57,10 @@ export default function InstallButton({ className = '' }: { className?: string }
         <IconInstall size={18} /> Metti 90 &amp; Goal sulla Home
       </button>
       {guida && stato === 'ios' && (
-        <div className="glass rounded-xl p-4 mt-2 text-sm text-white/80 space-y-1.5 animate-fade-up">
+        <div className="glass rounded-xl p-4 mt-2 text-sm text-[var(--ink)] space-y-1.5 animate-fade-up">
           <p>In Safari:</p>
-          <p>1 · Tocca <strong className="text-white">Condividi</strong> (il quadrato con la freccia, in basso).</p>
-          <p>2 · Scegli <strong className="text-white">Aggiungi alla schermata Home</strong>.</p>
+          <p>1 · Tocca <strong className="text-[var(--ink)]">Condividi</strong> (il quadrato con la freccia, in basso).</p>
+          <p>2 · Scegli <strong className="text-[var(--ink)]">Aggiungi alla schermata Home</strong>.</p>
           <p className="text-xs text-[var(--muted)] pt-1">Da lì si apre come un&apos;app e può mandarti le notifiche dei gol.</p>
         </div>
       )}

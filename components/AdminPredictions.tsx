@@ -54,7 +54,7 @@ export default function AdminPredictions({ schedine, risultatiMap, classifica }:
 
               {!completa && giocate > 0 && (
                 <p className="text-xs text-[var(--muted)] mt-3">
-                  📊 Al ritmo attuale di <strong className="text-white">{golPerPartita.toFixed(1)} gol/partita</strong>, a fine schedina ci si attendono circa <strong className="text-[var(--accent-cyan)]">{golAttesi} gol</strong>: i minuti &quot;coperti&quot; cresceranno, quindi chi ha scelto più minuti diversi avrà più chance.
+                  📊 Al ritmo attuale di <strong className="text-[var(--ink)]">{golPerPartita.toFixed(1)} gol/partita</strong>, a fine schedina ci si attendono circa <strong className="text-[var(--accent-cyan)]">{golAttesi} gol</strong>: i minuti &quot;coperti&quot; cresceranno, quindi chi ha scelto più minuti diversi avrà più chance.
                 </p>
               )}
             </div>
@@ -67,8 +67,8 @@ export default function AdminPredictions({ schedine, risultatiMap, classifica }:
 
 function Mini({ big, l, hot }: { big: number | string; l: string; hot?: boolean }) {
   return (
-    <div className="rounded-xl bg-white/[0.03] border border-white/8 p-3 text-center">
-      <div className={`font-display font-extrabold text-2xl tabular-nums ${hot ? 'text-[var(--accent-cyan)]' : 'text-white'}`}>{big}</div>
+    <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] p-3 text-center">
+      <div className={`font-num font-semibold text-2xl tabular-nums ${hot ? 'text-[var(--accent-cyan)]' : 'text-[var(--ink)]'}`}>{big}</div>
       <div className="text-[11px] text-[var(--muted)] mt-1 leading-tight">{l}</div>
     </div>
   )

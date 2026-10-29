@@ -15,19 +15,19 @@ const PUNTI = [
 const FAQ: { q: string; a: React.ReactNode }[] = [
   {
     q: 'Quale minuto vale?',
-    a: <>Quello del tabellino ufficiale. Un gol segnato a 23 minuti e 40 secondi è al <strong className="text-white">24&apos;</strong>, cioè il minuto in corso.</>,
+    a: <>Quello del tabellino ufficiale. Un gol segnato a 23 minuti e 40 secondi è al <strong className="text-[var(--ink)]">24&apos;</strong>, cioè il minuto in corso.</>,
   },
   {
     q: 'E i gol nel recupero?',
-    a: <>Un gol al 45+2&apos; o al 90+3&apos; <strong className="text-white">non vale per i minuti</strong> (non puoi sceglierlo), ma fa scattare il bonus recupero di quel tempo.</>,
+    a: <>Un gol al 45+2&apos; o al 90+3&apos; <strong className="text-[var(--ink)]">non vale per i minuti</strong> (non puoi sceglierlo), ma fa scattare il bonus recupero di quel tempo.</>,
   },
   {
     q: 'Quali minuti valgono doppio?',
-    a: <>Il minuto del <strong className="text-white">primo gol</strong> e quello dell&apos;<strong className="text-white">ultimo gol</strong> segnati nei tempi regolamentari, considerando tutte le partite della schedina in ordine di orario reale. Se li hai in schedina, valgono 2 punti ciascuno invece di 1. I gol nel recupero non contano per questa regola.</>,
+    a: <>Il minuto del <strong className="text-[var(--ink)]">primo gol</strong> e quello dell&apos;<strong className="text-[var(--ink)]">ultimo gol</strong> segnati nei tempi regolamentari, considerando tutte le partite della schedina in ordine di orario reale. Se li hai in schedina, valgono 2 punti ciascuno invece di 1. I gol nel recupero non contano per questa regola.</>,
   },
   {
     q: 'Due gol nello stesso minuto?',
-    a: <>Se il 23&apos; esce in due partite diverse, chi l&apos;ha scelto prende comunque <strong className="text-white">1 punto</strong>. Conta il minuto, non quanti gol ci sono stati.</>,
+    a: <>Se il 23&apos; esce in due partite diverse, chi l&apos;ha scelto prende comunque <strong className="text-[var(--ink)]">1 punto</strong>. Conta il minuto, non quanti gol ci sono stati.</>,
   },
   {
     q: 'Autogol?',
@@ -39,7 +39,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Fino a quando posso giocare?',
-    a: <>Fino al <strong className="text-white">calcio d&apos;inizio della prima partita</strong> della schedina. Il pronostico, una volta inviato, è definitivo.</>,
+    a: <>Fino al <strong className="text-[var(--ink)]">calcio d&apos;inizio della prima partita</strong> della schedina. Il pronostico, una volta inviato, è definitivo.</>,
   },
   {
     q: 'Quando vedo i punti?',
@@ -47,7 +47,7 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
   },
   {
     q: 'Come attivo le notifiche?',
-    a: <>Dal <strong className="text-white">Profilo</strong>, tocca &quot;Attiva&quot;. Su iPhone funzionano solo se hai aggiunto 90 &amp; Goal alla schermata Home (Safari → Condividi → Aggiungi alla schermata Home) e la apri da lì. Su Android bastano Chrome o l&apos;app installata.</>,
+    a: <>Dal <strong className="text-[var(--ink)]">Profilo</strong>, tocca &quot;Attiva&quot;. Su iPhone funzionano solo se hai aggiunto 90 &amp; Goal alla schermata Home (Safari → Condividi → Aggiungi alla schermata Home) e la apri da lì. Su Android bastano Chrome o l&apos;app installata.</>,
   },
   {
     q: 'Una partita rinviata o sospesa?',
@@ -61,8 +61,8 @@ export default function RegolePage() {
       <span className="text-xs font-semibold tracking-widest text-[var(--accent)] uppercase">Come si gioca</span>
       <h1 className="font-display font-bold text-3xl sm:text-4xl mt-2">Regole</h1>
       <p className="text-[var(--muted)] mt-3">
-        Ogni schedina raccoglie <strong className="text-white">10 partite della stessa giornata</strong>. Non devi indovinare i risultati:
-        devi indovinare <strong className="text-white">in quali minuti arrivano i gol</strong>.
+        Ogni schedina raccoglie <strong className="text-[var(--ink)]">10 partite della stessa giornata</strong>. Non devi indovinare i risultati:
+        devi indovinare <strong className="text-[var(--ink)]">in quali minuti arrivano i gol</strong>.
       </p>
 
       <section className="glass rounded-2xl p-5 sm:p-6 mt-6 space-y-4">
@@ -92,14 +92,14 @@ export default function RegolePage() {
       <h2 className="font-display font-bold text-xl mt-8 mb-3">Punti</h2>
       <div className="space-y-2">
         {PUNTI.map((r, i) => (
-          <div key={i} className="flex items-center gap-4 rounded-xl bg-white/[0.03] border border-white/8 px-4 py-3">
+          <div key={i} className="flex items-center gap-4 rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3">
             <span className={`font-display font-extrabold text-2xl w-12 shrink-0 ${r.c}`}>{r.p}</span>
-            <span className="text-sm text-white/80">{r.t}</span>
+            <span className="text-sm text-[var(--ink)]">{r.t}</span>
           </div>
         ))}
       </div>
       <p className="text-xs text-[var(--muted)] mt-3">
-        Nelle schedine a eliminazione diretta c&apos;è un bonus in più: <strong className="text-white">+5</strong> se indovini se almeno una partita andrà ai supplementari.
+        Nelle schedine a eliminazione diretta c&apos;è un bonus in più: <strong className="text-[var(--ink)]">+5</strong> se indovini se almeno una partita andrà ai supplementari.
         Nelle giornate di campionato non c&apos;è.
       </p>
       <p className="text-xs text-[var(--muted)] mt-1">La classifica generale somma i punti di tutte le schedine del torneo.</p>

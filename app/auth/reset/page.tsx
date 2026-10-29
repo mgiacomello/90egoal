@@ -56,14 +56,14 @@ export default function ResetPasswordPage() {
       {done ? (
         <div className="glass rounded-2xl p-6 text-center space-y-2">
           <div className="text-3xl">✅</div>
-          <p className="text-sm text-white/85">Password aggiornata! Ti sto portando alle schedine…</p>
+          <p className="text-sm text-[var(--ink)]">Password aggiornata! Ti sto portando alle schedine…</p>
         </div>
       ) : checking ? (
         <div className="glass rounded-2xl p-6 text-center text-sm text-[var(--muted)]">Verifica del link…</div>
       ) : !ready ? (
         <div className="glass rounded-2xl p-6 text-center space-y-3">
           <div className="text-3xl">⏳</div>
-          <p className="text-sm text-white/85">
+          <p className="text-sm text-[var(--ink)]">
             Questo link non è più valido o è scaduto.
           </p>
           <Link href="/auth/forgot" className="inline-block text-[var(--accent-soft)] hover:underline text-sm font-medium">
@@ -73,7 +73,7 @@ export default function ResetPasswordPage() {
       ) : (
         <form onSubmit={handleSubmit} className="glass rounded-2xl p-6 space-y-4">
           {error && (
-            <div className="bg-red-500/10 border border-red-500/40 text-red-300 text-sm rounded-xl px-4 py-3">
+            <div className="bg-[var(--danger-soft)] border border-[var(--danger)] text-[var(--danger)] text-sm rounded-xl px-4 py-3">
               {error}
             </div>
           )}

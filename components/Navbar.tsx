@@ -54,7 +54,7 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
   const active = (href: string, exact?: boolean) => (exact ? pathname === href : pathname.startsWith(href))
   const linkClass = (href: string, exact?: boolean) =>
     `relative text-sm font-medium transition-colors px-3 py-2 rounded-full ${
-      active(href, exact) ? 'text-[var(--ink)] bg-white/8' : 'text-[var(--muted)] hover:text-[var(--ink)]'
+      active(href, exact) ? 'text-[var(--ink)] bg-[var(--surface-2)]' : 'text-[var(--muted)] hover:text-[var(--ink)]'
     }`
 
   // Dentro al form della schedina la barra in basso è quella del form.
@@ -64,14 +64,14 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
     <>
       <nav
         className={`sticky top-0 z-50 transition-colors duration-300 pt-[env(safe-area-inset-top)] ${
-          scrolled ? 'border-b border-[var(--line)] bg-[rgba(11,34,25,0.88)] backdrop-blur-md' : 'border-b border-transparent'
+          scrolled ? 'border-b border-[var(--line)] bg-[rgba(243,239,228,0.92)] backdrop-blur-md' : 'border-b border-transparent'
         }`}
       >
         <div className={`${wide ? 'max-w-5xl px-4 sm:px-6' : 'max-w-md px-4'} mx-auto h-14 flex items-center justify-between`}>
           <Link href="/" className="flex items-center gap-2">
-            <span className="grid place-items-center w-8 h-8 rounded-lg bg-[var(--accent)] text-[var(--accent-ink)] font-display font-extrabold text-base leading-none">90</span>
-            <span className="font-display font-bold text-xl tracking-wide leading-none">
-              <span className="opacity-50">&amp;</span>GOAL
+            <span className="grid place-items-center w-8 h-8 rounded-lg bg-[var(--ink)] text-[var(--bg)] font-num font-bold text-sm leading-none">90</span>
+            <span className="font-display font-semibold text-xl leading-none">
+              <span className="text-[var(--muted)]">&amp; </span>Goal
             </span>
           </Link>
 
@@ -103,13 +103,13 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
       </nav>
 
       {user && !inForm && !wide && (
-        <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--line)] bg-[rgba(7,26,18,0.96)] backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+        <nav className="fixed bottom-0 inset-x-0 z-50 border-t border-[var(--line)] bg-[var(--bg-deep)] pb-[env(safe-area-inset-bottom)]">
           <div className="grid grid-cols-4 max-w-md mx-auto">
             {TABS.map(t => {
               const on = active(t.href, t.exact)
               return (
                 <Link key={t.href} href={t.href}
-                  className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[11px] font-display font-semibold uppercase tracking-wider transition-colors ${on ? 'text-[var(--accent)]' : 'text-[var(--muted)]'}`}>
+                  className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[10.5px] font-semibold uppercase tracking-wider transition-colors ${on ? 'text-[var(--ink)]' : 'text-[var(--muted)]'}`}>
                   <t.Icon size={22} strokeWidth={on ? 2.4 : 1.8} />
                   {t.label}
                 </Link>

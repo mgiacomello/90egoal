@@ -135,10 +135,10 @@ export default function AdminAggregates({ schedine, profiles, pronostici, risult
                       {fasce.map(f => (
                         <div key={f.label} className="flex items-center gap-2 text-xs">
                           <span className="w-12 text-[var(--muted)] tabular-nums shrink-0">{f.label}</span>
-                          <div className="flex-1 h-3 rounded-full bg-white/6 overflow-hidden">
+                          <div className="flex-1 h-3 rounded-full bg-[var(--surface-2)] overflow-hidden">
                             <div className="h-full rounded-full" style={{ width: `${(f.n / maxFascia) * 100}%`, background: 'linear-gradient(90deg, rgba(0,230,118,0.7), rgba(34,211,238,0.7))' }} />
                           </div>
-                          <span className="w-7 text-right text-white/70 tabular-nums">{f.n}</span>
+                          <span className="w-7 text-right text-[var(--ink)] tabular-nums">{f.n}</span>
                         </div>
                       ))}
                     </div>
@@ -162,7 +162,7 @@ export default function AdminAggregates({ schedine, profiles, pronostici, risult
 
                 {/* Punteggi se risultati */}
                 {risultato && punti.length > 0 && (
-                  <div className="pt-4 border-t border-white/8 grid grid-cols-3 gap-3 text-center">
+                  <div className="pt-4 border-t border-[var(--line)] grid grid-cols-3 gap-3 text-center">
                     <Mini n={mediaPunti.toFixed(1)} l="Punteggio medio" />
                     <Mini n={maxPunti} l="Miglior punteggio" />
                     <Mini n={risultato.minuti_gol.length} l="Gol reali" />
@@ -181,8 +181,8 @@ function RecRow({ label, n, tot, muted }: { label: string; n: number; tot: numbe
   const pct = tot ? Math.round((n / tot) * 100) : 0
   return (
     <div className="flex items-center gap-2">
-      <span className={`w-16 shrink-0 ${muted ? 'text-[var(--muted)]' : 'text-white'}`}>{label}</span>
-      <div className="flex-1 h-2.5 rounded-full bg-white/6 overflow-hidden">
+      <span className={`w-16 shrink-0 ${muted ? 'text-[var(--muted)]' : 'text-[var(--ink)]'}`}>{label}</span>
+      <div className="flex-1 h-2.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: muted ? 'rgba(255,255,255,0.25)' : 'rgba(255,210,74,0.8)' }} />
       </div>
       <span className="w-12 text-right text-[var(--muted)] tabular-nums text-xs">{n} · {pct}%</span>
@@ -201,7 +201,7 @@ function TeamTop({ title, items }: { title: string; items: [string, number][] })
           {items.map(([team, c]) => (
             <div key={team} className="flex items-center gap-2 text-sm">
               <Flag team={team} w={40} className="w-5 h-3.5 shrink-0" />
-              <span className="text-white/85 truncate flex-1">{team}</span>
+              <span className="text-[var(--ink)] truncate flex-1">{team}</span>
               <span className="text-[var(--accent-soft)] font-semibold tabular-nums">{c}</span>
             </div>
           ))}
@@ -214,7 +214,7 @@ function TeamTop({ title, items }: { title: string; items: [string, number][] })
 function Mini({ n, l }: { n: number | string; l: string }) {
   return (
     <div>
-      <div className="font-display font-extrabold text-2xl text-gradient tabular-nums">{n}</div>
+      <div className="font-num font-semibold text-2xl text-gradient tabular-nums">{n}</div>
       <div className="text-[11px] text-[var(--muted)] mt-0.5">{l}</div>
     </div>
   )
