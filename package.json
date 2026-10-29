@@ -18,12 +18,14 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.125.0",
+    "@mediapipe/tasks-vision": "^0.10.14",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.106.2",
     "next": "16.3.5",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tesseract.js": "^7.0.0",
+    "three": "^0.169.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
@@ -31,6 +33,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/three": "^0.169.0",
     "@types/web-push": "^3.6.4",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",

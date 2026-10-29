@@ -5,8 +5,9 @@
 export type StatoPartita = 'da_giocare' | 'in_corso' | 'finita'
 
 export interface GolLive {
-  min: string   // "23'", "45+2'", "90+4'"
-  team: string  // squadra che beneficia del gol (autogol compreso)
+  min: string      // "23'", "45+2'", "90+4'"
+  team: string     // squadra che beneficia del gol (autogol compreso)
+  scorer?: string  // marcatore, facoltativo
 }
 
 export interface PartitaLive {
@@ -79,7 +80,7 @@ export function buildDettaglio(p: PartitaLive, gol: GolLive[], stato: StatoParti
     .map(g => ({ g, m: parseMinute(g.min) }))
     .filter((x): x is { g: GolLive; m: Minuto } => x.m !== null && (x.g.team === p.home || x.g.team === p.away))
     .sort((a, b) => orderInMatch(a.m) - orderInMatch(b.m))
-  const golOrdinati = validi.map(({ g, m }) => ({ min: formatMinute(m), team: g.team }))
+  const golOrdinati = validi.map(({ g, m }) => ({ min: formatMinute(m), team: g.team, ...(g.scorer ? { scorer: g.scorer } : {}) }))
   const h = golOrdinati.filter(g => g.team === p.home).length
   const a = golOrdinati.filter(g => g.team === p.away).length
   return {
@@ -98,6 +99,7 @@ export interface GolCronologia {
   min: string             // "23'", "45+2'"
   minuto: number | null   // 1–90 se vale per i minuti, altrimenti null (recupero)
   team: string
+  scorer?: string
   home: string
   away: string
   score: string           // punteggio della partita subito dopo questo gol
@@ -127,6 +129,7 @@ export function cronologiaGol(partite: PartitaLive[], dettagli: DettaglioLive[])
         min: formatMinute(m),
         minuto: regolamentare ? m.base : null,
         team: g.team,
+        scorer: g.scorer,
         home: p.home,
         away: p.away,
         score: `${h}-${a}`,

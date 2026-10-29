@@ -35,6 +35,7 @@ export interface Pronostico {
 export interface GoalScored {
   min: string        // es. "67'" o "90+2'"
   team: string       // squadra che ha segnato (autogol → squadra che ne beneficia)
+  scorer?: string    // marcatore, facoltativo: "Lukaku 11" (il numero va sulla schiena della statuina)
 }
 
 export interface MatchDetail {

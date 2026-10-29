@@ -1,5 +1,6 @@
 import { Schedina, Pronostico, Risultato, MatchDetail } from '@/lib/types'
 import { cronologiaGol, type DettaglioLive } from '@/lib/live'
+import Link from 'next/link'
 import Flag from '@/components/Flag'
 
 interface Props {
@@ -79,21 +80,25 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
         <div className="space-y-1.5">
           {gol.map((g, i) => {
             const mio = g.minuto !== null && miei.has(g.minuto)
+            // Toccando un gol si apre lo stesso popup della notifica, con la statuina.
+            const q = new URLSearchParams({ gol: '1', s: String(schedina.id), h: g.home, a: g.away, t: g.team, m: g.min, sc: g.score })
+            if (g.scorer) q.set('mk', g.scorer)
+            if (mio) q.set('tuo', '1')
             return (
-              <div key={i} className={`rounded-xl border px-3 py-2.5 flex items-center gap-3 ${mio ? 'bg-[rgba(232,100,28,0.10)] border-[var(--accent)]' : 'bg-[var(--surface-2)] border-[var(--line)]'}`}>
+              <Link key={i} href={`?${q.toString()}`} scroll={false} className={`rounded-xl border px-3 py-2.5 flex items-center gap-3 ${mio ? 'bg-[rgba(232,100,28,0.10)] border-[var(--accent)]' : 'bg-[var(--surface-2)] border-[var(--line)]'}`}>
                 <div className={`font-num font-semibold text-xl tabular-nums w-14 shrink-0 ${mio ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>
                   {g.min}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5 text-sm">
                     <Flag team={g.team} w={40} className="w-5 h-3.5 shrink-0" />
-                    <span className="font-semibold truncate">{g.team}</span>
+                    <span className="font-semibold truncate">{g.scorer ? `${g.scorer.replace(/\s+\d{1,2}$/, '')} · ${g.team}` : g.team}</span>
                     {g.doppio && <span className="text-[10px] font-bold text-[var(--gold)] border border-[var(--gold)]/50 rounded px-1">×2</span>}
                   </div>
                   <div className="text-xs text-[var(--muted)] truncate">{g.home} {g.score} {g.away}</div>
                 </div>
                 {mio && <span className="text-[10px] font-bold text-[var(--accent-ink)] bg-[var(--accent)] rounded-full px-2 py-0.5 shrink-0">TUO</span>}
-              </div>
+              </Link>
             )
           })}
         </div>
