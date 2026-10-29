@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic'
 interface Destinatario { user_id: string; endpoint: string; p256dh: string; auth: string; preferenza: Preferenza }
 
 type Richiesta =
-  | { tipo: 'gol'; schedina_id: number; gol: { home: string; away: string; min: string; team: string } }
+  | { tipo: 'gol'; schedina_id: number; gol: { home: string; away: string; min: string; team: string; scorer?: string } }
   | { tipo: 'finale'; schedina_id: number }
   | { tipo: 'promemoria'; schedina_id: number }
   | { tipo: 'messaggio'; titolo: string; testo: string; url?: string }
@@ -89,6 +89,7 @@ export async function POST(request: Request) {
       const g = {
         schedinaId: schedina.id, home: req.gol.home, away: req.gol.away, score: dett?.score ?? '',
         min: req.gol.min, base: m.base, extra: m.extra, team: req.gol.team,
+        scorer: typeof req.gol.scorer === 'string' && req.gol.scorer.trim() ? req.gol.scorer.trim().slice(0, 40) : undefined,
       }
       ttl = 900 // un gol vecchio di un quarto d'ora non serve più a nessuno
       perDispositivo = d => {

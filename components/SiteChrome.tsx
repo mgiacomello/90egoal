@@ -1,8 +1,10 @@
 'use client'
 
+import { Suspense } from 'react'
 import { usePathname } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import ActivityTracker from '@/components/ActivityTracker'
+import GolPopup from '@/components/GolPopup'
 
 /**
  * ONE TAP è un'app a sé dentro allo stesso deploy: lì la navigazione del sito
@@ -25,6 +27,8 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
     <>
       <Navbar wide={wide} />
       <ActivityTracker />
+      {/* Il popup del gol legge l'indirizzo: Suspense perché useSearchParams non blocchi la pagina. */}
+      <Suspense fallback={null}><GolPopup /></Suspense>
       {/* La navigazione sta in basso: lo spazio sotto evita che copra il contenuto. */}
       <main className={`${wide ? 'max-w-5xl px-4 sm:px-6 py-6' : 'max-w-md px-4 py-5'} mx-auto w-full flex-1`}>{children}</main>
       <footer className={`mt-12 ${wide ? 'sm:pb-0' : ''} pb-[calc(4.5rem+env(safe-area-inset-bottom))]`}>

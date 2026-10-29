@@ -24,6 +24,16 @@ export interface GolPush {
   base: number
   extra: number
   team: string
+  scorer?: string      // "Lukaku 11", facoltativo
+}
+
+// Dove porta il tocco sulla notifica: il popup del gol, con quello che serve a disegnarlo
+// anche senza rete (squadra, partita, minuto, marcatore, se è tuo).
+export function linkGol(g: GolPush, preso: boolean): string {
+  const q = new URLSearchParams({ gol: '1', s: String(g.schedinaId), h: g.home, a: g.away, t: g.team, m: g.min, sc: g.score })
+  if (g.scorer) q.set('mk', g.scorer)
+  if (preso) q.set('tuo', g.extra > 0 ? 'rec' : '1')
+  return `/?${q.toString()}`
 }
 
 // Il gol "è tuo" se cade in uno dei tuoi minuti, o nel recupero del tempo che hai scelto.
@@ -47,8 +57,9 @@ export function messaggioGol(g: GolPush, p: PronosticoPush | undefined, pref: Pr
     : g.extra > 0
       ? `🎯 Gol nel recupero! ${g.min}`
       : `🎯 Il tuo ${g.base}' è uscito!`
-  const body = `${partita} · segna ${g.team}${preso && g.extra > 0 ? ' · bonus recupero' : ''}`
-  return { title, body, url: '/schedine', tag: `gol-${g.schedinaId}-${g.home}-${g.min}-${g.team}` }
+  const chi = g.scorer ? `${g.scorer.replace(/\s+\d{1,2}$/, '')} (${g.team})` : g.team
+  const body = `${partita} · segna ${chi}${preso && g.extra > 0 ? ' · bonus recupero' : ''}`
+  return { title, body, url: linkGol(g, preso), tag: `gol-${g.schedinaId}-${g.home}-${g.min}-${g.team}` }
 }
 
 export interface RigaPunti {

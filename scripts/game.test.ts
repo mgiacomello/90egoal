@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { romeToUtcIso, utcToRome, firstKickoffIso } from '../lib/time.ts'
 import { parseMinute, formatMinute, buildDettaglio, deriveRisultato, type PartitaLive } from '../lib/live.ts'
 import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '../lib/teams.ts'
+import { parseMarcatore, magliaDi } from '../lib/kits.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
@@ -188,6 +189,24 @@ check('gol preso: titolo che festeggia, con la partita nel testo', () => {
   const n = messaggioGol(G("23'", 23), PRON, 'tutti')!
   assert.equal(n.title, "🎯 Il tuo 23' è uscito!")
   assert.equal(n.body, 'Reggiana 1-0 Torres · segna Reggiana')
+})
+check('il tocco sulla notifica apre il popup del gol, con il marcatore se c\'è', () => {
+  const n = messaggioGol({ ...G("23'", 23), scorer: 'Portanova 10' }, PRON, 'tutti')!
+  assert.equal(n.body, 'Reggiana 1-0 Torres · segna Portanova (Reggiana)')
+  const q = new URL(n.url, 'https://x').searchParams
+  assert.equal(q.get('gol'), '1')
+  assert.equal(q.get('t'), 'Reggiana')
+  assert.equal(q.get('mk'), 'Portanova 10')
+  assert.equal(q.get('tuo'), '1')
+})
+check('marcatore: nome e numero in qualsiasi ordine, il numero è facoltativo', () => {
+  assert.deepEqual(parseMarcatore('Lukaku 11'), { nome: 'Lukaku', numero: '11' })
+  assert.deepEqual(parseMarcatore('9  Di Natale'), { nome: 'Di Natale', numero: '9' })
+  assert.deepEqual(parseMarcatore('Portanova'), { nome: 'Portanova', numero: '' })
+})
+check('maglia: i club in elenco hanno i loro colori, gli altri un colore stabile', () => {
+  assert.equal(magliaDi('Napoli').maglia, '#1c8ad6')
+  assert.equal(magliaDi('Squadra Sconosciuta').maglia, magliaDi('Squadra Sconosciuta').maglia)
 })
 check('gol non preso: arriva a chi vuole tutti i gol, non a chi vuole solo i suoi', () => {
   assert.equal(messaggioGol(G("24'", 24), PRON, 'tutti')!.title, "⚽ Gol al 24'")

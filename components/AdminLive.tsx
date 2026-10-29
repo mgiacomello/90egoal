@@ -47,6 +47,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
   const schedina = schedine.find(s => s.id === selId) ?? null
   const [stato, setStato] = useState<Stato>(() => (schedina ? statoIniziale(schedina, risultatiMap[schedina.id]) : {}))
   const [minuto, setMinuto] = useState<Record<string, string>>({})
+  const [marcatore, setMarcatore] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [savedAt, setSavedAt] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -59,6 +60,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     setSelId(id)
     setStato(statoIniziale(s, risultatiMap[id]))
     setMinuto({})
+    setMarcatore({})
     setSavedAt(null)
     setError('')
   }
@@ -108,12 +110,15 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     if (!m) { setError('Minuto non valido: scrivi 23, oppure 45+2 / 90+3 per il recupero.'); return }
     const st = stato[key]
     const min = formatMinute(m)
-    const next = { ...stato, [key]: { gol: [...st.gol, { min, team }], stato: st.stato === 'da_giocare' ? 'in_corso' as const : st.stato } }
+    const scorer = (marcatore[key] ?? '').trim().slice(0, 40) || undefined
+    const gol = scorer ? { min, team, scorer } : { min, team }
+    const next = { ...stato, [key]: { gol: [...st.gol, gol], stato: st.stato === 'da_giocare' ? 'in_corso' as const : st.stato } }
     setMinuto(v => ({ ...v, [key]: '' }))
+    setMarcatore(v => ({ ...v, [key]: '' }))
     // La notifica parte solo dopo il salvataggio: il server legge il punteggio aggiornato dal database.
     if (await salva(next) && notifiche) {
       const p = schedina.partite.find(x => matchKey(x) === key)!
-      setEsitoPush(`${min} ${team}: ` + await inviaPush({ tipo: 'gol', schedina_id: schedina.id, gol: { home: p.home, away: p.away, min, team } }))
+      setEsitoPush(`${min} ${team}: ` + await inviaPush({ tipo: 'gol', schedina_id: schedina.id, gol: { home: p.home, away: p.away, min, team, scorer } }))
     }
   }
 
@@ -218,7 +223,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
                       {d.gol.map((g, i) => (
                         <button key={i} onClick={() => togliGol(key, st.gol.findIndex(x => x.min === g.min && x.team === g.team))} disabled={saving}
                           className="text-[11px] font-mono bg-[var(--surface-2)] hover:bg-[var(--danger-soft)] text-[var(--ink)] px-2 py-1 rounded" title="Tocca per togliere">
-                          {g.min} {g.team} ✕
+                          {g.min} {g.team}{g.scorer ? ` · ${g.scorer}` : ''} ✕
                         </button>
                       ))}
                     </div>
@@ -230,6 +235,8 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
                     <button onClick={() => aggiungiGol(key, p.home)} disabled={saving || !(minuto[key] ?? '').trim()} className="btn-ghost px-2 py-2.5 text-xs truncate">⚽ {p.home}</button>
                     <button onClick={() => aggiungiGol(key, p.away)} disabled={saving || !(minuto[key] ?? '').trim()} className="btn-ghost px-2 py-2.5 text-xs truncate">⚽ {p.away}</button>
                   </div>
+                  <input value={marcatore[key] ?? ''} onChange={e => setMarcatore(v => ({ ...v, [key]: e.target.value }))}
+                    placeholder="Marcatore e numero, facoltativo (es. Lukaku 11)" className="input-field w-full px-3 py-2 text-sm mt-1.5" />
                 </div>
               )
             })}
