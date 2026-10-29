@@ -16,14 +16,17 @@ const AVORIO = '#ffffff'   // il bordo da adesivo: bianco sul blu
 
 const cache = new Map<string, Promise<Sagoma | null>>()
 
-export function sagomaDa(url: string): Promise<Sagoma | null> {
-  if (!cache.has(url)) cache.set(url, crea(url).catch(() => null))
-  return cache.get(url)!
+// `maglia`: i colori della divisa del club. Servono a capire se nella sagoma c'è
+// anche un avversario: una maglia di un altro colore non è il nostro giocatore.
+export function sagomaDa(url: string, maglia: string[] = []): Promise<Sagoma | null> {
+  const chiave = `${url}|${maglia.join(',')}`
+  if (!cache.has(chiave)) cache.set(chiave, crea(url, maglia).catch(() => null))
+  return cache.get(chiave)!
 }
 
-async function crea(url: string): Promise<Sagoma | null> {
+async function crea(url: string, maglia: string[]): Promise<Sagoma | null> {
   const img = await carica(url)
-  const ritaglio = await ritaglia(img).catch(() => null)
+  const ritaglio = await ritaglia(img, maglia.map(tinta).filter((t): t is number => t !== null)).catch(() => null)
   return ritaglio ? { canvas: ritaglio.canvas, ritagliata: true, singola: ritaglio.singola } : { canvas: cartoncino(img), ritagliata: false, singola: false }
 }
 
@@ -37,7 +40,25 @@ function carica(url: string): Promise<HTMLImageElement> {
   })
 }
 
-async function ritaglia(img: HTMLImageElement): Promise<{ canvas: HTMLCanvasElement; singola: boolean } | null> {
+// Tonalità (0–360) di un colore esadecimale, o null se è quasi grigio (bianco, nero):
+// un bianco o un nero non si riconoscono dal colore, quindi non si contano.
+function tinta(hex: string): number | null {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim())
+  if (!m) return null
+  const n = parseInt(m[1], 16)
+  return tonalita((n >> 16) & 255, (n >> 8) & 255, n & 255, 0.3)
+}
+
+function tonalita(r: number, g: number, b: number, satMin: number): number | null {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b)
+  const d = max - min
+  if (!max || d / max < satMin) return null
+  let h = max === r ? (g - b) / d : max === g ? 2 + (b - r) / d : 4 + (r - g) / d
+  h = (h * 60 + 360) % 360
+  return h
+}
+
+async function ritaglia(img: HTMLImageElement, tinteMaglia: number[]): Promise<{ canvas: HTMLCanvasElement; singola: boolean } | null> {
   const { FilesetResolver, ImageSegmenter } = await import('@mediapipe/tasks-vision')
   const fileset = await FilesetResolver.forVisionTasks(WASM)
   const seg = await ImageSegmenter.createFromOptions(fileset, {
@@ -119,16 +140,34 @@ async function ritaglia(img: HTMLImageElement): Promise<{ canvas: HTMLCanvasElem
     g.drawImage(img, 0, 0, w, h)
     const dati = g.getImageData(0, 0, w, h)
     let pieni = 0, x0 = w, y0 = h, x1 = 0, y1 = 0
+    // Colori dentro la sagoma: pixel saturi che non sono né pelle né la maglia del club.
+    // Tanti pixel così vuol dire un avversario o un cartellone attaccati al giocatore.
+    let campione = 0, estranei = 0
+    const passo = Math.max(1, Math.round(Math.max(w, h) / 400))
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = y * w + x
         const a8 = maschera[i * 4]
         dati.data[i * 4 + 3] = a8
-        if (a8 > 128) { pieni++; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y }
+        if (a8 > 128) {
+          pieni++
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y
+          if (x % passo === 0 && y % passo === 0) {
+            campione++
+            const r = dati.data[i * 4], g = dati.data[i * 4 + 1], b = dati.data[i * 4 + 2]
+            if (Math.max(r, g, b) < 70) continue   // scuro: capelli, ombre, maglie nere
+            const t = tonalita(r, g, b, 0.45)
+            if (t === null) continue
+            const pelle = t >= 8 && t <= 45 && Math.max(r, g, b) > 120
+            const nostro = tinteMaglia.some(k => Math.min(Math.abs(t - k), 360 - Math.abs(t - k)) <= 35)
+            if (!pelle && !nostro) estranei++
+          }
+        }
       }
     }
     const quota = pieni / (w * h)
     if (quota < 0.05 || quota > 0.85) return null   // non ha trovato una persona credibile
+    const pulita = !campione || estranei / campione <= 0.1
     g.putImageData(dati, 0, 0)
 
     // Ritaglio stretto attorno al giocatore, poi il bordo avorio da adesivo.
@@ -151,8 +190,12 @@ async function ritaglia(img: HTMLImageElement): Promise<{ canvas: HTMLCanvasElem
     o.drawImage(bordo, 0, 0)
     o.drawImage(c, x0, y0, bw, bh, pad, pad, bw, bh)
     // Una figura sola: la più grande è quasi tutto quello che il modello ha visto come "persona",
-    // ed è alta (un giocatore in piedi, non una fila di spalle o un dettaglio).
-    const singola = areaMigliore / areaTotale >= 0.6 && bh / bw >= 0.9 && bh / bw <= 3.2 && quota >= 0.08 && quota <= 0.6
+    // è alta (un giocatore in piedi, non una fila di spalle o un dettaglio) e dentro non
+    // ci sono i colori di un'altra maglia.
+    const singola = pulita && areaMigliore / areaTotale >= 0.6 && bh / bw >= 0.9 && bh / bw <= 3.2 && quota >= 0.08 && quota <= 0.8
+    if (process.env.NODE_ENV !== 'production') {
+      console.debug('ritaglio', img.src.split('/').pop()?.split('?')[0], { singola, pulita, estranei: +(estranei / Math.max(1, campione)).toFixed(3), figura: +(areaMigliore / areaTotale).toFixed(2), rapporto: +(bh / bw).toFixed(2), quota: +quota.toFixed(2) })
+    }
     return { canvas: out, singola }
   } finally {
     seg.close()

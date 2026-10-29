@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { esultanzaPer } from '@/components/GolStatuina'
-import { parseMarcatore } from '@/lib/kits'
+import { magliaDi, parseMarcatore } from '@/lib/kits'
 import Flag from '@/components/Flag'
 import { fotoGiocatore, type FotoLibera } from '@/lib/fotoGiocatore'
 import { sagomaDa, type Sagoma } from '@/lib/ritaglio'
@@ -22,9 +22,9 @@ export default function GolPopup() {
   const mkParam = q.get('mk') ?? ''
   const teamParam = q.get('t') ?? ''
   // La foto vera, se esiste a licenza libera; intanto (e altrimenti) la statuina.
-  // Le foto candidate si provano in ordine: la prima che si ritaglia come figura sola vince;
-  // altrimenti la prima che si ritaglia; altrimenti la prima a cartoncino.
-  // Finché non è pronta, esulta la statuina d'argilla: niente riquadro vuoto.
+  // Le foto candidate si provano in ordine: la prima che si ritaglia come figura sola vince.
+  // Se nessuna ci riesce (gruppi, avversari attaccati, dettagli) resta la statuina d'argilla:
+  // meglio quella che un ritaglio confuso. Finché non è pronta, esulta la statuina.
   const chiaveFoto = `${mkParam}|${teamParam}`
   const [scelta, setScelta] = useState<{ chiave: string; foto: FotoLibera; sagoma: Sagoma } | null>(null)
   useEffect(() => {
@@ -32,15 +32,12 @@ export default function GolPopup() {
     let vivo = true
     ;(async () => {
       const candidate = await fotoGiocatore(parseMarcatore(mkParam).nome, teamParam)
-      let ripiego: { foto: FotoLibera; sagoma: Sagoma } | null = null
+      const divisa = magliaDi(teamParam)
       for (const foto of candidate) {
-        const sagoma = await sagomaDa(foto.url)
+        const sagoma = await sagomaDa(foto.url, [divisa.maglia, divisa.secondo])
         if (!vivo) return
-        if (!sagoma) continue
-        if (sagoma.ritagliata && sagoma.singola) { setScelta({ chiave: chiaveFoto, foto, sagoma }); return }
-        if (!ripiego || (sagoma.ritagliata && !ripiego.sagoma.ritagliata)) ripiego = { foto, sagoma }
+        if (sagoma?.ritagliata && sagoma.singola) { setScelta({ chiave: chiaveFoto, foto, sagoma }); return }
       }
-      if (vivo && ripiego) setScelta({ chiave: chiaveFoto, ...ripiego })
     })()
     return () => { vivo = false }
   }, [aperto, mkParam, teamParam, chiaveFoto])

@@ -63,7 +63,10 @@ async function cerca(nome: string, squadra: string): Promise<FotoLibera[]> {
   const info = Object.values(jc.query?.pages ?? {})[0]?.imageinfo?.[0]
   const meta = info?.extmetadata ?? {}
   const licenza = testo(meta.LicenseShortName?.value ?? '')
-  const ritratto: FotoLibera[] = info && /^(CC|Public domain|PD)/i.test(licenza) ? [{
+  // Anche il ritratto deve essere con la maglia del club: molte voci hanno la foto in
+  // Nazionale o in una squadra di prima, e la maglia sbagliata si nota più della foto giusta.
+  const ritrattoColClub = `${voce.pageimage} ${testo(meta.ImageDescription?.value ?? '')}`.toLowerCase().includes(club)
+  const ritratto: FotoLibera[] = info && ritrattoColClub && /^(CC|Public domain|PD)/i.test(licenza) ? [{
     url: voce.thumbnail.source,
     pagina: voce.fullurl,
     autore: testo(meta.Artist?.value ?? '') || 'autore su Wikimedia Commons',
