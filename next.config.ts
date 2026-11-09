@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       { source: "/lab", destination: "/lab/index.html" },
       // Pagina per gli investitori: statica in public/investitori, fuori dal guscio dell'app.
       { source: "/investitori", destination: "/investitori/index.html" },
+      { source: "/investitori/en", destination: "/investitori/en/index.html" },
     ];
   },
   async headers() {

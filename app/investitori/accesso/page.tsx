@@ -15,14 +15,15 @@ export default async function AccessoInvestitori({ searchParams }: { searchParam
         <div>
           <h1 className="font-display font-semibold text-2xl leading-tight">Pagina riservata</h1>
           <p className="text-sm text-[var(--muted)] mt-1">Inserisci la password che hai ricevuto per vedere la presentazione e la demo.</p>
+          <p className="text-sm text-[var(--muted)] mt-1" lang="en">Enter the password you received to see the presentation and the demo.</p>
         </div>
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Password</span>
           <input id="password" name="password" type="password" autoComplete="current-password" autoFocus required
             className="mt-1.5 w-full rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-3 text-base outline-none focus:ring-2 focus:ring-[var(--accent)]" />
         </label>
-        {errore && <p className="text-sm font-semibold text-[var(--danger)]">Password non corretta. Riprova.</p>}
-        <button type="submit" className="btn-primary w-full py-3">Entra</button>
+        {errore && <p className="text-sm font-semibold text-[var(--danger)]">Password non corretta. Riprova. · Wrong password, try again.</p>}
+        <button type="submit" className="btn-primary w-full py-3">Entra · Enter</button>
       </form>
     </main>
   )
