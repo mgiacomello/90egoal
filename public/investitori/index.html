@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#eef3fb">
+<link rel="icon" href="/icons/icon-192.png">
+<title>90 & Goal</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Layout: racconto a scorrimento a sinistra, il telefono con la demo vera a destra, fisso. Sotto, le sezioni a tutta larghezza. */
+  :root {
+    --bg: #eef3fb; --bg-deep: #e2eaf7; --surface: #ffffff; --surface-2: #e8efff;
+    --ink: #0b1f4d; --muted: #5b6b8c; --line: rgba(11,31,77,0.08);
+    --accent: #1d4fd7; --accent-ink: #ffffff; --gold: #c98a06; --green: #16a34a; --danger: #d93545;
+    --velo: rgba(11,31,77,0.55);
+    --display: "Poppins", "Inter", system-ui, sans-serif;
+    --sans: "Inter", system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+    --bg: #0b1733; --bg-deep: #081028; --surface: #13224a; --surface-2: #1b2d5e;
+    --ink: #eef3fb; --muted: #a9b6d3; --line: rgba(238,243,251,0.1);
+    --accent: #4f7cf5; --accent-ink: #ffffff; --gold: #e9b44c; --green: #3fcf74; --danger: #ff6b78;
+    --velo: rgba(3,8,24,0.65); color-scheme: dark;
+  } }
+  :root[data-theme="dark"] {
+    --bg: #0b1733; --bg-deep: #081028; --surface: #13224a; --surface-2: #1b2d5e;
+    --ink: #eef3fb; --muted: #a9b6d3; --line: rgba(238,243,251,0.1);
+    --accent: #4f7cf5; --accent-ink: #ffffff; --gold: #e9b44c; --green: #3fcf74; --danger: #ff6b78;
+    --velo: rgba(3,8,24,0.65); color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.55;
+    -webkit-font-smoothing: antialiased; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  a { color: var(--accent); }
+  .wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .num { font-family: var(--display); font-variant-numeric: tabular-nums; }
+
+  /* Testata */
+  header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 20px; }
+  .brand .tile { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 700; }
+  .brand .amp { color: var(--accent); }
+  .top nav { display: flex; gap: 18px; font-size: 14px; font-weight: 500; }
+  .top nav a { color: var(--muted); text-decoration: none; }
+  .top nav a:hover { color: var(--ink); }
+  @media (max-width: 720px) { .top nav { display: none; } }
+
+  /* Apertura: testo + telefono */
+  .hero { padding-block: 56px 40px; }
+  .hero .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 48px; align-items: start; }
+  .hero h1 { font-size: clamp(40px, 6vw, 72px); font-weight: 700; }
+  .hero h1 em { font-style: normal; color: var(--accent); }
+  .hero .lead { font-size: 20px; color: var(--muted); max-width: 34ch; margin-top: 20px; }
+  .hero .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 26px; }
+  .pill { font-size: 13px; font-weight: 600; padding: 7px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+  .hero .cta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+  .btn { font: 600 15px var(--sans); border: 0; border-radius: 14px; padding: 13px 20px; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  .btn:focus-visible, .cell:focus-visible, .seg button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .btn-primary { background: linear-gradient(180deg, #2e62ee, #1d4fd7); color: #fff; box-shadow: 0 10px 24px -12px rgba(29,79,215,0.7); }
+  .btn-ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+  .btn[disabled] { opacity: 0.45; cursor: default; box-shadow: none; }
+  .phone-col { position: sticky; top: 84px; }
+  @media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; } .phone-col { position: static; } }
+
+  /* Il telefono */
+  .phone { width: 100%; max-width: 390px; margin: 0 auto; aspect-ratio: 390 / 780; background: #0a1230; border-radius: 48px; padding: 12px; box-shadow: 0 40px 90px -30px rgba(11,31,77,0.6), 0 0 0 1px rgba(255,255,255,0.08) inset; position: relative; }
+  .screen { position: absolute; inset: 12px; border-radius: 38px; background: var(--bg); overflow: hidden; display: flex; flex-direction: column; color: var(--ink); }
+  .notch { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 110px; height: 30px; border-radius: 20px; background: #0a1230; z-index: 5; }
+  .status { height: 44px; flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: space-between; padding: 0 26px 4px; font-size: 13px; font-weight: 600; }
+  .app { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 14px 0; }
+  .app-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .app-title .brand { font-size: 16px; } .app-title .tile { width: 28px; height: 28px; border-radius: 8px; font-size: 12px; }
+  .live-badge { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; padding: 4px 9px; border-radius: 999px; background: var(--danger); color: #fff; display: none; align-items: center; gap: 6px; }
+  .live-badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #fff; animation: blink 1s infinite; }
+  @keyframes blink { 50% { opacity: 0.25; } }
+  .view { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; padding-bottom: 14px; }
+  .view::-webkit-scrollbar { display: none; }
+  .card { background: var(--surface); border-radius: 18px; padding: 14px; box-shadow: 0 1px 0 var(--line), 0 10px 30px -22px rgba(11,31,77,0.4); }
+  .card + .card { margin-top: 10px; }
+  .card h3 { font-size: 17px; }
+  .sub { font-size: 13px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-top: 10px; }
+  .cell { aspect-ratio: 1; border-radius: 8px; border: 0; background: var(--surface-2); color: var(--ink); font: 600 12px var(--display); cursor: pointer; padding: 0; font-variant-numeric: tabular-nums; transition: transform 0.12s; }
+  .cell:hover { transform: scale(1.06); }
+  .cell.on { background: var(--accent); color: #fff; }
+  .cell.hit { background: var(--green); color: #fff; }
+  .cell.hit2 { background: var(--gold); color: #fff; }
+  .cell[disabled] { cursor: default; }
+  .counter { display: flex; align-items: baseline; justify-content: space-between; margin-top: 10px; }
+  .counter .big { font-size: 26px; font-weight: 600; }
+  .seg { display: flex; gap: 6px; margin-top: 8px; }
+  .seg button { flex: 1; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 10px; padding: 8px; font: 600 12px var(--sans); cursor: pointer; }
+  .seg button.on { background: var(--accent); color: #fff; border-color: transparent; }
+  .app-actions { flex: 0 0 auto; padding: 10px 0 16px; display: grid; gap: 8px; }
+  .app-actions .btn { width: 100%; justify-content: center; padding: 14px; border-radius: 16px; }
+
+  /* Diretta */
+  .clock { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .clock .min { font-size: 34px; font-weight: 600; line-height: 1; }
+  .clock .pts { text-align: right; }
+  .clock .pts b { font-size: 26px; font-family: var(--display); font-weight: 600; display: block; line-height: 1; }
+  .bar { height: 6px; border-radius: 999px; background: var(--surface-2); margin-top: 10px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width 0.3s linear; }
+  .match { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+  .match:first-of-type { border-top: 0; }
+  .match .t { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .match .t.r { justify-content: flex-end; text-align: right; }
+  .match .t span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sig { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto; display: grid; place-items: center; font: 700 8px var(--display); color: #fff; }
+  .score { font-family: var(--display); font-weight: 600; font-size: 15px; min-width: 34px; text-align: center; font-variant-numeric: tabular-nums; }
+  .match.flash .score { color: var(--accent); animation: pop 0.5s; }
+  @keyframes pop { 30% { transform: scale(1.3); } }
+  .feed { display: grid; gap: 6px; margin-top: 10px; }
+  .ev { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 12px; background: var(--surface-2); }
+  .ev .m { font-family: var(--display); font-weight: 600; min-width: 30px; }
+  .ev.mine { background: color-mix(in srgb, var(--green) 16%, var(--surface)); }
+  .ev.d2 { background: color-mix(in srgb, var(--gold) 18%, var(--surface)); }
+  .ev .tag { margin-left: auto; font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--green); color: #fff; }
+  .ev.d2 .tag { background: var(--gold); }
+  .toast { position: absolute; left: 12px; right: 12px; top: -90px; z-index: 8; display: flex; gap: 10px; align-items: center; padding: 10px 12px; background: color-mix(in srgb, var(--surface) 96%, transparent); border-radius: 16px; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.45), 0 0 0 1px var(--line); transition: top 0.45s cubic-bezier(.2,.9,.3,1.1); font-size: 12px; }
+  .toast.show { top: 14px; }
+  .toast .tile { width: 36px; height: 36px; border-radius: 9px; font-size: 14px; }
+  .toast b { display: block; font-size: 13px; }
+
+  /* Il popup del gol dentro al telefono */
+  .velo { position: absolute; inset: 0; z-index: 9; display: none; align-items: center; justify-content: center; padding: 18px; background: var(--velo); backdrop-filter: blur(6px); }
+  .velo.show { display: flex; animation: velo 0.35s both; }
+  @keyframes velo { from { opacity: 0; } }
+  .foglio { width: 100%; max-width: 300px; background: var(--surface); border-radius: 24px; overflow: hidden; box-shadow: 0 30px 80px -20px rgba(11,31,77,0.6); animation: foglio 0.55s cubic-bezier(.2,.9,.3,1.15) both; }
+  @keyframes foglio { from { transform: translateY(40px) scale(0.92); opacity: 0; } }
+  .festa { position: relative; height: 210px; background: radial-gradient(120% 90% at 50% 10%, #ffffff 0%, #eef3fb 55%, #dbe7ff 100%); overflow: hidden; }
+  :root[data-theme="dark"] .festa { background: radial-gradient(120% 90% at 50% 10%, #22346b 0%, #13224a 55%, #0b1733 100%); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .festa { background: radial-gradient(120% 90% at 50% 10%, #22346b 0%, #13224a 55%, #0b1733 100%); } }
+  .festa canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .festa .lab { position: absolute; left: 14px; top: 12px; }
+  .festa .lab .eyebrow { font-size: 10px; }
+  .festa .lab .min { font-size: 34px; font-weight: 600; line-height: 1; margin-top: 2px; animation: pop 0.6s 0.45s both; }
+  .festa .tuo { position: absolute; right: 12px; top: 12px; background: var(--accent); color: #fff; border-radius: 14px; padding: 6px 10px; text-align: right; animation: pop 0.6s 0.7s both; }
+  .festa .tuo small { display: block; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; }
+  .festa .tuo b { font-size: 20px; font-family: var(--display); line-height: 1; }
+  .festa .maglia { position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%); width: 92px; height: 110px; animation: salta 0.9s 0.3s ease-in-out infinite alternate; }
+  @keyframes salta { from { transform: translateX(-50%) translateY(0) rotate(-3deg); } to { transform: translateX(-50%) translateY(-18px) rotate(3deg); } }
+  .festa .base { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%); width: 150px; height: 22px; border-radius: 50%; background: linear-gradient(180deg, #2a3f80, #0b1f4d); box-shadow: 0 0 0 3px rgba(29,79,215,0.25); }
+  .foglio .body { padding: 10px 14px 14px; display: grid; gap: 10px; }
+  .foglio h3 { font-size: 20px; }
+  .foglio .riga { display: flex; align-items: center; gap: 8px; font-size: 13px; background: var(--surface-2); border-radius: 12px; padding: 8px 10px; }
+  .foglio .riga .score { flex: 1; }
+  .foglio .riga span:not(.sig) { flex: 1; } .foglio .riga span.r { text-align: right; }
+
+  /* Fine giornata */
+  .final .big { font-size: 56px; font-weight: 700; line-height: 1; }
+  .rank { display: grid; gap: 6px; margin-top: 10px; }
+  .rank div { display: grid; grid-template-columns: 24px 1fr auto; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); align-items: center; }
+  .rank div.me { background: var(--accent); color: #fff; }
+  .rank b { font-family: var(--display); }
+
+  /* Sezioni del racconto */
+  section.block { padding-block: 64px; border-top: 1px solid var(--line); }
+  section.block h2 { font-size: clamp(28px, 4vw, 44px); max-width: 22ch; }
+  section.block .intro { font-size: 18px; color: var(--muted); max-width: 58ch; margin-top: 14px; }
+  .steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 36px; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .step { background: var(--surface); border-radius: 22px; padding: 22px; border: 1px solid var(--line); display: grid; gap: 10px; align-content: start; }
+  .step .n { width: 40px; height: 40px; border-radius: 12px; background: var(--surface-2); color: var(--accent); display: grid; place-items: center; font: 600 16px var(--display); }
+  .step h3 { font-size: 20px; }
+  .step p { color: var(--muted); font-size: 15px; }
+  .rules { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
+  @media (max-width: 760px) { .rules { grid-template-columns: 1fr; } }
+  .rule { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: start; padding: 18px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+  .rule .v { font: 600 28px var(--display); color: var(--accent); line-height: 1; font-variant-numeric: tabular-nums; }
+  .rule .v.g { color: var(--gold); }
+  .rule p { font-size: 15px; color: var(--muted); } .rule b { color: var(--ink); display: block; margin-bottom: 2px; }
+  .why { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 40px; align-items: center; margin-top: 36px; }
+  @media (max-width: 860px) { .why { grid-template-columns: 1fr; } }
+  .why ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; }
+  .why li { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: start; }
+  .why li svg { width: 24px; height: 24px; stroke: var(--accent); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-top: 2px; }
+  .why li b { display: block; font-size: 16px; } .why li p { color: var(--muted); font-size: 15px; }
+  .video { max-width: 330px; margin: 0 auto; border-radius: 36px; overflow: hidden; background: #0a1230; padding: 10px; box-shadow: 0 40px 90px -30px rgba(11,31,77,0.6); }
+  .video video { display: block; width: 100%; border-radius: 28px; background: #000; }
+  .stack { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
+  @media (max-width: 760px) { .stack { grid-template-columns: 1fr; } }
+  .have { padding: 18px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+  .have b { display: block; font-family: var(--display); font-size: 16px; margin-bottom: 4px; }
+  .have p { font-size: 14px; color: var(--muted); }
+  .timeline { display: grid; gap: 0; margin-top: 36px; max-width: 720px; }
+  .tl { display: grid; grid-template-columns: 140px 1fr; gap: 18px; padding: 16px 0; border-top: 1px solid var(--line); }
+  .tl .d { font: 600 14px var(--display); color: var(--accent); }
+  .tl b { display: block; } .tl p { color: var(--muted); font-size: 15px; }
+  @media (max-width: 560px) { .tl { grid-template-columns: 1fr; gap: 4px; } }
+  .forti { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
+  @media (max-width: 860px) { .forti { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .forti { grid-template-columns: 1fr; } }
+  .forte { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px; display: grid; gap: 8px; align-content: start; }
+  .forte .k { font-size: 40px; font-weight: 700; line-height: 1; color: var(--accent); letter-spacing: -0.03em; }
+  .forte b { font-family: var(--display); font-size: 17px; line-height: 1.25; margin-top: 6px; }
+  .forte p { color: var(--muted); font-size: 15px; }
+  .lezioni { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 36px; }
+  @media (max-width: 860px) { .lezioni { grid-template-columns: 1fr; } }
+  .lez { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 22px; display: grid; gap: 6px; align-content: start; }
+  .lez b { font-family: var(--display); font-size: 17px; line-height: 1.25; }
+  .lez p { color: var(--muted); font-size: 15px; }
+  .lez .eyebrow { margin-top: 4px; }
+  .lez .eyebrow.fatto { color: var(--accent); margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  footer { padding-block: 40px 60px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="tile">90</span><span><span class="amp">&amp;</span> Goal</span></div>
+    <nav>
+      <a href="#forti">Punti forti</a>
+      <a href="#gioco">Il gioco</a>
+      <a href="#regole">Regole</a>
+      <a href="#festa">Il gol</a>
+      <a href="#test">I test</a>
+      <a href="#prodotto">Prodotto</a>
+      <a href="#demo">Demo</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" id="demo">
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Serie A · B · C · Mondiali</p>
+      <h1 style="margin-top:12px">Indovina il <em>minuto</em> del gol.</h1>
+      <p class="lead">Dieci partite nello stesso pomeriggio. Tu scegli 13 minuti. Ogni gol che arriva in uno dei tuoi, in una qualsiasi delle partite, è un punto.</p>
+      <div class="pills">
+        <span class="pill">Si gioca in 30 secondi</span>
+        <span class="pill">Ogni gol di ogni partita conta</span>
+        <span class="pill">Secondo schermo del sabato</span>
+        <span class="pill">Fun game, niente scommesse</span>
+      </div>
+      <div class="cta">
+        <button class="btn btn-primary" id="cta-gioca" type="button">Prova la demo qui a fianco →</button>
+        <a class="btn btn-ghost" href="#gioco">Come funziona</a>
+      </div>
+      <p class="sub" style="margin-top:18px;max-width:44ch">La demo è il gioco vero in piccolo: scegli i minuti, poi guarda una giornata simulata di 90 minuti scorrere in meno di un minuto.</p>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone" id="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="status"><span class="num">15:00</span><span>●●●</span></div>
+          <div class="app">
+            <div class="app-title">
+              <div class="brand"><span class="tile">90</span><span><span class="amp">&amp;</span> Goal</span></div>
+              <span class="live-badge" id="live-badge">LIVE</span>
+            </div>
+            <div class="view" id="view"></div>
+            <div class="app-actions" id="actions"></div>
+          </div>
+          <div class="toast" id="toast">
+            <span class="tile brand" style="display:grid">90</span>
+            <div style="min-width:0"><b id="toast-t">Gol!</b><span id="toast-b" style="color:var(--muted)"></span></div>
+          </div>
+          <div class="velo" id="velo"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="forti">
+  <div class="wrap">
+    <p class="eyebrow">Punti forti</p>
+    <h2 style="margin-top:10px">Un gioco che sta in una frase e dura tutto il pomeriggio.</h2>
+    <p class="intro">Il fantacalcio chiede ore e competenza. Le scommesse chiedono soldi e licenze. 90 &amp; Goal chiede trenta secondi e restituisce novanta minuti di attenzione, su ogni campo.</p>
+    <div class="forti">
+      <div class="forte"><div class="k num">30"</div><b>Si spiega e si gioca in un messaggio</b><p>«Scegli 13 minuti.» Chi riceve il link capisce e gioca senza tutorial, senza registrarsi, senza formazioni da studiare.</p></div>
+      <div class="forte"><div class="k num">×10</div><b>Ogni gol di ogni partita ti riguarda</b><p>Non tifi una squadra sola: dieci campi insieme, e ogni rete, anche in Serie C, può essere la tua. È il motivo per cui si guarda il pomeriggio intero.</p></div>
+      <div class="forte"><div class="k num">2°</div><b>Secondo schermo, non concorrente</b><p>Vive accanto alla partita in TV o allo stadio. Notifica, popup del gol, classifica: tre secondi e si torna a guardare.</p></div>
+      <div class="forte"><div class="k num">∞</div><b>Si rinnova da solo ogni settimana</b><p>Nessun contenuto da produrre: ogni giornata di campionato è una nuova schedina. Mondiali, Serie A, B e C, coppe: la meccanica non cambia.</p></div>
+      <div class="forte"><div class="k num">0 €</div><b>Fun game, non betting</b><p>Nessun denaro in gioco, nessuna licenza, nessuna età da verificare. Adatto a brand, media e leghe che vogliono engagement senza il rischio reputazionale del gioco d'azzardo.</p></div>
+      <div class="forte"><div class="k num">1</div><b>Un link, un pomeriggio, una classifica tra amici</b><p>Si diffonde dove la gente già parla di calcio: il gruppo WhatsApp. La classifica tra amici è il motore del ritorno la settimana dopo.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="gioco">
+  <div class="wrap">
+    <p class="eyebrow">Il gioco</p>
+    <h2 style="margin-top:10px">Tre gesti, tutto il pomeriggio di calcio.</h2>
+    <p class="intro">Niente formazioni, niente quote, niente da studiare. La giocata è più veloce di un messaggio. Poi ogni gol, di qualsiasi partita, diventa una cosa che ti riguarda.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Scegli 13 minuti</h3><p>Dall'1' al 90', più il recupero del primo o del secondo tempo. Li scegli dal telefono, in trenta secondi, anche senza registrarti: la prima schedina resta sul telefono.</p></div>
+      <div class="step"><div class="n">2</div><h3>Guarda le partite</h3><p>Dieci gare di Serie A, B e C nello stesso pomeriggio. Ogni gol, in ogni campo, cade in un minuto. Se è uno dei tuoi, è un punto.</p></div>
+      <div class="step"><div class="n">3</div><h3>Festeggia i gol</h3><p>Arriva la notifica: «Il tuo 23' è uscito!». Tocchi, e il marcatore esulta sul piedistallo. Classifica in tempo reale con gli amici, dalla prima alla decima partita.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="regole">
+  <div class="wrap">
+    <p class="eyebrow">Regole</p>
+    <h2 style="margin-top:10px">Poche regole, tutte raccontabili in un messaggio.</h2>
+    <div class="rules">
+      <div class="rule"><div class="v">13</div><p><b>Tredici minuti su novanta</b>Una scelta ogni sette minuti circa: abbastanza per sentirsi in partita, abbastanza poche per contare.</p></div>
+      <div class="rule"><div class="v">+1</div><p><b>Un punto per ogni gol nei tuoi minuti</b>In qualunque partita della giornata. Due gol allo stesso minuto in due campi diversi sono due punti.</p></div>
+      <div class="rule"><div class="v g">×2</div><p><b>Primo e ultimo gol della giornata valgono doppio</b>Il minuto della prima e dell'ultima rete del pomeriggio, in ordine di orologio tra tutti i campi, vale 2 punti.</p></div>
+      <div class="rule"><div class="v">90+</div><p><b>Il recupero è una scelta a parte</b>Scegli se puntare sul recupero del primo o del secondo tempo. I minuti si contano come li dà l'arbitro.</p></div>
+      <div class="rule"><div class="v">⏱</div><p><b>Scadenza al fischio d'inizio</b>Dopo il calcio d'inizio della prima partita il sistema rifiuta ogni pronostico, anche inviato aggirando l'app.</p></div>
+      <div class="rule"><div class="v">Σ</div><p><b>Classifica per torneo</b>La generale somma le giornate del torneo in corso. I Mondiali restano consultabili a parte.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="festa">
+  <div class="wrap">
+    <p class="eyebrow">Il gol</p>
+    <h2 style="margin-top:10px">Quando esce un tuo minuto, lo senti.</h2>
+    <div class="why">
+      <div class="video">
+        <video id="video-gol" src="/investitori/gol.mp4" poster="/investitori/poster.jpg" controls playsinline preload="metadata"></video>
+      </div>
+      <ul>
+        <li><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg><div><b>La notifica arriva sul telefono</b><p>Gol in diretta, a scelta: tutti, oppure solo quando esce un tuo minuto. Web Push standard, nessun costo esterno, si attiva dal profilo.</p></div></li>
+        <li><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M11 18h2"/></svg><div><b>Un tocco apre il popup del gol</b><p>Minuto, partita, risultato, e il marcatore che esulta sul piedistallo: foto a licenza libera con la maglia del club, ritagliata e animata dal telefono. Quando non c'è una foto pulita, una statuina con la divisa giusta.</p></div></li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M6 20V9l6-5 6 5v11"/><path d="M10 20v-6h4v6"/></svg><div><b>La classifica si muove in diretta</b><p>Punti «finora», minuti azzeccati in verde, posizione tra gli amici. Si aggiorna ogni minuto e a ogni riapertura dell'app.</p></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="test">
+  <div class="wrap">
+    <p class="eyebrow">I test · Mondiali 2026</p>
+    <h2 style="margin-top:10px">Giocato per un mese intero, con partite vere e persone vere.</h2>
+    <p class="intro">Durante il Mondiale dell'estate 2026 il gioco è stato in mano a una community di amici e conoscenti: una schedina per le giornate di gare e una classifica generale del torneo. Non un sondaggio: settimane di uso reale, la sera, davanti alla TV.</p>
+    <div class="lezioni">
+      <div class="lez"><p class="eyebrow">Abbiamo visto</p><b>Si gioca dal telefono, in fretta, spesso all'ultimo</b><p>Le schedine arrivavano a ridosso del fischio d'inizio, quasi tutte da telefono.</p><p class="eyebrow fatto">Quindi</p><p>App solo mobile, tutto a portata di pollice, giocata in trenta secondi. Il promemoria push prima della scadenza a chi non ha ancora giocato.</p></div>
+      <div class="lez"><p class="eyebrow">Abbiamo visto</p><b>Il momento buono è durante la partita</b><p>Le persone chiedevano «a quanto sono?» mentre le gare erano in corso, non il giorno dopo.</p><p class="eyebrow fatto">Quindi</p><p>Diretta gol per gol con punti «finora», classifica provvisoria, notifica quando esce un tuo minuto e il popup che lo festeggia.</p></div>
+      <div class="lez"><p class="eyebrow">Abbiamo visto</p><b>La registrazione è il primo ostacolo</b><p>Chi riceveva il link su WhatsApp voleva provare subito; il modulo di iscrizione fermava una parte dei nuovi.</p><p class="eyebrow fatto">Quindi</p><p>Si gioca la prima schedina senza account: resta sul telefono e diventa tua quando ti registri.</p></div>
+      <div class="lez"><p class="eyebrow">Abbiamo visto</p><b>I pomeriggi con pochi gol spengono la suspense</b><p>Quando i gol tardano, i punteggi restano piatti e la classifica non si muove.</p><p class="eyebrow fatto">Quindi</p><p>Il primo e l'ultimo gol della giornata valgono doppio: c'è qualcosa in gioco dal primo minuto all'ultimo recupero, su tutti i campi.</p></div>
+      <div class="lez"><p class="eyebrow">Abbiamo visto</p><b>La classifica tra amici è il motore</b><p>Si tornava a giocare per sorpassare chi si conosce, non per il punteggio in sé.</p><p class="eyebrow fatto">Quindi</p><p>Classifica per torneo sempre a un tocco, notifica di punti e posizione a fine giornata, condivisione del link al gruppo.</p></div>
+      <div class="lez"><p class="eyebrow">Abbiamo visto</p><b>La meccanica regge anche con dieci partite insieme</b><p>Dal Mondiale, una o due gare alla volta, ai campionati italiani: dieci campi nello stesso pomeriggio.</p><p class="eyebrow fatto">Quindi</p><p>Test chiuso del 17 ottobre 2026 con Serie A, B e C, circa cento persone: la community dei Mondiali più pochi nuovi.</p></div>
+    </div>
+    <p class="sub" style="margin-top:22px;max-width:70ch">I numeri del test (iscritti, schedine giocate, ritorno settimana dopo settimana) sono disponibili su richiesta.</p>
+  </div>
+</section>
+
+<section class="block" id="prodotto">
+  <div class="wrap">
+    <p class="eyebrow">Prodotto</p>
+    <h2 style="margin-top:10px">Già online, già giocato.</h2>
+    <p class="intro">Una web app che si installa dal link di WhatsApp, senza store. Un pannello per chi gestisce la giornata, dal telefono.</p>
+    <div class="stack">
+      <div class="have"><b>App installabile (PWA)</b><p>Si apre dal link, si aggiunge alla schermata Home su iPhone e Android. Nessuna app da approvare, aggiornamenti immediati.</p></div>
+      <div class="have"><b>Si gioca senza account</b><p>La prima schedina resta sul telefono. Quando ti registri, diventa la tua.</p></div>
+      <div class="have"><b>Diretta dal pannello</b><p>Chi segue la giornata inserisce minuto e squadra con un tocco: punteggi, minuti validi, primo e ultimo gol si calcolano da soli.</p></div>
+      <div class="have"><b>Notifiche push</b><p>Gol, punti di fine giornata, promemoria prima della scadenza, messaggio libero dell'admin.</p></div>
+      <div class="have"><b>Scadenza blindata</b><p>Il database rifiuta i pronostici dopo il calcio d'inizio: con la diretta visibile, altrimenti, si potrebbe barare.</p></div>
+      <div class="have"><b>Tornei e classifiche</b><p>Mondiali 2026 e campionati italiani 2026/27, con classifiche separate e la pagina delle regole pubblica.</p></div>
+    </div>
+    <div class="timeline">
+      <div class="tl"><div class="d">Estate 2026</div><div><b>Mondiali: la prima community</b><p>Il gioco nasce con le partite del Mondiale, giocato da una community di amici e conoscenti.</p></div></div>
+      <div class="tl"><div class="d">17 ottobre 2026</div><div><b>Campionati italiani, test chiuso</b><p>Serie A, B e C nello stesso pomeriggio. Nuova meccanica dei punti doppi, diretta e notifiche.</p></div></div>
+      <div class="tl"><div class="d">Oggi</div><div><b>La demo che state provando</b><p>Grafica nuova, gioco senza registrazione, il gol che si festeggia.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>90 &amp; Goal · demo riservata per investitori</span>
+    <span>Fun game: nessuna scommessa, nessun denaro in gioco.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  // La demo: lo stesso gioco, in piccolo. Partite di una giornata vera (17 ottobre 2026),
+  // gol di esempio sparsi sui dieci campi, orologio accelerato: 90 minuti in circa 50 secondi.
+  const PARTITE = [
+    ['Reggiana','Torres','C'],['Vado','Sanbenedettese','C'],['Pianese','Pineto','C'],['Guidonia','Forlì','C'],['Carpi','Lumezzane','C'],
+    ['Ascoli','Empoli','B'],['Carrarese','Modena','B'],['Benevento','LR Vicenza','B'],['Padova','Entella','B'],['Venezia','Napoli','A'],
+  ]
+  // [minuto, partita, 0=casa 1=ospite, recupero?]
+  const GOL = [
+    [7,9,1],[12,5,0],[19,2,1],[23,9,1],[27,0,0],[34,6,1],[41,7,0],[45,3,0,'primo'],
+    [52,9,0],[58,1,1],[61,5,1],[66,8,0],[70,4,0],[77,9,1],[81,2,1],[86,6,0],[90,7,1,'secondo'],
+  ]
+  const TINTE = { Reggiana:'#7a1f2b', Torres:'#c4161c', Vado:'#c4161c', Sanbenedettese:'#c4161c', Pianese:'#1f4fa8', Pineto:'#1f6fd1', Guidonia:'#c4161c', 'Forlì':'#c4161c', Carpi:'#c4161c', Lumezzane:'#c4161c', Ascoli:'#1b1b1d', Empoli:'#1a5fb4', Carrarese:'#1f3f8f', Modena:'#f2c418', Benevento:'#c4161c', 'LR Vicenza':'#c4161c', Padova:'#c4161c', Entella:'#1f3f8f', Venezia:'#1b1b1d', Napoli:'#1c8ad6' }
+  const ALTRI = [['Max', 6],['Roberto', 5],['Giulia', 4],['Andrea', 3]]   // classifica di esempio
+
+  const view = document.getElementById('view'), actions = document.getElementById('actions')
+  const velo = document.getElementById('velo'), toast = document.getElementById('toast'), badge = document.getElementById('live-badge')
+  const stato = { minuti: new Set(), recupero: null, fase: 'scelta', orologio: 0, punti: 0, risultati: [], feed: [], timer: null }
+  const sig = t => `<span class="sig" style="background:${TINTE[t] || '#5b6b8c'}">${t.slice(0,2).toUpperCase()}</span>`
+  const h = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))
+
+  function scelta() {
+    stato.fase = 'scelta'; badge.style.display = 'none'
+    let celle = ''
+    for (let m = 1; m <= 90; m++) celle += `<button class="cell ${stato.minuti.has(m) ? 'on' : ''}" data-m="${m}" type="button" aria-pressed="${stato.minuti.has(m)}">${m}</button>`
+    view.innerHTML = `
+      <div class="card">
+        <h3>Giornata del 17 ottobre</h3>
+        <p class="sub">10 partite · Serie A, B e C · si chiude alle 14:30</p>
+        <div class="counter"><span class="sub">Minuti scelti</span><span class="num big"><span id="n">${stato.minuti.size}</span><span class="sub"> / 13</span></span></div>
+        <div class="grid" id="grid">${celle}</div>
+        <p class="sub" style="margin-top:12px">Recupero</p>
+        <div class="seg" id="seg">
+          <button type="button" data-r="primo" class="${stato.recupero === 'primo' ? 'on' : ''}">1° tempo</button>
+          <button type="button" data-r="secondo" class="${stato.recupero === 'secondo' ? 'on' : ''}">2° tempo</button>
+        </div>
+      </div>`
+    actions.innerHTML = `
+      <button class="btn btn-primary" id="gioca" type="button" ${stato.minuti.size === 13 ? '' : 'disabled'}>Fischio d'inizio</button>
+      <button class="btn btn-ghost" id="caso" type="button">Scegli per me</button>`
+    view.scrollTop = 0
+    document.getElementById('grid').addEventListener('click', e => {
+      const b = e.target.closest('.cell'); if (!b) return
+      const m = +b.dataset.m
+      if (stato.minuti.has(m)) stato.minuti.delete(m)
+      else if (stato.minuti.size < 13) stato.minuti.add(m)
+      else { b.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 240 }); return }
+      b.classList.toggle('on', stato.minuti.has(m)); b.setAttribute('aria-pressed', stato.minuti.has(m))
+      document.getElementById('n').textContent = stato.minuti.size
+      document.getElementById('gioca').disabled = stato.minuti.size !== 13
+    })
+    document.getElementById('seg').addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return
+      stato.recupero = stato.recupero === b.dataset.r ? null : b.dataset.r
+      for (const x of e.currentTarget.children) x.classList.toggle('on', x.dataset.r === stato.recupero)
+    })
+    document.getElementById('caso').addEventListener('click', () => {
+      stato.minuti.clear()
+      while (stato.minuti.size < 13) stato.minuti.add(1 + Math.floor(Math.random() * 90))
+      stato.recupero = Math.random() < 0.5 ? 'primo' : 'secondo'
+      scelta()
+    })
+    document.getElementById('gioca').addEventListener('click', diretta)
+  }
+
+  function diretta() {
+    stato.fase = 'live'; stato.orologio = 0; stato.punti = 0; stato.feed = []
+    stato.risultati = PARTITE.map(() => [0, 0])
+    badge.style.display = 'inline-flex'
+    const primo = Math.min(...GOL.map(g => g[0])), ultimo = Math.max(...GOL.map(g => g[0]))
+    stato.primo = primo; stato.ultimo = ultimo
+    disegnaLive()
+    actions.innerHTML = `<button class="btn btn-ghost" id="stop" type="button">Ricomincia</button>`
+    document.getElementById('stop').addEventListener('click', () => { clearInterval(stato.timer); chiudiVelo(); stato.minuti.clear(); stato.recupero = null; scelta() })
+    const passo = 560   // ms per minuto di gioco
+    let idx = 0
+    clearInterval(stato.timer)
+    stato.timer = setInterval(() => {
+      stato.orologio++
+      while (idx < GOL.length && GOL[idx][0] <= stato.orologio) { gol(GOL[idx]); idx++ }
+      aggiornaOrologio()
+      if (stato.orologio >= 93) { clearInterval(stato.timer); setTimeout(fine, 1200) }
+    }, passo)
+  }
+
+  function etichettaMin(g) { return g[3] ? (g[0] === 45 ? "45'+2" : "90'+3") : `${g[0]}'` }
+
+  function gol(g) {
+    const [m, p, lato, rec] = g
+    stato.risultati[p][lato]++
+    const [casa, osp] = PARTITE[p]
+    const squadra = lato ? osp : casa
+    const mio = rec ? stato.recupero === rec : stato.minuti.has(m)
+    const doppio = mio && !rec && (m === stato.primo || m === stato.ultimo)
+    const valore = mio ? (doppio ? 2 : 1) : 0
+    stato.punti += valore
+    stato.feed.unshift({ g, squadra, mio, doppio, valore })
+    disegnaLive(p)
+    if (mio) {
+      mostraToast(`Il tuo ${etichettaMin(g)} è uscito!`, `${casa} ${stato.risultati[p][0]}-${stato.risultati[p][1]} ${osp} · segna ${squadra}`)
+      setTimeout(() => popup(g, squadra, casa, osp, valore), 1400)
+    } else {
+      mostraToast(`Gol: ${squadra}`, `${casa} ${stato.risultati[p][0]}-${stato.risultati[p][1]} ${osp} al ${etichettaMin(g)}`)
+    }
+  }
+
+  let toastT
+  function mostraToast(t, b) {
+    document.getElementById('toast-t').textContent = t
+    document.getElementById('toast-b').textContent = b
+    toast.classList.add('show'); clearTimeout(toastT)
+    toastT = setTimeout(() => toast.classList.remove('show'), 1900)
+  }
+
+  function disegnaLive(flash) {
+    const celle = [...stato.minuti].sort((a, b) => a - b).map(m => {
+      const colpito = stato.feed.find(f => !f.g[3] && f.g[0] === m)
+      return `<button class="cell ${colpito ? (colpito.doppio ? 'hit2' : 'hit') : 'on'}" disabled>${m}</button>`
+    }).join('')
+    const righe = PARTITE.map(([c, o, s], i) => `
+      <div class="match ${flash === i ? 'flash' : ''}">
+        <div class="t">${sig(c)}<span>${h(c)}</span></div>
+        <div class="score">${stato.orologio > 0 ? `${stato.risultati[i][0]}-${stato.risultati[i][1]}` : s}</div>
+        <div class="t r"><span>${h(o)}</span>${sig(o)}</div>
+      </div>`).join('')
+    const feed = stato.feed.slice(0, 6).map(f => `
+      <div class="ev ${f.mio ? 'mine' : ''} ${f.doppio ? 'd2' : ''}"><span class="m">${etichettaMin(f.g)}</span><span>${h(f.squadra)}</span>${f.mio ? `<span class="tag">+${f.valore}${f.doppio ? ' · primo/ultimo' : ''}</span>` : ''}</div>`).join('')
+    view.innerHTML = `
+      <div class="card">
+        <div class="clock"><div><p class="sub">In campo</p><div class="num min" id="min">${stato.orologio}'</div></div>
+        <div class="pts"><p class="sub">Punti finora</p><b class="num" id="pts">${stato.punti}</b></div></div>
+        <div class="bar"><i id="bar" style="width:${Math.min(100, stato.orologio / 90 * 100)}%"></i></div>
+        <div class="grid" style="grid-template-columns:repeat(13,1fr)">${celle}</div>
+        ${stato.recupero ? `<p class="sub" style="margin-top:8px">Recupero: ${stato.recupero === 'primo' ? '1°' : '2°'} tempo</p>` : ''}
+      </div>
+      <div class="card">${righe}</div>
+      ${feed ? `<div class="card"><p class="sub">Gol della giornata</p><div class="feed">${feed}</div></div>` : ''}`
+  }
+  function aggiornaOrologio() {
+    const m = document.getElementById('min'), b = document.getElementById('bar')
+    if (m) m.textContent = stato.orologio <= 90 ? `${stato.orologio}'` : `90'+${stato.orologio - 90}`
+    if (b) b.style.width = `${Math.min(100, stato.orologio / 90 * 100)}%`
+  }
+
+  function popup(g, squadra, casa, osp, valore) {
+    const tinta = TINTE[squadra] || '#5b6b8c'
+    velo.innerHTML = `
+      <div class="foglio" role="dialog" aria-label="Gol al ${etichettaMin(g)}">
+        <div class="festa">
+          <canvas id="coriandoli"></canvas>
+          <div class="lab"><p class="eyebrow">Gol</p><div class="num min">${etichettaMin(g)}</div></div>
+          <div class="tuo"><small>È tuo</small><b>+${valore}</b></div>
+          <svg class="maglia" viewBox="0 0 92 110" aria-hidden="true">
+            <path d="M30 6 L46 14 L62 6 L86 18 L78 40 L66 36 L66 104 L26 104 L26 36 L14 40 L6 18 Z" fill="${tinta}" stroke="rgba(0,0,0,0.15)"/>
+            <text x="46" y="70" text-anchor="middle" font-family="Poppins, sans-serif" font-weight="700" font-size="30" fill="#fff">${(stato.risultati.flat().reduce((a, b) => a + b, 0) * 7) % 23 + 1}</text>
+          </svg>
+          <div class="base"></div>
+        </div>
+        <div class="body">
+          <h3>${h(squadra)}</h3>
+          <div class="riga">${sig(casa)}<span>${h(casa)}</span><span class="score">${casa === squadra ? '' : ''}${stato.risultati[PARTITE.findIndex(p => p[0] === casa)].join('-')}</span><span class="r">${h(osp)}</span>${sig(osp)}</div>
+          <button class="btn btn-primary" id="chiudi" type="button" style="justify-content:center">Torna alla partita</button>
+        </div>
+      </div>`
+    velo.classList.add('show')
+    document.getElementById('chiudi').addEventListener('click', chiudiVelo)
+    velo.addEventListener('click', e => { if (e.target === velo) chiudiVelo() }, { once: true })
+    coriandoli(document.getElementById('coriandoli'))
+    clearTimeout(stato.autoChiudi); stato.autoChiudi = setTimeout(chiudiVelo, 3600)
+  }
+  function chiudiVelo() { velo.classList.remove('show'); velo.innerHTML = ''; cancelAnimationFrame(stato.raf) }
+
+  function coriandoli(c) {
+    const r = c.getBoundingClientRect(); c.width = r.width * 2; c.height = r.height * 2
+    const g = c.getContext('2d'), col = ['#1d4fd7', '#c98a06', '#16a34a', '#ffffff', '#3b6cf0', '#f2c418']
+    const pz = Array.from({ length: 140 }, () => ({ x: c.width / 2, y: c.height * 0.75, vx: (Math.random() - 0.5) * 22, vy: -Math.random() * 26 - 6, w: 6 + Math.random() * 8, h: 4 + Math.random() * 5, a: Math.random() * 6, va: (Math.random() - 0.5) * 0.3, col: col[Math.floor(Math.random() * col.length)] }))
+    let t = 0
+    const passo = () => {
+      g.clearRect(0, 0, c.width, c.height); t++
+      for (const p of pz) {
+        p.x += p.vx; p.y += p.vy; p.vy += 0.6; p.vx *= 0.99; p.a += p.va
+        g.save(); g.translate(p.x, p.y); g.rotate(p.a); g.fillStyle = p.col; g.globalAlpha = Math.max(0, 1 - t / 170); g.fillRect(-p.w / 2, -p.h / 2, p.w, p.h); g.restore()
+      }
+      if (t < 170) stato.raf = requestAnimationFrame(passo)
+    }
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) passo()
+  }
+
+  function fine() {
+    stato.fase = 'fine'; badge.style.display = 'none'; chiudiVelo()
+    const righe = [...ALTRI.map(([n, p]) => ({ n, p })), { n: 'Tu', p: stato.punti, me: true }].sort((a, b) => b.p - a.p)
+    const miei = stato.feed.filter(f => f.mio)
+    view.innerHTML = `
+      <div class="card final">
+        <p class="sub">Fine giornata</p>
+        <div class="num big">${stato.punti} <span style="font-size:20px;color:var(--muted)">punti</span></div>
+        <p class="sub" style="margin-top:6px">${miei.length} gol nei tuoi minuti su ${GOL.length} segnati${miei.some(f => f.doppio) ? ', uno valeva doppio' : ''}.</p>
+        <p class="sub" style="margin-top:14px">Classifica di esempio</p>
+        <div class="rank">${righe.map((r, i) => `<div class="${r.me ? 'me' : ''}"><b>${i + 1}</b><span>${r.n}</span><b class="num">${r.p}</b></div>`).join('')}</div>
+      </div>`
+    actions.innerHTML = `<button class="btn btn-primary" id="ancora" type="button">Gioca un'altra giornata</button>`
+    document.getElementById('ancora').addEventListener('click', () => { stato.minuti.clear(); stato.recupero = null; scelta() })
+  }
+
+  document.getElementById('cta-gioca').addEventListener('click', () => {
+    document.getElementById('phone').scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (stato.fase === 'scelta' && stato.minuti.size === 0) document.getElementById('caso').click()
+  })
+  scelta()
+})()
+</script>
+</body>
+</html>

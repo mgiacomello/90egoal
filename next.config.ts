@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     return [
       { source: "/", has: [{ type: "host", value: "lab\\..*" }], destination: "/lab/index.html" },
       { source: "/lab", destination: "/lab/index.html" },
+      // Pagina per gli investitori: statica in public/investitori, fuori dal guscio dell'app.
+      { source: "/investitori", destination: "/investitori/index.html" },
     ];
   },
   async headers() {

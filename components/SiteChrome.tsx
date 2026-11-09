@@ -11,7 +11,7 @@ import GolPopup from '@/components/GolPopup'
  * non deve comparire (e il tracker non deve girare). Ogni altra rotta resta
  * esattamente com'era.
  */
-const STANDALONE = ['/onetap']
+const STANDALONE = ['/onetap', '/investitori']
 
 export default function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
