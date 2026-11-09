@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#eef3fb">
+<link rel="icon" href="/icons/icon-192.png">
+<title>90 & Goal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/investitori/stile.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="tile">90</span><span><span class="amp">&amp;</span> Goal</span></div>
+    <nav>
+      <a href="#forti">Strengths</a>
+      <a href="#gioco">The game</a>
+      <a href="#regole">Rules</a>
+      <a href="#festa">The goal</a>
+      <a href="#test">The tests</a>
+      <a href="#prodotto">Product</a>
+      <a href="#demo">Demo</a>
+      <a class="lang" href="/investitori" lang="it" hreflang="it">IT</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" id="demo">
+  <div class="aurora" aria-hidden="true"><i></i><i></i><i></i></div>
+  <svg class="campo" viewBox="0 0 1400 520" aria-hidden="true">
+    <rect x="40" y="40" width="1320" height="760" rx="4"/>
+    <line x1="700" y1="40" x2="700" y2="800"/>
+    <circle cx="700" cy="420" r="120"/>
+    <circle cx="700" cy="420" r="4"/>
+    <rect x="40" y="200" width="200" height="440"/>
+    <rect x="1160" y="200" width="200" height="440"/>
+    <rect x="40" y="320" width="70" height="200"/>
+    <rect x="1290" y="320" width="70" height="200"/>
+    <circle class="palla" r="7"/>
+  </svg>
+  <div class="chips-float" id="chips" aria-hidden="true"></div>
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Serie A · B · C · World Cup</p>
+      <h1 style="margin-top:12px"><span class="w">Guess</span> <span class="w">the</span> <span class="w"><em>minute</em></span> <span class="w">of the</span> <span class="w">goal.</span></h1>
+      <p class="lead">Ten matches on the same afternoon. You pick 13 minutes. Every goal scored in one of your minutes, in any of the matches, is a point.</p>
+      <div class="pills">
+        <span class="pill">Played in 30 seconds</span>
+        <span class="pill">Every goal in every match counts</span>
+        <span class="pill">The Saturday second screen</span>
+        <span class="pill">Fun game, no betting</span>
+      </div>
+      <div class="cta">
+        <button class="btn btn-primary" id="cta-gioca" type="button">Try the demo on the right →</button>
+        <a class="btn btn-ghost" href="#gioco">How it works</a>
+      </div>
+      <p class="sub" style="margin-top:18px;max-width:44ch">The demo is the real game in miniature: pick your minutes, then watch a simulated 90-minute matchday run in under a minute.</p>
+    </div>
+
+    <div class="phone-col">
+      <div class="phone" id="phone">
+        <div class="screen">
+          <div class="notch"></div>
+          <div class="status"><span class="num">15:00</span><span>●●●</span></div>
+          <div class="app">
+            <div class="app-title">
+              <div class="brand"><span class="tile">90</span><span><span class="amp">&amp;</span> Goal</span></div>
+              <span class="live-badge" id="live-badge">LIVE</span>
+            </div>
+            <div class="view" id="view"></div>
+            <div class="app-actions" id="actions"></div>
+          </div>
+          <div class="toast" id="toast">
+            <span class="tile brand" style="display:grid">90</span>
+            <div style="min-width:0"><b id="toast-t">Goal!</b><span id="toast-b" style="color:var(--muted)"></span></div>
+          </div>
+          <div class="velo" id="velo"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="ticker" aria-hidden="true"><div class="rail" id="ticker"></div></div>
+
+<section class="block" id="forti">
+  <div class="wrap">
+    <p class="eyebrow">Strengths</p>
+    <h2 style="margin-top:10px">A game that fits in one sentence and lasts the whole afternoon.</h2>
+    <p class="intro">Fantasy football asks for hours and expertise. Betting asks for money and licences. 90 &amp; Goal asks for thirty seconds and gives back ninety minutes of attention, on every pitch.</p>
+    <div class="forti">
+      <div class="forte"><div class="k num">30"</div><b>Explained and played in one message</b><p>"Pick 13 minutes." Whoever gets the link understands and plays: no tutorial, no sign-up, no line-ups to study.</p></div>
+      <div class="forte"><div class="k num">×10</div><b>Every goal in every match is yours</b><p>You are not following one team: ten pitches at once, and any goal, even in Serie C, can be yours. That is why people watch the whole afternoon.</p></div>
+      <div class="forte"><div class="k num">2nd</div><b>Second screen, not a rival</b><p>It lives next to the match on TV or at the stadium. Notification, goal popup, standings: three seconds and back to the game.</p></div>
+      <div class="forte"><div class="k num">∞</div><b>It renews itself every week</b><p>No content to produce: every matchday is a new card. World Cup, Serie A, B and C, cups: the mechanic never changes.</p></div>
+      <div class="forte"><div class="k num">€0</div><b>Fun game, not betting</b><p>No money at stake, no licence, no age checks. Right for brands, media and leagues that want engagement without the reputational risk of gambling.</p></div>
+      <div class="forte"><div class="k num">1</div><b>One link, one afternoon, one table among friends</b><p>It spreads where people already talk football: the WhatsApp group. The table among friends is what brings people back next week.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="gioco">
+  <div class="wrap">
+    <p class="eyebrow">The game</p>
+    <h2 style="margin-top:10px">Three gestures, the whole football afternoon.</h2>
+    <p class="intro">No line-ups, no odds, nothing to study. Playing is faster than sending a message. Then every goal, in any match, becomes something that concerns you.</p>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><h3>Pick 13 minutes</h3><p>From 1' to 90', plus first- or second-half stoppage time. You pick them on your phone, in thirty seconds, even without signing up: your first card stays on the phone.</p></div>
+      <div class="step"><div class="n">2</div><h3>Watch the matches</h3><p>Ten games from Serie A, B and C on the same afternoon. Every goal, on every pitch, falls in a minute. If it is one of yours, it is a point.</p></div>
+      <div class="step"><div class="n">3</div><h3>Celebrate the goals</h3><p>The notification arrives: "Your 23' came in!". Tap, and the scorer celebrates on the pedestal. Live standings with your friends, from the first match to the tenth.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="regole">
+  <div class="wrap">
+    <p class="eyebrow">Rules</p>
+    <h2 style="margin-top:10px">Few rules, all of them fit in a text message.</h2>
+    <div class="rules">
+      <div class="rule"><div class="v">13</div><p><b>Thirteen minutes out of ninety</b>One pick every seven minutes or so: enough to feel in the game, few enough to matter.</p></div>
+      <div class="rule"><div class="v">+1</div><p><b>One point for every goal in your minutes</b>In any match of the day. Two goals in the same minute on two different pitches are two points.</p></div>
+      <div class="rule"><div class="v g">×2</div><p><b>The first and last goal of the day count double</b>The minute of the first and the last goal of the afternoon, by the clock across all pitches, is worth 2 points.</p></div>
+      <div class="rule"><div class="v">90+</div><p><b>Stoppage time is a separate pick</b>Choose whether to back first-half or second-half stoppage time. Minutes count as the referee gives them.</p></div>
+      <div class="rule"><div class="v">⏱</div><p><b>Deadline at kick-off</b>After the first match kicks off, the system refuses every prediction, even one sent around the app.</p></div>
+      <div class="rule"><div class="v">Σ</div><p><b>Standings per tournament</b>The overall table adds up the matchdays of the current tournament. The World Cup stays available on its own.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="festa">
+  <div class="wrap">
+    <p class="eyebrow">The goal</p>
+    <h2 style="margin-top:10px">When one of your minutes comes in, you feel it.</h2>
+    <div class="why">
+      <div class="festa-video">
+        <canvas id="festa-canvas" aria-hidden="true"></canvas>
+        <div class="video">
+          <video id="video-gol" src="/investitori/gol.mp4" poster="/investitori/poster.jpg" playsinline loop muted preload="metadata"></video>
+          <button class="audio" id="audio" type="button" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M16 9a4 4 0 0 1 0 6"/></svg>Turn sound on</button>
+        </div>
+      </div>
+      <ul>
+        <li><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10 21a2 2 0 0 0 4 0"/></svg><div><b>The notification reaches the phone</b><p>Live goals, your choice: all of them, or only when one of your minutes comes in. Standard Web Push, no external cost, switched on from the profile.</p></div></li>
+        <li><svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3"/><path d="M11 18h2"/></svg><div><b>One tap opens the goal popup</b><p>Minute, match, score, and the scorer celebrating on the pedestal: a freely licensed photo in the club shirt, cut out and animated on the phone. When there is no clean photo, a figurine in the right kit.</p></div></li>
+        <li><svg viewBox="0 0 24 24"><path d="M4 20h16"/><path d="M6 20V9l6-5 6 5v11"/><path d="M10 20v-6h4v6"/></svg><div><b>The standings move live</b><p>Points "so far", minutes hit in green, your position among friends. Updated every minute and every time the app is reopened.</p></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="test">
+  <div class="wrap">
+    <p class="eyebrow">The tests · World Cup 2026</p>
+    <h2 style="margin-top:10px">Played for a whole month, with real matches and real people.</h2>
+    <p class="intro">During the summer 2026 World Cup the game was in the hands of a community of friends and acquaintances: one card for each matchday and an overall tournament table. Not a survey: weeks of real use, in the evening, in front of the TV.</p>
+    <div class="lezioni">
+      <div class="lez"><p class="eyebrow">What we saw</p><b>People play on the phone, fast, often at the last minute</b><p>Cards came in close to kick-off, almost all from phones.</p><p class="eyebrow fatto">So</p><p>Mobile-only app, everything within thumb reach, a card played in thirty seconds. A push reminder before the deadline to whoever has not played yet.</p></div>
+      <div class="lez"><p class="eyebrow">What we saw</p><b>The right moment is during the match</b><p>People asked "how many points do I have?" while the games were on, not the day after.</p><p class="eyebrow fatto">So</p><p>Goal-by-goal live with points "so far", provisional standings, a notification when one of your minutes comes in and the popup that celebrates it.</p></div>
+      <div class="lez"><p class="eyebrow">What we saw</p><b>Sign-up is the first obstacle</b><p>Whoever got the link on WhatsApp wanted to try right away; the registration form stopped some of the newcomers.</p><p class="eyebrow fatto">So</p><p>The first card is played without an account: it stays on the phone and becomes yours when you register.</p></div>
+      <div class="lez"><p class="eyebrow">What we saw</p><b>Afternoons with few goals kill the suspense</b><p>When goals are late, scores stay flat and the table does not move.</p><p class="eyebrow fatto">So</p><p>The first and last goal of the day count double: there is something at stake from the first minute to the last second of stoppage time, on every pitch.</p></div>
+      <div class="lez"><p class="eyebrow">What we saw</p><b>The table among friends is the engine</b><p>People came back to overtake someone they knew, not for the score itself.</p><p class="eyebrow fatto">So</p><p>Standings per tournament always one tap away, a notification with points and position at the end of the day, the link shared to the group.</p></div>
+      <div class="lez"><p class="eyebrow">What we saw</p><b>The mechanic holds up with ten matches at once</b><p>From the World Cup, one or two games at a time, to the Italian leagues: ten pitches on the same afternoon.</p><p class="eyebrow fatto">So</p><p>Closed test on 17 October 2026 with Serie A, B and C, about a hundred people: the World Cup community plus a few newcomers.</p></div>
+    </div>
+    <p class="sub" style="margin-top:22px;max-width:70ch">Test figures (sign-ups, cards played, week-on-week return) are available on request.</p>
+  </div>
+</section>
+
+<section class="block" id="prodotto">
+  <div class="wrap">
+    <p class="eyebrow">Product</p>
+    <h2 style="margin-top:10px">Already live, already played.</h2>
+    <p class="intro">A web app that installs from a WhatsApp link, no store. A panel for whoever runs the matchday, from the phone.</p>
+    <div class="stack">
+      <div class="have"><b>Installable app (PWA)</b><p>Opens from the link, adds to the Home screen on iPhone and Android. No app to get approved, instant updates.</p></div>
+      <div class="have"><b>Play without an account</b><p>The first card stays on the phone. When you sign up, it becomes yours.</p></div>
+      <div class="have"><b>Live from the panel</b><p>Whoever follows the matchday enters minute and team with one tap: scores, valid minutes, first and last goal work themselves out.</p></div>
+      <div class="have"><b>Push notifications</b><p>Goals, end-of-day points, a reminder before the deadline, a free message from the admin.</p></div>
+      <div class="have"><b>Locked deadline</b><p>The database refuses predictions after kick-off: with the live view visible, you could otherwise cheat.</p></div>
+      <div class="have"><b>Tournaments and standings</b><p>World Cup 2026 and Italian leagues 2026/27, with separate standings and a public rules page.</p></div>
+    </div>
+    <div class="timeline">
+      <div class="tl"><div class="d">Summer 2026</div><div><b>World Cup: the first community</b><p>The game was born with the World Cup matches, played by a community of friends and acquaintances.</p></div></div>
+      <div class="tl"><div class="d">17 October 2026</div><div><b>Italian leagues, closed test</b><p>Serie A, B and C on the same afternoon. New double-points mechanic, live and notifications.</p></div></div>
+      <div class="tl"><div class="d">Today</div><div><b>The demo you are trying</b><p>New look, play without sign-up, the goal that gets celebrated.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>90 &amp; Goal · private demo for investors</span>
+    <span>Fun game: no betting, no money at stake.</span>
+  </div>
+</footer>
+
+<script>
+window.TESTI = {
+  giornata: 'Matchday of 17 October', sottotitolo: '10 matches · Serie A, B and C · closes at 14:30', minutiScelti: 'Minutes picked',
+  recupero: 'Stoppage time', primoTempo: '1st half', secondoTempo: '2nd half', fischio: 'Kick-off', caso: 'Pick for me', ricomincia: 'Start over',
+  tuoUscito: m => `Your ${m} came in!`, segna: 'scored by', gol: 'Goal', al: 'at', primoUltimo: ' · first/last', inCampo: 'On the pitch', puntiFinora: 'Points so far',
+  golGiornata: 'Goals of the day', tuo: 'Yours', torna: 'Back to the match', tu: 'You', fine: 'Full time', punti: 'points',
+  riepilogo: (miei, tot, doppio) => `${miei} goals in your minutes out of ${tot} scored${doppio ? ', one counted double' : ''}.`,
+  classificaEsempio: 'Sample standings', ancora: 'Play another matchday', valeDoppio: ' · counts double', attivaAudio: 'Turn sound on', silenzia: 'Mute',
+}
+</script>
+<script src="/investitori/demo.js"></script>
+</body>
+</html>
