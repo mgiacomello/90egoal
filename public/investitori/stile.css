@@ -285,3 +285,11 @@
   .shot p { font-size: 14px; color: var(--muted); }
   .galleria .shot:nth-child(2) { margin-top: 28px; } .galleria .shot:nth-child(4) { margin-top: 28px; }
   @media (max-width: 900px) { .galleria .shot:nth-child(2), .galleria .shot:nth-child(4) { margin-top: 0; } }
+  /* La statuina fotografica nel popup della demo: il ritaglio vero del marcatore salta e si gira;
+     dietro, il cartoncino coi colori del club, nome e numero. */
+  .festa .statua { position: absolute; left: 50%; bottom: 24px; width: 86px; height: 150px; margin-left: -43px; transform-style: preserve-3d; animation: esulta 2.2s cubic-bezier(.45,.05,.55,.95) 0.25s infinite; }
+  .festa .statua .fronte, .festa .statua .retro { position: absolute; inset: 0; backface-visibility: hidden; border-radius: 10px; }
+  .festa .statua .fronte img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; filter: drop-shadow(0 10px 14px rgba(20,48,31,0.35)); }
+  .festa .statua .retro { transform: rotateY(180deg); display: grid; place-content: center; gap: 2px; color: #fff; text-align: center; border-radius: 14px; clip-path: polygon(30% 0, 70% 0, 100% 14%, 100% 100%, 0 100%, 0 14%); box-shadow: inset 0 0 0 2px rgba(255,255,255,0.35); }
+  .festa .statua .retro span { font: 700 9px var(--sans); letter-spacing: 0.08em; } .festa .statua .retro b { font: 700 34px var(--display); line-height: 1; }
+  @keyframes esulta { 0% { transform: translateY(0) rotateY(0deg); } 18% { transform: translateY(-26px) rotateY(0deg); } 36% { transform: translateY(0) rotateY(0deg); } 52% { transform: translateY(-14px) rotateY(180deg); } 68% { transform: translateY(0) rotateY(360deg); } 84% { transform: translateY(-20px) rotateY(360deg); } 100% { transform: translateY(0) rotateY(360deg); } }
