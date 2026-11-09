@@ -20,7 +20,7 @@ export default async function AccessoInvestitori({ searchParams }: { searchParam
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Password</span>
           <input id="password" name="password" type="password" autoComplete="current-password" autoFocus required
-            className="mt-1.5 w-full rounded-2xl border border-[var(--line)] bg-[var(--surface-2)] px-4 py-3 text-base outline-none focus:ring-2 focus:ring-[var(--accent)]" />
+            className="mt-1.5 w-full rounded-2xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-base text-[var(--ink)] caret-[var(--accent)] outline-none focus:ring-2 focus:ring-[var(--accent)]" style={{ color: "var(--ink)", WebkitTextFillColor: "var(--ink)" }} />
         </label>
         {errore && <p className="text-sm font-semibold text-[var(--danger)]">Password non corretta. Riprova. · Wrong password, try again.</p>}
         <button type="submit" className="btn-primary w-full py-3">Entra · Enter</button>
