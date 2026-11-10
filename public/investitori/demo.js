@@ -3,7 +3,7 @@
   // La demo: lo stesso gioco, in piccolo. Partite di una giornata vera (17 ottobre 2026),
   // gol di esempio sparsi sui dieci campi, orologio accelerato: 90 minuti in circa 50 secondi.
   const PARTITE = [
-    ['Reggiana','Torres','C'],['Vado','Sanbenedettese','C'],['Pianese','Pineto','C'],['Guidonia','Forlì','C'],['Carpi','Lumezzane','C'],
+    ['Reggiana','Torres','C'],['Vado','Sanbenedettese','C'],['Pianese','Pineto','C'],['Roma','Bologna','A'],['Carpi','Lumezzane','C'],
     ['Ascoli','Empoli','B'],['Carrarese','Modena','B'],['Benevento','LR Vicenza','B'],['Padova','Entella','B'],['Venezia','Napoli','A'],
   ]
   // [minuto, partita, 0=casa 1=ospite, recupero?]
@@ -11,14 +11,23 @@
     [7,9,1],[12,5,0],[19,2,1],[23,9,1],[27,0,0],[34,6,1],[41,7,0],[45,3,0,'primo'],
     [52,9,0],[58,1,1],[61,5,1],[66,8,0],[70,4,0],[77,9,1],[81,2,1],[86,6,0],[90,7,1,'secondo'],
   ]
-  const TINTE = { Reggiana:'#7a1f2b', Torres:'#c4161c', Vado:'#c4161c', Sanbenedettese:'#c4161c', Pianese:'#1f4fa8', Pineto:'#1f6fd1', Guidonia:'#c4161c', 'Forlì':'#c4161c', Carpi:'#c4161c', Lumezzane:'#c4161c', Ascoli:'#1b1b1d', Empoli:'#1a5fb4', Carrarese:'#1f3f8f', Modena:'#f2c418', Benevento:'#c4161c', 'LR Vicenza':'#c4161c', Padova:'#c4161c', Entella:'#1f3f8f', Venezia:'#1b1b1d', Napoli:'#1c8ad6' }
+  // Il marcatore con la foto vera (licenza libera, ritagliata dall'app): segna in uno dei minuti scelti,
+  // così nella demo si vede sempre il giocatore che esulta. Minuto provvisorio 67 per il nastro.
+  const STELLA = { partita: 3, lato: 0, nome: 'Dovbyk', numero: '11', foto: '/investitori/img/dovbyk.png' }
+  GOL.push([67, STELLA.partita, STELLA.lato, null, STELLA])
+  GOL.sort((a, b) => a[0] - b[0])
+  let GIORNATA = GOL
+  const TINTE = { Reggiana:'#7a1f2b', Torres:'#c4161c', Vado:'#c4161c', Sanbenedettese:'#c4161c', Pianese:'#1f4fa8', Pineto:'#1f6fd1', Roma:'#8e1b2b', Bologna:'#9a1b2f', Carpi:'#c4161c', Lumezzane:'#c4161c', Ascoli:'#1b1b1d', Empoli:'#1a5fb4', Carrarese:'#1f3f8f', Modena:'#f2c418', Benevento:'#c4161c', 'LR Vicenza':'#c4161c', Padova:'#c4161c', Entella:'#1f3f8f', Venezia:'#1b1b1d', Napoli:'#1c8ad6' }
   const ALTRI = [['Max', 6],['Roberto', 5],['Giulia', 4],['Andrea', 3]]   // classifica di esempio
 
   const view = document.getElementById('view'), actions = document.getElementById('actions')
   const velo = document.getElementById('velo'), toast = document.getElementById('toast'), badge = document.getElementById('live-badge')
-  const stato = { minuti: new Set(), recupero: null, fase: 'scelta', orologio: 0, punti: 0, risultati: [], feed: [], timer: null }
+  const stato = { minuti: new Set(), recupero: null, prima: '', ultima: '', fase: 'scelta', orologio: 0, punti: 0, risultati: [], feed: [], timer: null }
   const sig = t => `<span class="sig" style="background:${TINTE[t] || '#5b6b8c'}">${t.slice(0,2).toUpperCase()}</span>`
   const h = s => s.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))
+
+  const SQUADRE = [...new Set(PARTITE.flatMap(p => [p[0], p[1]]))].sort((a, b) => a.localeCompare(b))
+  const opzioniSquadre = v => `<option value="">${T.nessuna}</option>` + SQUADRE.map(s => `<option value="${h(s)}" ${s === v ? 'selected' : ''}>${h(s)}</option>`).join('')
 
   function scelta() {
     stato.fase = 'scelta'; badge.style.display = 'none'
@@ -34,6 +43,11 @@
         <div class="seg" id="seg">
           <button type="button" data-r="primo" class="${stato.recupero === 'primo' ? 'on' : ''}">${T.primoTempo}</button>
           <button type="button" data-r="secondo" class="${stato.recupero === 'secondo' ? 'on' : ''}">${T.secondoTempo}</button>
+        </div>
+        <p class="sub" style="margin-top:12px">${T.bonus}</p>
+        <div class="bonus-sel">
+          <label><span>${T.primaSquadra}</span><select id="prima">${opzioniSquadre(stato.prima)}</select></label>
+          <label><span>${T.ultimaSquadra}</span><select id="ultima">${opzioniSquadre(stato.ultima)}</select></label>
         </div>
       </div>`
     actions.innerHTML = `
@@ -55,7 +69,11 @@
       stato.recupero = stato.recupero === b.dataset.r ? null : b.dataset.r
       for (const x of e.currentTarget.children) x.classList.toggle('on', x.dataset.r === stato.recupero)
     })
+    document.getElementById('prima').addEventListener('change', e => { stato.prima = e.target.value })
+    document.getElementById('ultima').addEventListener('change', e => { stato.ultima = e.target.value })
     document.getElementById('caso').addEventListener('click', () => {
+      stato.prima = SQUADRE[Math.floor(Math.random() * SQUADRE.length)]
+      stato.ultima = SQUADRE[Math.floor(Math.random() * SQUADRE.length)]
       stato.minuti.clear()
       while (stato.minuti.size < 13) stato.minuti.add(1 + Math.floor(Math.random() * 90))
       stato.recupero = Math.random() < 0.5 ? 'primo' : 'secondo'
@@ -68,17 +86,21 @@
     stato.fase = 'live'; stato.orologio = 0; stato.punti = 0; stato.feed = []
     stato.risultati = PARTITE.map(() => [0, 0])
     badge.style.display = 'inline-flex'
-    const primo = Math.min(...GOL.map(g => g[0])), ultimo = Math.max(...GOL.map(g => g[0]))
+    const scelti = [...stato.minuti].sort((a, b) => a - b)
+    const liberi = scelti.filter(m => m > 12 && m < 86 && !GOL.some(g => g[0] === m && !g[4]))
+    const minutoStella = (liberi.length ? liberi : scelti)[Math.floor((liberi.length ? liberi : scelti).length / 2)] ?? 67
+    GIORNATA = GOL.map(g => g[4] ? [minutoStella, g[1], g[2], g[3], g[4]] : g).sort((a, b) => a[0] - b[0])
+    const primo = Math.min(...GIORNATA.map(g => g[0])), ultimo = Math.max(...GIORNATA.map(g => g[0]))
     stato.primo = primo; stato.ultimo = ultimo
     disegnaLive()
     actions.innerHTML = `<button class="btn btn-ghost" id="stop" type="button">${T.ricomincia}</button>`
-    document.getElementById('stop').addEventListener('click', () => { clearInterval(stato.timer); chiudiVelo(); stato.minuti.clear(); stato.recupero = null; scelta() })
+    document.getElementById('stop').addEventListener('click', () => { clearInterval(stato.timer); chiudiVelo(); stato.minuti.clear(); stato.recupero = null; stato.prima = ''; stato.ultima = ''; scelta() })
     const passo = 560   // ms per minuto di gioco
     let idx = 0
     clearInterval(stato.timer)
     stato.timer = setInterval(() => {
       stato.orologio++
-      while (idx < GOL.length && GOL[idx][0] <= stato.orologio) { gol(GOL[idx]); idx++ }
+      while (idx < GIORNATA.length && GIORNATA[idx][0] <= stato.orologio) { gol(GIORNATA[idx]); idx++ }
       aggiornaOrologio()
       if (stato.orologio >= 93) { clearInterval(stato.timer); setTimeout(fine, 1200) }
     }, passo)
@@ -87,12 +109,13 @@
   function etichettaMin(g) { return g[3] ? (g[0] === 45 ? "45'+2" : "90'+3") : `${g[0]}'` }
 
   function gol(g) {
-    const [m, p, lato, rec] = g
+    const [m, p, lato, rec, stella] = g
     stato.risultati[p][lato]++
     const [casa, osp] = PARTITE[p]
     const squadra = lato ? osp : casa
+    const chi = stella ? `${stella.nome} (${squadra})` : squadra
     const mio = rec ? stato.recupero === rec : stato.minuti.has(m)
-    const doppio = mio && !rec && (m === stato.primo || m === stato.ultimo)
+    const doppio = mio && !rec && m === stato.primo
     const valore = mio ? (doppio ? 2 : 1) : 0
     stato.punti += valore
     stato.feed.unshift({ g, squadra, mio, doppio, valore })
@@ -101,10 +124,10 @@
       const tel = document.getElementById('phone')
       tel.classList.remove('scossa'); void tel.offsetWidth; tel.classList.add('scossa')
       setTimeout(() => tel.classList.remove('scossa'), 600)
-      mostraToast(T.tuoUscito(etichettaMin(g)), `${casa} ${stato.risultati[p][0]}-${stato.risultati[p][1]} ${osp} · ${T.segna} ${squadra}`)
-      setTimeout(() => popup(g, squadra, casa, osp, valore), 1400)
+      mostraToast(T.tuoUscito(etichettaMin(g)), `${casa} ${stato.risultati[p][0]}-${stato.risultati[p][1]} ${osp} · ${T.segna} ${chi}`)
+      setTimeout(() => popup(g, squadra, casa, osp, valore, stella), 1400)
     } else {
-      mostraToast(`${T.gol}: ${squadra}`, `${casa} ${stato.risultati[p][0]}-${stato.risultati[p][1]} ${osp} ${T.al} ${etichettaMin(g)}`)
+      mostraToast(`${T.gol}: ${chi}`, `${casa} ${stato.risultati[p][0]}-${stato.risultati[p][1]} ${osp} ${T.al} ${etichettaMin(g)}`)
     }
   }
 
@@ -128,7 +151,7 @@
         <div class="t r"><span>${h(o)}</span>${sig(o)}</div>
       </div>`).join('')
     const feed = stato.feed.slice(0, 6).map(f => `
-      <div class="ev ${f.mio ? 'mine' : ''} ${f.doppio ? 'd2' : ''}"><span class="m">${etichettaMin(f.g)}</span><span>${h(f.squadra)}</span>${f.mio ? `<span class="tag">+${f.valore}${f.doppio ? T.primoUltimo : ''}</span>` : ''}</div>`).join('')
+      <div class="ev ${f.mio ? 'mine' : ''} ${f.doppio ? 'd2' : ''}"><span class="m">${etichettaMin(f.g)}</span><span>${h(f.squadra)}</span>${f.mio ? `<span class="tag">+${f.valore}${f.doppio ? T.primoGol : ''}</span>` : ''}</div>`).join('')
     view.innerHTML = `
       <div class="card">
         <div class="clock"><div><p class="sub">${T.inCampo}</p><div class="num min" id="min">${stato.orologio}'</div></div>
@@ -136,6 +159,7 @@
         <div class="bar"><i id="bar" style="width:${Math.min(100, stato.orologio / 90 * 100)}%"></i></div>
         <div class="grid" style="grid-template-columns:repeat(13,1fr)">${celle}</div>
         ${stato.recupero ? `<p class="sub" style="margin-top:8px">${T.recupero}: ${stato.recupero === 'primo' ? T.primoTempo : T.secondoTempo}</p>` : ''}
+        ${stato.prima || stato.ultima ? `<p class="sub" style="margin-top:4px">${T.bonus}: ${stato.prima ? `${T.primaBreve} ${h(stato.prima)}` : ''}${stato.prima && stato.ultima ? ' · ' : ''}${stato.ultima ? `${T.ultimaBreve} ${h(stato.ultima)}` : ''}</p>` : ''}
       </div>
       <div class="card">${righe}</div>
       ${feed ? `<div class="card"><p class="sub">${T.golGiornata}</p><div class="feed">${feed}</div></div>` : ''}`
@@ -146,22 +170,27 @@
     if (b) b.style.width = `${Math.min(100, stato.orologio / 90 * 100)}%`
   }
 
-  function popup(g, squadra, casa, osp, valore) {
+  function popup(g, squadra, casa, osp, valore, stella) {
     const tinta = TINTE[squadra] || '#5b6b8c'
+    // Con la foto: la statuina fotografica che salta e si gira (dietro, il cartoncino con nome e numero).
+    const figura = stella
+      ? `<div class="statua"><div class="fronte"><img src="${stella.foto}" alt=""></div><div class="retro" style="background:${tinta}"><span>${h(stella.nome).toUpperCase()}</span><b>${stella.numero}</b></div></div>`
+      : `<svg class="maglia" viewBox="0 0 92 110" aria-hidden="true">
+            <path d="M30 6 L46 14 L62 6 L86 18 L78 40 L66 36 L66 104 L26 104 L26 36 L14 40 L6 18 Z" fill="${tinta}" stroke="rgba(0,0,0,0.15)"/>
+            <text x="46" y="70" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-weight="700" font-size="30" fill="#fff">${(stato.risultati.flat().reduce((a, b) => a + b, 0) * 7) % 23 + 1}</text>
+          </svg>`
     velo.innerHTML = `
       <div class="foglio" role="dialog" aria-label="${T.gol} ${etichettaMin(g)}">
         <div class="festa">
           <canvas id="coriandoli"></canvas>
           <div class="lab"><p class="eyebrow">Gol</p><div class="num min">${etichettaMin(g)}</div></div>
           <div class="tuo"><small>${T.tuo}</small><b>+${valore}</b></div>
-          <svg class="maglia" viewBox="0 0 92 110" aria-hidden="true">
-            <path d="M30 6 L46 14 L62 6 L86 18 L78 40 L66 36 L66 104 L26 104 L26 36 L14 40 L6 18 Z" fill="${tinta}" stroke="rgba(0,0,0,0.15)"/>
-            <text x="46" y="70" text-anchor="middle" font-family="Poppins, sans-serif" font-weight="700" font-size="30" fill="#fff">${(stato.risultati.flat().reduce((a, b) => a + b, 0) * 7) % 23 + 1}</text>
-          </svg>
+          ${figura}
           <div class="base"></div>
         </div>
         <div class="body">
-          <h3>${h(squadra)}</h3>
+          <h3>${stella ? h(stella.nome) : h(squadra)}</h3>
+          ${stella ? `<p class="sub" style="margin-top:-6px">${h(squadra)}</p>` : ''}
           <div class="riga">${sig(casa)}<span>${h(casa)}</span><span class="score">${casa === squadra ? '' : ''}${stato.risultati[PARTITE.findIndex(p => p[0] === casa)].join('-')}</span><span class="r">${h(osp)}</span>${sig(osp)}</div>
           <button class="btn btn-primary" id="chiudi" type="button" style="justify-content:center">${T.torna}</button>
         </div>
@@ -192,18 +221,27 @@
 
   function fine() {
     stato.fase = 'fine'; badge.style.display = 'none'; chiudiVelo()
-    const righe = [...ALTRI.map(([n, p]) => ({ n, p })), { n: T.tu, p: stato.punti, me: true }].sort((a, b) => b.p - a.p)
+    const squadraDi = g => PARTITE[g[1]][g[2]]
+    const primaVera = squadraDi(GIORNATA[0]), ultimaVera = squadraDi(GIORNATA[GIORNATA.length - 1])
+    const bonusPrima = !!stato.prima && stato.prima === primaVera, bonusUltima = !!stato.ultima && stato.ultima === ultimaVera
+    const bonus = (bonusPrima ? 1 : 0) + (bonusUltima ? 1 : 0)
+    const totale = stato.punti + bonus
+    const righe = [...ALTRI.map(([n, p]) => ({ n, p })), { n: T.tu, p: totale, me: true }].sort((a, b) => b.p - a.p)
     const miei = stato.feed.filter(f => f.mio)
     view.innerHTML = `
       <div class="card final">
         <p class="sub">${T.fine}</p>
-        <div class="num big">${stato.punti} <span style="font-size:20px;color:var(--muted)">${T.punti}</span></div>
-        <p class="sub" style="margin-top:6px">${T.riepilogo(miei.length, GOL.length, miei.some(f => f.doppio))}</p>
+        <div class="num big">${totale} <span style="font-size:20px;color:var(--muted)">${T.punti}</span></div>
+        <p class="sub" style="margin-top:6px">${T.riepilogo(miei.length, GIORNATA.length, miei.some(f => f.doppio))}</p>
+        <div class="bonus-esito">
+          <div class="${bonusPrima ? 'ok' : ''}"><span>${T.primaSquadra}</span><b>${h(primaVera)}</b><i>${stato.prima ? (bonusPrima ? '+1' : h(stato.prima)) : T.nessuna}</i></div>
+          <div class="${bonusUltima ? 'ok' : ''}"><span>${T.ultimaSquadra}</span><b>${h(ultimaVera)}</b><i>${stato.ultima ? (bonusUltima ? '+1' : h(stato.ultima)) : T.nessuna}</i></div>
+        </div>
         <p class="sub" style="margin-top:14px">${T.classificaEsempio}</p>
         <div class="rank">${righe.map((r, i) => `<div class="${r.me ? 'me' : ''}"><b>${i + 1}</b><span>${r.n}</span><b class="num">${r.p}</b></div>`).join('')}</div>
       </div>`
     actions.innerHTML = `<button class="btn btn-primary" id="ancora" type="button">${T.ancora}</button>`
-    document.getElementById('ancora').addEventListener('click', () => { stato.minuti.clear(); stato.recupero = null; scelta() })
+    document.getElementById('ancora').addEventListener('click', () => { stato.minuti.clear(); stato.recupero = null; stato.prima = ''; stato.ultima = ''; scelta() })
   }
 
   document.getElementById('cta-gioca').addEventListener('click', () => {
@@ -233,8 +271,8 @@
 
   // Il nastro dei gol: una giornata vera scorre sotto l'apertura.
   const nastro = GOL.map(g => {
-    const [m, p, lato, rec] = g, sq = PARTITE[p][lato]
-    const doppio = m === Math.min(...GOL.map(x => x[0])) || m === Math.max(...GOL.map(x => x[0]))
+    const [m, p, lato, rec, stella] = g, sq = stella ? `${stella.nome} (${PARTITE[p][lato]})` : PARTITE[p][lato]
+    const doppio = m === Math.min(...GOL.map(x => x[0]))
     return `<span><b class="${doppio ? 'oro' : ''}">${etichettaMin(g)}</b> ${sq}${doppio ? T.valeDoppio : ''}</span>`
   }).join('')
   document.getElementById('ticker').innerHTML = nastro + nastro
