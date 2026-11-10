@@ -15,7 +15,7 @@ export default async function AccessoInvestitori({ searchParams }: { searchParam
         <div>
           <h1 className="font-display font-semibold text-2xl leading-tight">Pagina riservata</h1>
           <p className="text-sm text-[var(--muted)] mt-1">Inserisci la password che hai ricevuto per vedere la presentazione e la demo.</p>
-          <p className="text-sm text-[var(--muted)] mt-1" lang="en">Enter the password you received to see the presentation and the demo.</p>
+          <p className="text-sm text-[var(--muted)] mt-1" lang="en">Enter the password you were given to view the presentation and the demo.</p>
         </div>
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Password</span>
