@@ -171,8 +171,8 @@ function Landing() {
     <div className="animate-fade-up pt-4 pb-10">
       <div className="text-center">
         <span className="inline-block font-semibold text-[var(--muted)] uppercase tracking-[0.18em] text-[11px]">Serie A · B · C</span>
-        <h1 className="font-display font-semibold text-[2.9rem] leading-[1.02] tracking-tight mt-3">
-          Indovina il minuto<br /><span className="text-[var(--accent-soft)]">del gol</span>
+        <h1 className="font-display font-bold text-[2.6rem] leading-[1.05] tracking-tight mt-3">
+          Indovina il <span className="text-gradient">minuto</span><br />del gol
         </h1>
       </div>
 
@@ -201,7 +201,7 @@ function Landing() {
           ['3', 'Durante le partite guardi i tuoi minuti accendersi.'],
         ].map(([n, t]) => (
           <div key={n} className="flex gap-3 items-center">
-            <span className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--ink)] text-[var(--bg)] font-num font-semibold text-xs shrink-0">{n}</span>
+            <span className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--surface-2)] text-[var(--accent)] font-num font-bold text-sm shrink-0">{n}</span>
             <span className="text-[var(--ink)]/85">{t}</span>
           </div>
         ))}

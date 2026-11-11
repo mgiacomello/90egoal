@@ -40,7 +40,7 @@ function png(size, pixel) {
 }
 
 // Coordinate in una griglia 100×100.
-const INK = [243, 239, 228]   // avorio: il "90" sulla tessera d'inchiostro
+const INK = [255, 255, 255]   // bianco: il "90" sulla tessera blu
 function inGlyph(u, v) {
   // "9": anello in alto + gamba a destra con estremità arrotondata
   const d9 = Math.hypot(u - 33, v - 43)
@@ -58,7 +58,7 @@ function inRounded(u, v, r) {
   return Math.hypot(u - cx, v - cy) <= r
 }
 function bg() {
-  return [20, 48, 31]   // inchiostro verde bottiglia, pieno
+  return [29, 79, 215]   // blu reale, pieno
 }
 
 function draw(size, { rounded }) {

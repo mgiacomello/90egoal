@@ -20,8 +20,8 @@ export function esultanzaPer(seme: string): Esultanza {
 const ARGILLA = '#e9dcc4'
 const CAPELLI = '#2f2a26'
 const SCARPE = '#151517'
-const BASE = '#14301f'
-const ARANCIO = '#e8641c'
+const BASE = '#0b1f4d'      // il piedistallo: blu notte laccato
+const ARANCIO = '#3b6cf0'   // (nome storico) il blu acceso: anelli, filo, coriandoli
 
 interface Props {
   team: string
@@ -202,7 +202,7 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
   const taglio = new THREE.DirectionalLight('#d8e8ff', 1.6)
   taglio.position.set(-3, 2.5, -2.5)
   scene.add(taglio)
-  scene.add(new THREE.HemisphereLight('#fff7ea', '#284634', 0.35))
+  scene.add(new THREE.HemisphereLight('#ffffff', '#c9d6f2', 0.45))
 
   const tutto = new THREE.Group()
   scene.add(tutto)
@@ -233,6 +233,21 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
   filo.rotation.x = Math.PI / 2
   filo.position.y = -0.005
   tutto.add(filo)
+  // L'onda: un anello arancio che si allarga dal piedistallo e svanisce, tre volte, all'inizio.
+  const ondaMat = new THREE.MeshBasicMaterial({ color: ARANCIO, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
+  const onda = new THREE.Mesh(new THREE.RingGeometry(0.96, 1.02, 96), ondaMat)
+  onda.rotation.x = -Math.PI / 2
+  onda.position.y = 0.012
+  tutto.add(onda)
+  const festa = (t: number) => {
+    const ciclo = 1.1
+    const n = Math.floor(t / ciclo)
+    const u = (t % ciclo) / ciclo
+    if (n < 3) { onda.scale.setScalar(1 + u * 0.9); ondaMat.opacity = (1 - u) * 0.9 }
+    else ondaMat.opacity = 0
+    // Lampo dei riflettori nel primo mezzo secondo.
+    chiave.intensity = 2.4 + Math.max(0, 1 - t / 0.5) * 3
+  }
 
   const pezzo = (geo: THREE_NS.BufferGeometry, m: THREE_NS.Material) => {
     const x = new THREE.Mesh(geo, m)
@@ -480,15 +495,22 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
 
   // ---- Coriandoli nei colori della squadra e dell'arancio del sito.
   const ferma = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const N = ferma ? 0 : 140
+  const N = ferma ? 0 : 320
   const coriandoli = new THREE.InstancedMesh(
     new THREE.PlaneGeometry(0.05, 0.028),
     new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.6 }),
     Math.max(N, 1),
   )
   coriandoli.count = N
-  const colori = [kit.maglia, kit.secondo, ARANCIO, '#fbf9f3'].map(c => new THREE.Color(c))
-  const stati = Array.from({ length: N }, (_, i) => ({
+  const colori = [kit.maglia, kit.secondo, ARANCIO, '#ffffff', '#ffd166', '#16a34a'].map(c => new THREE.Color(c))
+  // Metà esplodono dal piedistallo all'inizio (fontana), metà scendono dall'alto per tutto il tempo.
+  const stati = Array.from({ length: N }, (_, i) => (i % 2 === 0 ? {
+    p: new THREE.Vector3((Math.random() - 0.5) * 0.3, 0.1, (Math.random() - 0.5) * 0.3),
+    v: new THREE.Vector3((Math.random() - 0.5) * 2.6, 2.6 + Math.random() * 2.4, (Math.random() - 0.5) * 2.0),
+    r: new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6),
+    w: new THREE.Vector3(Math.random() * 10 - 5, Math.random() * 10 - 5, Math.random() * 10 - 5),
+    c: colori[i % colori.length],
+  } : {
     p: new THREE.Vector3((Math.random() - 0.5) * 2.4, 1.6 + Math.random() * 1.8, (Math.random() - 0.5) * 1.6),
     v: new THREE.Vector3((Math.random() - 0.5) * 0.4, -(0.35 + Math.random() * 0.4), (Math.random() - 0.5) * 0.3),
     r: new THREE.Euler(Math.random() * 6, Math.random() * 6, Math.random() * 6),
@@ -501,6 +523,9 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
   const muoviCoriandoli = (dt: number, t: number) => {
     for (let i = 0; i < N; i++) {
       const s = stati[i]
+      // Gravità e aria: i coriandoli della fontana rallentano e poi planano.
+      if (s.v.y > -0.45) s.v.y -= 3.2 * dt
+      s.v.x *= 0.985; s.v.z *= 0.985
       s.p.addScaledVector(s.v, dt)
       s.p.x += Math.sin(t * 2 + i) * 0.003
       s.r.x += s.w.x * dt; s.r.y += s.w.y * dt; s.r.z += s.w.z * dt
@@ -533,6 +558,7 @@ function monta(THREE: T, RoomEnvironment: new () => THREE_NS.Scene, el: HTMLDivE
     const dt = Math.min(0.05, (ora - prima) / 1000)
     prima = ora
     anima(t)
+    festa(t)
     if (N) muoviCoriandoli(dt, t)
     if (!trascina) { giro += velocita; velocita *= 0.94 }
     tutto.rotation.y = giro

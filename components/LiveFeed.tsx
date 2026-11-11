@@ -85,7 +85,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
             if (g.scorer) q.set('mk', g.scorer)
             if (mio) q.set('tuo', '1')
             return (
-              <Link key={i} href={`?${q.toString()}`} scroll={false} className={`rounded-xl border px-3 py-2.5 flex items-center gap-3 ${mio ? 'bg-[rgba(232,100,28,0.10)] border-[var(--accent)]' : 'bg-[var(--surface-2)] border-[var(--line)]'}`}>
+              <Link key={i} href={`?${q.toString()}`} scroll={false} className={`rounded-xl border px-3 py-2.5 flex items-center gap-3 ${mio ? 'bg-[var(--surface-2)] border-[var(--accent)]' : 'bg-[var(--surface-2)] border-[var(--line)]'}`}>
                 <div className={`font-num font-semibold text-xl tabular-nums w-14 shrink-0 ${mio ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>
                   {g.min}
                 </div>

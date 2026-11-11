@@ -22,6 +22,15 @@ const k = (maglia: string, secondo: string, calzoncini: string, calzettoni: stri
 
 const MAGLIE: Record<string, Maglia> = {
   // Serie A
+  'Inter': k('#0f3fa8', NERO, NERO, NERO, BIANCO, 'strisce'),
+  'Milan': k('#c4161c', NERO, BIANCO, NERO, BIANCO, 'strisce'),
+  'Juventus': k(BIANCO, NERO, BIANCO, BIANCO, NERO, 'strisce'),
+  'Roma': k('#8e1b2b', '#f2a900', BIANCO, '#8e1b2b', '#f2a900'),
+  'Lazio': k('#87c6ef', BIANCO, BIANCO, '#87c6ef', BIANCO),
+  'Atalanta': k('#1f4fa8', NERO, NERO, NERO, BIANCO, 'strisce'),
+  'Fiorentina': k('#5b2d8e', BIANCO, '#5b2d8e', '#5b2d8e', BIANCO),
+  'Udinese': k(BIANCO, NERO, NERO, BIANCO, NERO, 'strisce'),
+  'Genoa': k('#c4161c', '#0f3fa8', BIANCO, '#c4161c', BIANCO, 'meta'),
   'Napoli': k('#1c8ad6', BIANCO, BIANCO, '#1c8ad6', BIANCO),
   'Cagliari': k('#9a1b2f', '#123a7a', '#123a7a', '#123a7a', BIANCO, 'meta'),
   'Bologna': k('#9a1b2f', '#123a7a', BIANCO, '#123a7a', BIANCO, 'strisce'),
