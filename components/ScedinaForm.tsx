@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Schedina, Pronostico, Partita } from '@/lib/types'
-import { GoalStats, TeamGoalStats } from '@/lib/goalStats'
+import { GoalStats, TeamGoalStats, caloreMinuto } from '@/lib/goalStats'
 import Flag from '@/components/Flag'
 import TeamPicker from '@/components/TeamPicker'
 import GoalStatsPanel from '@/components/GoalStatsPanel'
@@ -43,6 +43,20 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  // Minuti caldi: spenti di default (la griglia resta pulita per chi gioca d'istinto),
+  // ricordati sul telefono per chi studia.
+  const conDati = !!goalStats && goalStats.maxPerMinute > 0
+  const caldiSalvati = useSyncExternalStore(() => () => {}, () => { try { return localStorage.getItem('minuti_caldi') === '1' } catch { return false } }, () => false)
+  const [caldiScelti, setCaldi] = useState<boolean | null>(null)
+  const caldi = caldiScelti ?? caldiSalvati
+  const [ultimo, setUltimo] = useState<number | null>(null)
+  function cambiaCaldi() {
+    const v = !caldi
+    setCaldi(v)
+    setUltimo(null)
+    try { localStorage.setItem('minuti_caldi', v ? '1' : '0') } catch {}
+    logEvent(v ? 'stats_on' : 'stats_off', { schedina_id: schedina.id })
+  }
 
   // --- Tracciamento tempi (per le statistiche admin) ---
   const openedAt = useRef<number>(0)
@@ -67,8 +81,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
 
   function toggleMinuto(m: number) {
     setError('')
-    if (minuti.includes(m)) setMinuti(prev => prev.filter(x => x !== m))
-    else if (!completo) setMinuti(prev => [...prev, m].sort((a, b) => a - b))
+    if (minuti.includes(m)) { setMinuti(prev => prev.filter(x => x !== m)); setUltimo(null) }
+    else if (!completo) { setMinuti(prev => [...prev, m].sort((a, b) => a - b)); setUltimo(m) }
   }
 
   async function invia() {
@@ -120,6 +134,9 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
   }
 
   const deadline = new Date(schedina.deadline)
+  // Per i bonus squadra: chi segna di più fra le squadre in campo in questa schedina.
+  const inCampo = new Set(schedina.partite.flatMap((p: Partita) => [p.home, p.away]))
+  const bomber = (teamStats ?? []).filter(t => inCampo.has(t.team)).slice(0, 3)
   const nPassi: Passo[] = ['minuti', 'bonus', 'conferma']
   const idx = nPassi.indexOf(passo)
 
@@ -145,8 +162,26 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       {passo === 'minuti' && (
         <div className="space-y-4">
           <div>
-            <h2 className="font-display font-bold text-xl">In quali minuti si segna?</h2>
+            <div className="flex items-start justify-between gap-3">
+              <h2 className="font-display font-bold text-xl">In quali minuti si segna?</h2>
+              {conDati && (
+                <button type="button" onClick={cambiaCaldi} aria-pressed={caldi}
+                  className={`seg-btn shrink-0 px-2.5 py-1 text-xs flex items-center gap-1.5 ${caldi ? 'is-active' : ''}`}>
+                  <IconChart size={14} /> Minuti caldi
+                </button>
+              )}
+            </div>
             <p className="text-sm text-[var(--muted)] mt-1">Scegline {MAX_MINUTI}. Vale un gol in una qualsiasi delle {schedina.partite.length} partite.</p>
+            {caldi && goalStats && (
+              <p className="text-xs text-[var(--ink)] mt-2 leading-snug" aria-live="polite">
+                {ultimo != null
+                  ? (goalStats.perMinute[ultimo] ?? 0) === 0
+                    ? <>Il <strong>{ultimo}&apos;</strong> non è ancora uscito in {goalStats.matches} partite.</>
+                    : <>Il <strong>{ultimo}&apos;</strong> è uscito <strong>{goalStats.perMinute[ultimo]}</strong> {goalStats.perMinute[ultimo] === 1 ? 'volta' : 'volte'} in {goalStats.matches} partite.</>
+                  : <>Barretta più alta, più gol in quel minuto. {goalStats.hottest && <>Fascia più calda <strong>{goalStats.hottest.label}</strong> ({goalStats.hottest.pct}%).</>}</>}
+                <span className="text-[var(--muted)]"> · {goalStats.totalGoals} gol finora</span>
+              </p>
+            )}
           </div>
 
           {(['primo', 'secondo'] as const).map(tempo => (
@@ -162,6 +197,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
                     <button key={m} type="button" onClick={() => toggleMinuto(m)} disabled={!selected && completo}
                       className={`min-cell ${selected ? 'is-selected' : ''}`}>
                       {m}
+                      {caldi && goalStats && caloreMinuto(goalStats, m) > 0 && <span className={`heat h${caloreMinuto(goalStats, m)}`} aria-hidden />}
                     </button>
                   )
                 })}
@@ -235,6 +271,11 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           <section>
             <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconWhistle size={16} className="text-[var(--gold)]" /> Chi segna per primo <span className="text-xs font-normal text-[var(--gold)]">+3</span></h3>
             <p className="text-xs text-[var(--muted)] mb-3">Il primo gol di tutta la giornata, in ordine di orario.</p>
+            {bomber.length > 0 && (
+              <p className="text-xs text-[var(--muted)] -mt-2 mb-3 truncate">
+                <IconChart size={12} className="inline -mt-0.5 mr-1" />Più gol finora: {bomber.map((t, i) => <span key={t.team}>{i > 0 && ' · '}<span className="text-[var(--ink)] font-medium">{t.team}</span> {t.count}</span>)}
+              </p>
+            )}
             <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
           </section>
 

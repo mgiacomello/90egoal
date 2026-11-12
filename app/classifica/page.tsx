@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { ClassificaRow, MatchDetail, Partita } from '@/lib/types'
 import LiveRefresh from '@/components/LiveRefresh'
 import { nomeBreve } from '@/lib/teams'
-import { IconTrophy, IconBall } from '@/components/Icons'
+import { IconTrophy, IconBall, IconPlus } from '@/components/Icons'
+import { mieLeghe } from '@/lib/leghe'
 
 interface GeneraleRow { user_id: string; username: string; full_name: string; totale: number; pos: number }
 
@@ -23,7 +24,7 @@ function avatarFor(name: string) {
 
 interface SchedinaLite { id: number; nome: string; attiva: boolean; torneo?: string; partite: Partita[]; deadline: string }
 
-export default async function ClassificaPage({ searchParams }: { searchParams: Promise<{ torneo?: string }> }) {
+export default async function ClassificaPage({ searchParams }: { searchParams: Promise<{ torneo?: string; lega?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const params = await searchParams
@@ -40,7 +41,19 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
   const torneo = params.torneo && tornei.includes(params.torneo) ? params.torneo : corrente ? torneoDi(corrente) : tornei[tornei.length - 1] ?? ''
   const schedine = all.filter(s => torneoDi(s) === torneo).reverse()
   const ids = new Set(schedine.map(s => s.id))
-  const classifica = ((tuttaClassifica ?? []) as ClassificaRow[]).filter(r => ids.has(r.schedina_id))
+  // Leghe tra amici: stessa classifica del torneo, filtrata sui membri della lega scelta.
+  const leghe = user ? await mieLeghe(supabase, user.id) : []
+  const lega = leghe.find(l => l.id === params.lega) ?? null
+  const membri = lega ? new Set(lega.membri) : null
+  const classifica = ((tuttaClassifica ?? []) as ClassificaRow[]).filter(r => ids.has(r.schedina_id) && (!membri || membri.has(r.user_id)))
+  const qs = (t: string, l: string | null) => {
+    const u = new URLSearchParams()
+    if (t) u.set('torneo', t)
+    if (l) u.set('lega', l)
+    const q = u.toString()
+    return q ? `/classifica?${q}` : '/classifica'
+  }
+  const limite = lega ? 200 : 10
 
   // Provvisoria finché c'è una schedina con risultati ma partite non ancora finite.
   const risMap = new Map(((risultati ?? []) as { schedina_id: number; dettagli: MatchDetail[] | null }[]).map(r => [r.schedina_id, r.dettagli ?? []]))
@@ -84,14 +97,28 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
   return (
     <div className="animate-fade-up">
       <div className="mb-5">
-        <h1 className="font-display font-bold text-2xl sm:text-3xl">Classifica</h1>
-        {torneo && <p className="text-sm text-[var(--muted)] mt-1">{torneo}</p>}
+        <h1 className="font-display font-bold text-2xl sm:text-3xl break-words">{lega ? lega.nome : 'Classifica'}</h1>
+        <p className="text-sm text-[var(--muted)] mt-1">
+          {lega && <>Lega · {lega.membri.length} {lega.membri.length === 1 ? 'giocatore' : 'giocatori'}{torneo && ' · '}</>}
+          {torneo}
+          {lega && <> · <Link href={`/leghe/${lega.id}`} className="text-[var(--accent-soft)] hover:underline">Invita</Link></>}
+        </p>
       </div>
+
+      {user && (
+        <div className="flex gap-2 mb-3 -mx-4 px-4 overflow-x-auto [scrollbar-width:none]" aria-label="Classifica di">
+          <Link href={qs(torneo, null)} className={`seg-btn px-3 py-1.5 text-sm shrink-0 ${!lega ? 'is-active' : ''}`}>Tutti</Link>
+          {leghe.map(l => (
+            <Link key={l.id} href={qs(torneo, l.id)} className={`seg-btn px-3 py-1.5 text-sm shrink-0 max-w-[11rem] truncate ${lega?.id === l.id ? 'is-active' : ''}`}>{l.nome}</Link>
+          ))}
+          <Link href="/leghe" className="seg-btn px-3 py-1.5 text-sm shrink-0 flex items-center gap-1 text-[var(--muted)]"><IconPlus size={14} /> {leghe.length ? 'Lega' : 'Crea una lega con gli amici'}</Link>
+        </div>
+      )}
 
       {tornei.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-5">
           {[...tornei].reverse().map(t => (
-            <Link key={t || 'nessuno'} href={`/classifica?torneo=${encodeURIComponent(t)}`} className={`seg-btn px-3 py-1.5 text-sm ${t === torneo ? 'is-active' : ''}`}>
+            <Link key={t || 'nessuno'} href={qs(t, lega?.id ?? null)} className={`seg-btn px-3 py-1.5 text-sm ${t === torneo ? 'is-active' : ''}`}>
               {t || 'Altro'}
             </Link>
           ))}
@@ -105,7 +132,13 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
         </p>
       )}
 
-      {generale.length === 0 ? (
+      {lega && lega.membri.length < 2 ? (
+        <div className="glass rounded-2xl py-10 px-6 text-center">
+          <IconTrophy size={36} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
+          <p className="text-[var(--ink)]/85">Per ora ci sei solo tu.<br /><span className="text-[var(--muted)]">Manda il link al gruppo: la classifica si riempie da sola.</span></p>
+          <Link href={`/leghe/${lega.id}`} className="btn-primary px-5 py-2.5 text-sm mt-5 inline-flex">Invita gli amici</Link>
+        </div>
+      ) : generale.length === 0 ? (
         <div className="glass rounded-2xl py-14 px-6 text-center">
           <IconTrophy size={36} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
           {prossimaApertura ? (
@@ -119,8 +152,8 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
           {generale.length >= 3 && <Podium top3={generale.slice(0, 3)} currentUserId={user?.id} />}
 
           <section className="mb-10">
-            <h2 className="font-display font-bold text-lg mb-3 text-[var(--gold)]">Classifica Generale</h2>
-            <LeaderList rows={generale.slice(0, 10).map(g => ({ ...g, key: g.user_id }))} maxTot={generale[0]?.totale ?? 1} currentUserId={user?.id} />
+            <h2 className="font-display font-bold text-lg mb-3 text-[var(--gold)]">{lega ? 'Classifica della lega' : 'Classifica Generale'}</h2>
+            <LeaderList rows={generale.slice(0, limite).map(g => ({ ...g, key: g.user_id }))} maxTot={generale[0]?.totale ?? 1} currentUserId={user?.id} />
           </section>
 
           {albo.length > 0 && (
@@ -142,7 +175,7 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
           )}
 
           {schedine.map(s => {
-            const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, 10).map((r, i) => ({ ...r, pos: i + 1 }))
+            const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, limite).map((r, i) => ({ ...r, pos: i + 1 }))
             return (
               <section key={s.id} className="mb-8">
                 <h2 className="font-display font-semibold text-base mb-3 text-[var(--ink)]">{nomeBreve(s.nome)}</h2>
