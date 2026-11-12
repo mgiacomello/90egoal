@@ -7,7 +7,7 @@ import PushToggle from '@/components/PushToggle'
 import Flag from '@/components/Flag'
 import ShareButton from '@/components/ShareButton'
 import { nomeBreve } from '@/lib/teams'
-import { IconTarget, IconStar, IconCrown, IconBook } from '@/components/Icons'
+import { IconTarget, IconStar, IconCrown, IconBook, IconTrophy } from '@/components/Icons'
 
 export default async function ProfiloPage() {
   const supabase = await createClient()
@@ -157,7 +157,13 @@ export default async function ProfiloPage() {
         })}
       </div>}
 
-      <div className="mt-10 flex items-center justify-between border-t border-[var(--line)] pt-5 text-sm">
+      <Link href="/leghe" className="glass rounded-2xl px-4 py-3.5 mt-8 flex items-center gap-3 hover:border-[var(--ink)]">
+        <IconTrophy size={20} className="text-[var(--gold)] shrink-0" />
+        <span className="flex-1 min-w-0"><span className="font-semibold block">Leghe tra amici</span><span className="text-xs text-[var(--muted)]">Una classifica solo per il vostro gruppo</span></span>
+        <span className="text-[var(--muted)]">→</span>
+      </Link>
+
+      <div className="mt-8 flex items-center justify-between border-t border-[var(--line)] pt-5 text-sm">
         <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center gap-1.5"><IconBook size={16} /> Regole del gioco</Link>
         <LogoutButton className="btn-ghost px-5 py-2 text-sm" />
       </div>

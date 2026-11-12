@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logEvent } from '@/lib/track'
 import { trasferisciProva } from '@/lib/prova'
+import { percorsoDopoAccesso, nessunaIscrizione, suffissoRitorno } from '@/lib/leghe'
 
 export default function RegisterPage() {
   const router = useRouter()
   const [form, setForm] = useState({ fullName: '', username: '', email: '', password: '', confirm: '', invito: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const suffisso = useSyncExternalStore(nessunaIscrizione, suffissoRitorno, () => '')
   const [serveInvito, setServeInvito] = useState(false)
   const startedAt = useRef<number>(0)
 
@@ -61,7 +63,7 @@ export default function RegisterPage() {
       await logEvent('register', { ms: Date.now() - startedAt.current })
       // La schedina di prova, se c'è, diventa quella vera: niente da rifare.
       if (data.user) await trasferisciProva(supabase, data.user.id)
-      router.push('/')
+      router.push(percorsoDopoAccesso())
       router.refresh()
     }
     setLoading(false)
@@ -128,7 +130,7 @@ export default function RegisterPage() {
 
       <p className="text-center text-[var(--muted)] text-sm mt-5">
         Hai già un account?{' '}
-        <Link href="/auth/login" className="text-[var(--accent-soft)] hover:underline font-medium">Accedi</Link>
+        <Link href={`/auth/login${suffisso}`} className="text-[var(--accent-soft)] hover:underline font-medium">Accedi</Link>
       </p>
     </div>
   )

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { trasferisciProva } from '@/lib/prova'
+import { percorsoDopoAccesso, nessunaIscrizione, suffissoRitorno } from '@/lib/leghe'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -12,6 +13,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const suffisso = useSyncExternalStore(nessunaIscrizione, suffissoRitorno, () => '')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -23,7 +25,7 @@ export default function LoginPage() {
       setError('Email o password non corretti.')
     } else {
       if (data.user) await trasferisciProva(supabase, data.user.id)
-      router.push('/')
+      router.push(percorsoDopoAccesso())
       router.refresh()
     }
     setLoading(false)
@@ -68,7 +70,7 @@ export default function LoginPage() {
 
       <p className="text-center text-[var(--muted)] text-sm mt-5">
         Non hai un account?{' '}
-        <Link href="/auth/register" className="text-[var(--accent-soft)] hover:underline font-medium">Registrati</Link>
+        <Link href={`/auth/register${suffisso}`} className="text-[var(--accent-soft)] hover:underline font-medium">Registrati</Link>
       </p>
     </div>
   )

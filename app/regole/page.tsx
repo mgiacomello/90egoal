@@ -50,6 +50,10 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: <>Dal <strong className="text-[var(--ink)]">Profilo</strong>, tocca &quot;Attiva&quot;. Su iPhone funzionano solo se hai aggiunto 90 &amp; Goal alla schermata Home (Safari → Condividi → Aggiungi alla schermata Home) e la apri da lì. Su Android bastano Chrome o l&apos;app installata.</>,
   },
   {
+    q: 'Posso fare una classifica solo con i miei amici?',
+    a: <>Sì, con le <strong className="text-[var(--ink)]">leghe</strong>. Dal Profilo o dalla Classifica crei una lega e mandi il link al gruppo: chi lo apre entra con un tocco. Le schedine sono le stesse per tutti, la lega ha la sua classifica con i punti del torneo. Puoi stare in più leghe insieme.</>,
+  },
+  {
     q: 'Una partita rinviata o sospesa?',
     a: <>Valgono i gol segnati fino a quel momento nella giornata della schedina. Se la partita non si gioca, semplicemente non porta gol.</>,
   },
