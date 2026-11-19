@@ -3,6 +3,7 @@ import { Schedina, Pronostico, Risultato, MatchDetail } from '@/lib/types'
 import Flag from '@/components/Flag'
 import Countdown from '@/components/Countdown'
 import { nomeBreve } from '@/lib/teams'
+import { quandoPartita, suPiuGiorni } from '@/lib/giornata'
 
 interface Props {
   schedina: Schedina
@@ -25,6 +26,7 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
   const giocate = s.partite.filter(p => statoDi(dettMap.get(`${p.home}__${p.away}`)) === 'finita').length
   const live = s.partite.filter(p => statoDi(dettMap.get(`${p.home}__${p.away}`)) === 'in_corso').length
   const conclusa = giocate === s.partite.length
+  const largo = suPiuGiorni(s.partite)
 
   const stato = live > 0 ? 'live' : conclusa && risultato ? 'finita' : isScaduta ? 'chiusa' : isCompilata ? 'giocata' : 'aperta'
   const quando = deadline.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Rome' }) + ' · ' + deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
@@ -64,7 +66,7 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
         <div className="px-4 pb-3 flex flex-wrap gap-1">
           {pronostico.minuti.map(m => {
             const hit = !!risultato && risultato.minuti_gol.includes(m)
-            const doppio = hit && (m === risultato?.minuto_primo_gol || m === risultato?.minuto_ultimo_gol)
+            const doppio = hit && m === risultato?.minuto_primo_gol
             const miss = !!risultato && !hit && conclusa
             return (
               <span key={m} className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2 py-0.5 text-[11px]`}>
@@ -94,8 +96,8 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
             const st = statoDi(d)
             return (
               <div key={i} className="flex items-center gap-2 text-sm">
-                <span className={`text-[10px] font-bold w-10 shrink-0 ${st === 'in_corso' ? 'text-[var(--danger)]' : st === 'finita' ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-                  {st === 'in_corso' ? '● LIVE' : st === 'finita' ? 'FT' : p.ora ?? ''}
+                <span className={`text-[10px] font-bold ${largo ? 'w-[4.25rem]' : 'w-10'} shrink-0 ${st === 'in_corso' ? 'text-[var(--danger)]' : st === 'finita' ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
+                  {st === 'in_corso' ? '● LIVE' : st === 'finita' ? 'FT' : quandoPartita(p, s.partite)}
                 </span>
                 <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
                   <span className="truncate">{p.home}</span>

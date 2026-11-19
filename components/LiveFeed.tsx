@@ -52,7 +52,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
         <div className="flex flex-wrap gap-1.5">
           {pronostico.minuti.map(m => {
             const hit = risultato.minuti_gol.includes(m)
-            const doppio = hit && (m === risultato.minuto_primo_gol || m === risultato.minuto_ultimo_gol)
+            const doppio = hit && m === risultato.minuto_primo_gol
             return (
               <span key={m} className={`tag-static ${hit ? '' : conclusa ? 'is-miss' : 'is-pending'} px-2.5 py-1.5 text-sm`}>
                 {m}&apos;{doppio && <span className="text-[var(--gold)] ml-0.5">×2</span>}

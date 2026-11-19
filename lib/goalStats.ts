@@ -16,6 +16,8 @@ export interface GoalStats {
   recupero2: number         // gol nel recupero 2° tempo
   recuperoPct: number       // % gol nel recupero sul totale
   topMinutes: { m: number; count: number }[]
+  perMinute: number[]       // indice 1–90: quanti gol in quel minuto (0 non usato)
+  maxPerMinute: number
 }
 
 export interface TeamGoalStats {
@@ -85,7 +87,18 @@ export function computeGoalStats(risultati: Risultato[]): GoalStats {
     recupero2: rec2,
     recuperoPct: total ? Math.round(((rec1 + rec2) / total) * 100) : 0,
     topMinutes,
+    perMinute: Array.from({ length: 91 }, (_, m) => minuteCounts.get(m) ?? 0),
+    maxPerMinute: Math.max(0, ...minuteCounts.values()),
   }
+}
+
+// Quanto è "caldo" un minuto, da 0 a 3, rispetto al minuto più frequente.
+// Serve alla griglia della schedina: una barretta dentro la casella, niente spazio in più.
+export function caloreMinuto(stats: GoalStats, m: number): 0 | 1 | 2 | 3 {
+  const c = stats.perMinute[m] ?? 0
+  if (!c || !stats.maxPerMinute) return 0
+  const r = c / stats.maxPerMinute
+  return r > 0.66 ? 3 : r > 0.33 ? 2 : 1
 }
 
 // Analisi per-squadra: usa il marcatore per gol (campo `gol`), quando presente.

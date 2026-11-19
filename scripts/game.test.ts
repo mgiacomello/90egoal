@@ -4,6 +4,7 @@ import { romeToUtcIso, utcToRome, firstKickoffIso } from '../lib/time.ts'
 import { parseMinute, formatMinute, buildDettaglio, deriveRisultato, type PartitaLive } from '../lib/live.ts'
 import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '../lib/teams.ts'
 import { parseMarcatore, magliaDi } from '../lib/kits.ts'
+import { suPiuGiorni, quandoPartita, fineStimataIso, inCorso, delMomento } from '../lib/giornata.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
@@ -98,24 +99,31 @@ check('prima e ultima squadra seguono l\'orario reale, non l\'ordine di inserime
   // Torres al 50' della partita delle 14:30 ≈ 15:37; Empoli al 10' ≈ 15:10.
   assert.equal(r.last_goal_team, 'Torres')
 })
-check('il 45+3 del primo tempo viene prima del 46 di una partita iniziata insieme', () => {
+check('prima e ultima squadra: un gol nel recupero non conta, anche se arriva prima', () => {
   const B: PartitaLive = { home: 'Carpi', away: 'Lumezzane', date: '2026-10-17', ora: '14:30' }
   const r = deriveRisultato([REG, B], [
-    buildDettaglio(REG, [{ min: '46', team: 'Torres' }], 'finita'),
-    buildDettaglio(B, [{ min: '45+3', team: 'Carpi' }], 'finita'),
+    buildDettaglio(REG, [{ min: '46', team: 'Torres' }, { min: '90+4', team: 'Reggiana' }], 'finita'),
+    buildDettaglio(B, [{ min: '45+3', team: 'Carpi' }, { min: '60', team: 'Lumezzane' }], 'finita'),
   ])
-  assert.equal(r.first_goal_team, 'Carpi')
-  assert.equal(r.last_goal_team, 'Torres')
+  assert.equal(r.first_goal_team, 'Torres')      // il 45+3 del Carpi è recupero
+  assert.equal(r.last_goal_team, 'Lumezzane')    // il 90+4 della Reggiana è recupero
+  assert.equal(r.recupero, 'entrambi')           // ma il bonus recupero scatta lo stesso
 })
-check('minuto del primo e dell\'ultimo gol nei 90\': in ordine di orario, recupero escluso', () => {
+check('solo gol nel recupero: nessuna prima o ultima squadra', () => {
+  const r = deriveRisultato([REG], [buildDettaglio(REG, [{ min: '90+2', team: 'Torres' }], 'finita')])
+  assert.equal(r.first_goal_team, null)
+  assert.equal(r.last_goal_team, null)
+})
+check('minuto del primo gol e squadre prima/ultima: nei 90\', in ordine di orario, recupero escluso', () => {
   // Reggiana (14:30) segna al 20' → 14:50. Empoli (15:00) segna al 10' → 15:10 e al 90+3 (non conta).
   const r = deriveRisultato([REG, ASC], [
     buildDettaglio(ASC, [{ min: '10', team: 'Empoli' }, { min: '90+3', team: 'Ascoli' }], 'finita'),
     buildDettaglio(REG, [{ min: '20', team: 'Reggiana' }], 'finita'),
   ])
   assert.equal(r.minuto_primo_gol, 20)
-  assert.equal(r.minuto_ultimo_gol, 10)
-  assert.equal(r.last_goal_team, 'Ascoli')
+  assert.equal(r.minuto_ultimo_gol, null)   // l'ultimo gol non vale più doppio
+  assert.equal(r.first_goal_team, 'Reggiana')
+  assert.equal(r.last_goal_team, 'Empoli')   // il 90+3 dell'Ascoli è recupero: non conta
 })
 check('solo gol nel recupero: nessun minuto doppio', () => {
   const r = deriveRisultato([REG], [buildDettaglio(REG, [{ min: '45+1', team: 'Torres' }], 'finita')])
@@ -226,6 +234,54 @@ check('posizioni con i pari merito', () => {
 check('fine giornata: singolare e plurale', () => {
   assert.match(messaggioFinale(9, 'Giornata del 17 ottobre', 1, 3, 40).body, /1 punto,/)
   assert.match(messaggioFinale(9, 'Giornata del 17 ottobre', 7, 3, 40).body, /7 punti, sei 3° su 40/)
+})
+
+/* --- più schedine insieme, giornate su più giorni --- */
+
+const SERIE_A = { id: 1, deadline: '2026-11-21T14:00:00.000Z', partite: [
+  { date: '2026-11-21', ora: '15:00' }, { date: '2026-11-22', ora: '20:45' }, { date: '2026-11-23', ora: '18:30' },
+] }
+const SERIE_B = { id: 2, deadline: '2026-11-21T14:00:00.000Z', partite: [{ date: '2026-11-21', ora: '15:00' }, { date: '2026-11-21', ora: '19:30' }] }
+const SERIE_C = { id: 3, deadline: '2026-11-22T13:30:00.000Z', partite: [{ date: '2026-11-22', ora: '14:30' }] }
+const SUCCESSIVA = { id: 4, deadline: '2026-11-28T14:00:00.000Z', partite: [{ date: '2026-11-28', ora: '15:00' }] }
+const LONTANA = { id: 5, deadline: '2027-01-16T14:00:00.000Z', partite: [{ date: '2027-01-16', ora: '15:00' }] }
+const VECCHIA = { id: 9, deadline: '2026-11-07T13:30:00.000Z', partite: [{ date: '2026-11-07', ora: null }] }
+
+check('giornata su più giorni: l\'orario dice anche il giorno', () => {
+  assert.equal(suPiuGiorni(SERIE_A.partite), true)
+  assert.equal(quandoPartita(SERIE_A.partite[0], SERIE_A.partite), 'sab 15:00')
+  assert.equal(quandoPartita(SERIE_A.partite[2], SERIE_A.partite), 'lun 18:30')
+  assert.equal(quandoPartita({ date: '2026-11-22', ora: null }, SERIE_A.partite), 'dom')
+})
+check('giornata in un giorno solo: resta solo l\'ora', () => {
+  assert.equal(suPiuGiorni(SERIE_B.partite), false)
+  assert.equal(quandoPartita(SERIE_B.partite[1], SERIE_B.partite), '19:30')
+  assert.equal(quandoPartita({ date: '2026-11-21', ora: null }, SERIE_B.partite), '')
+})
+check('fine stimata: ultimo calcio d\'inizio più due ore e mezza', () => {
+  assert.equal(fineStimataIso(SERIE_A), '2026-11-23T20:00:00.000Z')
+  assert.equal(fineStimataIso(VECCHIA), '2026-11-07T22:59:00.000Z')
+})
+check('una giornata vecchia senza risultati non resta "in corso" per sempre', () => {
+  assert.equal(inCorso(VECCHIA, '2026-11-07T16:00:00.000Z', false), true)
+  assert.equal(inCorso(VECCHIA, '2026-11-19T10:00:00.000Z', false), false)
+  assert.equal(inCorso(SERIE_A, '2026-11-22T10:00:00.000Z', true), false)
+  assert.equal(inCorso(SERIE_A, '2026-11-20T10:00:00.000Z', false), false)
+})
+check('oggi, prima del weekend: la prima a chiudere in testa, le altre della settimana sotto', () => {
+  const r = delMomento([LONTANA, SUCCESSIVA, SERIE_C, SERIE_B, SERIE_A, VECCHIA], '2026-11-19T10:00:00.000Z', () => false)
+  assert.equal(r.principale?.id, 1)
+  assert.deepEqual(r.altre.map(s => s.id), [2, 3])
+})
+check('domenica: la Serie A è in corso, la B anche, la C è ancora da giocare', () => {
+  const r = delMomento([SERIE_A, SERIE_B, SERIE_C, SUCCESSIVA], '2026-11-22T09:00:00.000Z', s => s.id === 2)
+  assert.equal(r.principale?.id, 1)
+  assert.deepEqual(r.altre.map(s => s.id), [3, 4])
+})
+check('niente in corso e niente aperto: resta l\'ultima giornata chiusa', () => {
+  const r = delMomento([VECCHIA, SERIE_B], '2026-12-25T10:00:00.000Z', () => true)
+  assert.equal(r.principale?.id, 2)
+  assert.deepEqual(r.altre, [])
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

@@ -57,6 +57,7 @@ const MAGLIE: Record<string, Maglia> = {
   'Reggiana': k('#7a1f2b', BIANCO, BIANCO, '#7a1f2b', BIANCO),
   'Torres': k('#c4161c', '#1f3f8f', '#1f3f8f', '#1f3f8f', BIANCO, 'strisce'),
   'Vado': k('#c4161c', '#1f3f8f', '#1f3f8f', '#1f3f8f', BIANCO, 'strisce'),
+  'Sambenedettese': k('#c4161c', '#1f3f8f', BIANCO, '#c4161c', BIANCO, 'strisce'),
   'Sanbenedettese': k('#c4161c', '#1f3f8f', BIANCO, '#c4161c', BIANCO, 'strisce'),
   'Pineto': k(BIANCO, '#1f6fd1', '#1f6fd1', '#1f6fd1', '#1f6fd1'),
   'Forlì': k(BIANCO, '#c4161c', BIANCO, '#c4161c', '#c4161c'),
@@ -80,8 +81,13 @@ const MAGLIE: Record<string, Maglia> = {
   'Casarano': k(BIANCO, '#1f6fd1', '#1f6fd1', '#1f6fd1', '#1f6fd1', 'strisce'),
 }
 
+// Lo stesso club scritto in due modi (nome breve nelle prime giornate, nome completo nei calendari).
+const ALIAS: Record<string, string> = {
+  'Hellas Verona': 'Verona', 'L.R. Vicenza': 'LR Vicenza', 'Virtus Entella': 'Entella', 'Südtirol': 'Sudtirol',
+}
+
 export function magliaDi(team: string): Maglia {
-  const m = MAGLIE[team]
+  const m = MAGLIE[team] ?? MAGLIE[ALIAS[team]]
   if (m) return m
   const c = coloreSquadra(team)
   return k(c, BIANCO, BIANCO, c, BIANCO)

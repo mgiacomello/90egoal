@@ -141,6 +141,13 @@
   color: var(--accent-ink);
   font-weight: 700;
 }
+.min-cell { position: relative; overflow: hidden; }
+/* Minuti caldi: barretta in fondo alla casella, alta quanto il minuto è frequente. */
+.min-cell .heat { position: absolute; left: 22%; right: 22%; bottom: 4px; border-radius: 2px; background: var(--gold); pointer-events: none; }
+.min-cell .heat.h1 { height: 2px; opacity: .45; }
+.min-cell .heat.h2 { height: 4px; opacity: .75; }
+.min-cell .heat.h3 { height: 6px; opacity: 1; }
+.min-cell.is-selected .heat { background: var(--accent-ink); }
 .min-cell:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 .min-cell.is-selected:disabled { opacity: 1; }
 

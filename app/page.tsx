@@ -9,6 +9,7 @@ import InstallButton from '@/components/InstallButton'
 import PushToggle from '@/components/PushToggle'
 import { nomeBreve } from '@/lib/teams'
 import { IconBall, IconCheck } from '@/components/Icons'
+import { delMomento, inCorso as schedinaInCorso, quandoPartita, suPiuGiorni } from '@/lib/giornata'
 
 // La home è "Oggi": una cosa sola, quella che conta adesso.
 // Da compilare → il pulsante. Giocata → l'attesa. In corso → i gol in diretta. Finita → i punti.
@@ -36,10 +37,8 @@ export default async function Home() {
     return d.filter(x => (x.stato ?? 'finita') === 'finita').length === s.partite.length
   }
   // Quella del momento: in corso, altrimenti la prossima aperta, altrimenti l'ultima finita.
-  const inCorso = attive.find(s => s.deadline <= nowIso && !conclusa(s))
-  const prossima = attive.find(s => s.deadline > nowIso)
-  const ultima = [...attive].reverse().find(s => s.deadline <= nowIso)
-  const s = inCorso ?? prossima ?? ultima
+  // Con una schedina per serie ce n'è più d'una nello stesso weekend: le altre stanno sotto.
+  const { principale: s, altre } = delMomento(attive, nowIso, conclusa)
 
   // Posizione nel torneo corrente
   const torneo = s?.torneo
@@ -94,7 +93,7 @@ export default async function Home() {
           <div className="glass rounded-2xl p-5 text-center">
             <div className="mb-4"><Countdown deadline={s.deadline} /></div>
             <Link href={`/schedine/${s.id}`} className="btn-primary w-full py-4 text-base">Scegli i tuoi 13 minuti →</Link>
-            <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il primo e l&apos;ultimo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
+            <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il minuto del primo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
           </div>
           <Partite s={s} />
         </>
@@ -136,17 +135,45 @@ export default async function Home() {
         <p className="text-center text-xs text-[var(--muted)]">Questa giornata non l&apos;hai giocata. <Link href="/schedine" className="text-[var(--accent-soft)]">Le prossime →</Link></p>
       )}
 
+      {/* ===== LE ALTRE DEL MOMENTO: una riga ciascuna ===== */}
+      {altre.length > 0 && (
+        <section>
+          <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[var(--muted)] mb-2">Anche in questi giorni</h2>
+          <div className="space-y-2">
+            {altre.map(a => {
+              const giocata = pron.has(a.id)
+              const viva = schedinaInCorso(a, nowIso, conclusa(a))
+              const d = new Date(a.deadline)
+              const quando = `${d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Rome' })} · ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}`
+              const daGiocare = !viva && !giocata
+              return (
+                <Link key={a.id} href={daGiocare ? `/schedine/${a.id}` : '/schedine'} className="glass rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold truncate">{nomeBreve(a.nome)}</div>
+                    <div className={`text-xs ${viva ? 'text-[var(--accent-soft)] font-semibold' : 'text-[var(--muted)]'}`}>
+                      {viva ? '● In diretta' : giocata ? `Giocata · si parte ${quando}` : `Chiude ${quando}`}
+                    </div>
+                  </div>
+                  <span className={`${daGiocare ? 'btn-primary' : 'btn-ghost'} px-3 py-1.5 text-xs shrink-0`}>{daGiocare ? 'Gioca →' : viva ? 'Segui →' : 'Vedi →'}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
       <InstallButton className="pt-2" />
     </div>
   )
 }
 
 function Partite({ s }: { s: Schedina }) {
+  const largo = suPiuGiorni(s.partite)
   return (
     <div className="glass rounded-2xl px-4 py-3 space-y-2">
       {s.partite.map((p, i) => (
         <div key={i} className="flex items-center gap-2 text-sm">
-          <span className="text-[11px] text-[var(--muted)] w-10 shrink-0 tabular-nums">{p.ora ?? ''}</span>
+          <span className={`text-[11px] text-[var(--muted)] ${largo ? 'w-[4.25rem]' : 'w-10'} shrink-0 tabular-nums`}>{quandoPartita(p, s.partite)}</span>
           <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
             <span className="truncate">{p.home}</span>
             <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
@@ -184,7 +211,7 @@ function Landing() {
       <p className="text-center text-xs text-[var(--muted)] mt-2">Al 27&apos; e al 61&apos; qualcuno ha segnato: due punti.</p>
 
       <p className="mt-7 text-[17px] leading-snug text-[var(--ink)]/85">
-        Dieci partite nello stesso pomeriggio. Tu scegli <strong className="text-[var(--ink)]">13 minuti</strong>.
+        Dieci partite, una schedina. Tu scegli <strong className="text-[var(--ink)]">13 minuti</strong>.
         Ogni gol che arriva in uno dei tuoi, in una qualsiasi delle partite, è un punto.
       </p>
 
