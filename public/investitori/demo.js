@@ -90,7 +90,8 @@
     const liberi = scelti.filter(m => m > 12 && m < 86 && !GOL.some(g => g[0] === m && !g[4]))
     const minutoStella = (liberi.length ? liberi : scelti)[Math.floor((liberi.length ? liberi : scelti).length / 2)] ?? 67
     GIORNATA = GOL.map(g => g[4] ? [minutoStella, g[1], g[2], g[3], g[4]] : g).sort((a, b) => a[0] - b[0])
-    const primo = Math.min(...GIORNATA.map(g => g[0])), ultimo = Math.max(...GIORNATA.map(g => g[0]))
+    const nei90 = GIORNATA.filter(g => !g[3])
+    const primo = Math.min(...nei90.map(g => g[0])), ultimo = Math.max(...nei90.map(g => g[0]))
     stato.primo = primo; stato.ultimo = ultimo
     disegnaLive()
     actions.innerHTML = `<button class="btn btn-ghost" id="stop" type="button">${T.ricomincia}</button>`
@@ -222,7 +223,9 @@
   function fine() {
     stato.fase = 'fine'; badge.style.display = 'none'; chiudiVelo()
     const squadraDi = g => PARTITE[g[1]][g[2]]
-    const primaVera = squadraDi(GIORNATA[0]), ultimaVera = squadraDi(GIORNATA[GIORNATA.length - 1])
+    // Prima e ultima squadra: contano solo i gol dall'1' al 90'. Quelli nel recupero no.
+    const nei90 = GIORNATA.filter(g => !g[3])
+    const primaVera = squadraDi(nei90[0]), ultimaVera = squadraDi(nei90[nei90.length - 1])
     const bonusPrima = !!stato.prima && stato.prima === primaVera, bonusUltima = !!stato.ultima && stato.ultima === ultimaVera
     const bonus = (bonusPrima ? 1 : 0) + (bonusUltima ? 1 : 0)
     const totale = stato.punti + bonus
@@ -237,6 +240,7 @@
           <div class="${bonusPrima ? 'ok' : ''}"><span>${T.primaSquadra}</span><b>${h(primaVera)}</b><i>${stato.prima ? (bonusPrima ? '+1' : h(stato.prima)) : T.nessuna}</i></div>
           <div class="${bonusUltima ? 'ok' : ''}"><span>${T.ultimaSquadra}</span><b>${h(ultimaVera)}</b><i>${stato.ultima ? (bonusUltima ? '+1' : h(stato.ultima)) : T.nessuna}</i></div>
         </div>
+        ${T.nei90 ? `<p class="sub" style="margin-top:6px">${T.nei90}</p>` : ''}
         <p class="sub" style="margin-top:14px">${T.classificaEsempio}</p>
         <div class="rank">${righe.map((r, i) => `<div class="${r.me ? 'me' : ''}"><b>${i + 1}</b><span>${r.n}</span><b class="num">${r.p}</b></div>`).join('')}</div>
       </div>`
