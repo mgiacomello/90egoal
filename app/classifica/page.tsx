@@ -37,6 +37,10 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
   const all = (tutteSchedine ?? []) as SchedinaLite[]
   const torneoDi = (s: SchedinaLite) => s.torneo ?? ''
   const tornei = [...new Set(all.map(torneoDi))]
+  // Un torneo finito (tutte le schedine in archivio, come i Mondiali) esce dai pulsanti:
+  // resta una riga in fondo, per chi vuole rivedere com'è andata.
+  const inCorsoT = tornei.filter(t => all.some(s => torneoDi(s) === t && s.attiva !== false))
+  const finiti = tornei.filter(t => t && !inCorsoT.includes(t))
   const corrente = [...all].reverse().find(s => s.attiva !== false)
   const torneo = params.torneo && tornei.includes(params.torneo) ? params.torneo : corrente ? torneoDi(corrente) : tornei[tornei.length - 1] ?? ''
   const schedine = all.filter(s => torneoDi(s) === torneo).reverse()
@@ -115,9 +119,9 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
         </div>
       )}
 
-      {tornei.length > 1 && (
+      {inCorsoT.length > 1 && (
         <div className="flex flex-wrap gap-2 mb-5">
-          {[...tornei].reverse().map(t => (
+          {[...inCorsoT].reverse().map(t => (
             <Link key={t || 'nessuno'} href={qs(t, lega?.id ?? null)} className={`seg-btn px-3 py-1.5 text-sm ${t === torneo ? 'is-active' : ''}`}>
               {t || 'Altro'}
             </Link>
@@ -192,6 +196,17 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
             )
           })}
         </>
+      )}
+
+      {finiti.filter(t => t !== torneo).map(t => (
+        <p key={t} className="text-xs text-[var(--muted)] text-center mt-6">
+          Si è giocato anche ai {t}. <Link href={qs(t, null)} className="underline">Com&apos;è finita</Link>
+        </p>
+      ))}
+      {finiti.includes(torneo) && (
+        <p className="text-xs text-[var(--muted)] text-center mt-6">
+          Torneo concluso. <Link href="/classifica" className="underline">Torna alla classifica di oggi</Link>
+        </p>
       )}
     </div>
   )

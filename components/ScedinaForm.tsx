@@ -11,6 +11,7 @@ import GoalStatsPanel from '@/components/GoalStatsPanel'
 import { logEvent } from '@/lib/track'
 import { nomeBreve } from '@/lib/teams'
 import { PROVA_KEY, type PronosticoProva } from '@/lib/demo'
+import { quandoPartita, suPiuGiorni } from '@/lib/giornata'
 import PushToggle from '@/components/PushToggle'
 import { IconPlus, IconWhistle, IconFlag, IconStopwatch, IconChart, IconLock, IconCheck } from '@/components/Icons'
 
@@ -213,7 +214,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
             <div className="px-4 pb-3 space-y-1.5">
               {schedina.partite.map((p: Partita, i: number) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className="text-[11px] text-[var(--muted)] w-10 shrink-0 tabular-nums">{p.ora ?? ''}</span>
+                  <span className={`text-[11px] text-[var(--muted)] ${suPiuGiorni(schedina.partite) ? 'w-[4.25rem]' : 'w-10'} shrink-0 tabular-nums`}>{quandoPartita(p, schedina.partite)}</span>
                   <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
                   <span className="truncate">{p.home}</span>
                   <span className="text-[var(--muted)] text-xs">–</span>

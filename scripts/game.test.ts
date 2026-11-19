@@ -4,6 +4,7 @@ import { romeToUtcIso, utcToRome, firstKickoffIso } from '../lib/time.ts'
 import { parseMinute, formatMinute, buildDettaglio, deriveRisultato, type PartitaLive } from '../lib/live.ts'
 import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '../lib/teams.ts'
 import { parseMarcatore, magliaDi } from '../lib/kits.ts'
+import { suPiuGiorni, quandoPartita, fineStimataIso, inCorso, delMomento } from '../lib/giornata.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
@@ -226,6 +227,54 @@ check('posizioni con i pari merito', () => {
 check('fine giornata: singolare e plurale', () => {
   assert.match(messaggioFinale(9, 'Giornata del 17 ottobre', 1, 3, 40).body, /1 punto,/)
   assert.match(messaggioFinale(9, 'Giornata del 17 ottobre', 7, 3, 40).body, /7 punti, sei 3° su 40/)
+})
+
+/* --- più schedine insieme, giornate su più giorni --- */
+
+const SERIE_A = { id: 1, deadline: '2026-11-21T14:00:00.000Z', partite: [
+  { date: '2026-11-21', ora: '15:00' }, { date: '2026-11-22', ora: '20:45' }, { date: '2026-11-23', ora: '18:30' },
+] }
+const SERIE_B = { id: 2, deadline: '2026-11-21T14:00:00.000Z', partite: [{ date: '2026-11-21', ora: '15:00' }, { date: '2026-11-21', ora: '19:30' }] }
+const SERIE_C = { id: 3, deadline: '2026-11-22T13:30:00.000Z', partite: [{ date: '2026-11-22', ora: '14:30' }] }
+const SUCCESSIVA = { id: 4, deadline: '2026-11-28T14:00:00.000Z', partite: [{ date: '2026-11-28', ora: '15:00' }] }
+const LONTANA = { id: 5, deadline: '2027-01-16T14:00:00.000Z', partite: [{ date: '2027-01-16', ora: '15:00' }] }
+const VECCHIA = { id: 9, deadline: '2026-11-07T13:30:00.000Z', partite: [{ date: '2026-11-07', ora: null }] }
+
+check('giornata su più giorni: l\'orario dice anche il giorno', () => {
+  assert.equal(suPiuGiorni(SERIE_A.partite), true)
+  assert.equal(quandoPartita(SERIE_A.partite[0], SERIE_A.partite), 'sab 15:00')
+  assert.equal(quandoPartita(SERIE_A.partite[2], SERIE_A.partite), 'lun 18:30')
+  assert.equal(quandoPartita({ date: '2026-11-22', ora: null }, SERIE_A.partite), 'dom')
+})
+check('giornata in un giorno solo: resta solo l\'ora', () => {
+  assert.equal(suPiuGiorni(SERIE_B.partite), false)
+  assert.equal(quandoPartita(SERIE_B.partite[1], SERIE_B.partite), '19:30')
+  assert.equal(quandoPartita({ date: '2026-11-21', ora: null }, SERIE_B.partite), '')
+})
+check('fine stimata: ultimo calcio d\'inizio più due ore e mezza', () => {
+  assert.equal(fineStimataIso(SERIE_A), '2026-11-23T20:00:00.000Z')
+  assert.equal(fineStimataIso(VECCHIA), '2026-11-07T22:59:00.000Z')
+})
+check('una giornata vecchia senza risultati non resta "in corso" per sempre', () => {
+  assert.equal(inCorso(VECCHIA, '2026-11-07T16:00:00.000Z', false), true)
+  assert.equal(inCorso(VECCHIA, '2026-11-19T10:00:00.000Z', false), false)
+  assert.equal(inCorso(SERIE_A, '2026-11-22T10:00:00.000Z', true), false)
+  assert.equal(inCorso(SERIE_A, '2026-11-20T10:00:00.000Z', false), false)
+})
+check('oggi, prima del weekend: la prima a chiudere in testa, le altre della settimana sotto', () => {
+  const r = delMomento([LONTANA, SUCCESSIVA, SERIE_C, SERIE_B, SERIE_A, VECCHIA], '2026-11-19T10:00:00.000Z', () => false)
+  assert.equal(r.principale?.id, 1)
+  assert.deepEqual(r.altre.map(s => s.id), [2, 3])
+})
+check('domenica: la Serie A è in corso, la B anche, la C è ancora da giocare', () => {
+  const r = delMomento([SERIE_A, SERIE_B, SERIE_C, SUCCESSIVA], '2026-11-22T09:00:00.000Z', s => s.id === 2)
+  assert.equal(r.principale?.id, 1)
+  assert.deepEqual(r.altre.map(s => s.id), [3, 4])
+})
+check('niente in corso e niente aperto: resta l\'ultima giornata chiusa', () => {
+  const r = delMomento([VECCHIA, SERIE_B], '2026-12-25T10:00:00.000Z', () => true)
+  assert.equal(r.principale?.id, 2)
+  assert.deepEqual(r.altre, [])
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

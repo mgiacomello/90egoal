@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Risultato, Schedina, MatchDetail } from '@/lib/types'
 import { buildDettaglio, deriveRisultato, matchKey, parseMinute, formatMinute, type GolLive, type StatoPartita } from '@/lib/live'
 import { nomeBreve } from '@/lib/teams'
+import { quandoPartita } from '@/lib/giornata'
 import Flag from '@/components/Flag'
 import { inviaPush } from '@/components/AdminPush'
 
@@ -199,7 +200,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               return (
                 <div key={key} className={`rounded-2xl border p-3 ${st.stato === 'in_corso' ? 'border-[var(--accent)]/50 bg-[var(--accent)]/[0.06]' : 'border-[var(--line)] bg-[var(--surface-2)]'}`}>
                   <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] mb-2">
-                    <span>{p.competizione ?? ''}{p.ora ? ` · ${p.ora}` : ''}</span>
+                    <span>{p.competizione ?? ''}{quandoPartita(p, schedina.partite) ? ` · ${quandoPartita(p, schedina.partite)}` : ''}</span>
                     <div className="flex gap-1">
                       {STATI.map(x => (
                         <button key={x.v} onClick={() => cambiaStato(key, x.v)} disabled={saving}
