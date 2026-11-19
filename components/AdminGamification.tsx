@@ -32,14 +32,14 @@ export default function AdminGamification({ profiles, classifica, activity }: Pr
     return [...m.entries()].sort((a, b) => b[1] - a[1])[0]
   }
   const cecchino = sumBy('punti_minuti')
-  const veggenti = [...new Set(classifica.filter(c => c.punti_bonus >= 10 && giocatoriIds.has(c.user_id)).map(c => c.user_id))]
+  const veggenti = [...new Set(classifica.filter(c => (c.punti_bonus === 2 || c.punti_bonus >= 10) && giocatoriIds.has(c.user_id)).map(c => c.user_id))]
   const act = activity.filter(a => giocatoriIds.has(a.user_id))
   const maratoneta = [...act].sort((a, b) => (b.minuti_attivi || 0) - (a.minuti_attivi || 0))[0]
   const assiduo = [...act].sort((a, b) => (b.giorni_attivi || 0) - (a.giorni_attivi || 0))[0]
 
   const badges = [
     { icon: '🎯', nome: 'Cecchino', desc: 'Più minuti azzeccati in totale', who: cecchino ? nameById.get(cecchino[0]) : null, val: cecchino ? `${cecchino[1]} min` : null },
-    { icon: '🔮', nome: 'Veggente', desc: 'Ha indovinato prima E ultima squadra', who: veggenti.length ? veggenti.map(id => nameById.get(id)).filter(Boolean).join(', ') : null, val: veggenti.length ? '+10' : null },
+    { icon: '🔮', nome: 'Veggente', desc: 'Ha indovinato prima E ultima squadra', who: veggenti.length ? veggenti.map(id => nameById.get(id)).filter(Boolean).join(', ') : null, val: veggenti.length ? '+2' : null },
     { icon: '⏱️', nome: 'Maratoneta', desc: 'Più tempo passato in piattaforma', who: maratoneta ? nameById.get(maratoneta.user_id) : null, val: maratoneta ? `${maratoneta.minuti_attivi} min` : null },
     { icon: '🔥', nome: 'Più assiduo', desc: 'Più giorni di attività', who: assiduo ? nameById.get(assiduo.user_id) : null, val: assiduo ? `${assiduo.giorni_attivi} gg` : null },
   ]

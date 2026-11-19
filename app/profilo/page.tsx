@@ -48,7 +48,7 @@ export default async function ProfiloPage() {
   const sumMin = new Map<string, number>()
   cl.forEach(c => sumMin.set(c.user_id, (sumMin.get(c.user_id) ?? 0) + c.punti_minuti))
   const cecchinoId = [...sumMin.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
-  const isVeggente = cl.some(c => c.user_id === user.id && c.punti_bonus >= 10)
+  const isVeggente = cl.some(c => c.user_id === user.id && (c.punti_bonus === 2 || c.punti_bonus >= 10))
   const badges: { Icon: typeof IconTarget; nome: string }[] = []
   if (cecchinoId === user.id && (sumMin.get(user.id) ?? 0) > 0) badges.push({ Icon: IconTarget, nome: 'Cecchino' })
   if (isVeggente) badges.push({ Icon: IconStar, nome: 'Veggente' })

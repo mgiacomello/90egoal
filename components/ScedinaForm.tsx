@@ -270,8 +270,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           )}
 
           <section>
-            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconWhistle size={16} className="text-[var(--gold)]" /> Chi segna per primo <span className="text-xs font-normal text-[var(--gold)]">+3</span></h3>
-            <p className="text-xs text-[var(--muted)] mb-3">Il primo gol di tutta la giornata, in ordine di orario.</p>
+            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconWhistle size={16} className="text-[var(--gold)]" /> Chi segna per primo <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">Il primo gol della giornata nei 90 minuti, in ordine di orario. I gol nel recupero non contano.</p>
             {bomber.length > 0 && (
               <p className="text-xs text-[var(--muted)] -mt-2 mb-3 truncate">
                 <IconChart size={12} className="inline -mt-0.5 mr-1" />Più gol finora: {bomber.map((t, i) => <span key={t.team}>{i > 0 && ' · '}<span className="text-[var(--ink)] font-medium">{t.team}</span> {t.count}</span>)}
@@ -281,8 +281,8 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           </section>
 
           <section>
-            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconFlag size={16} className="text-[var(--gold)]" /> Chi segna per ultimo <span className="text-xs font-normal text-[var(--gold)]">+3 · entrambe +10</span></h3>
-            <p className="text-xs text-[var(--muted)] mb-3">L&apos;ultimo gol della giornata.</p>
+            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconFlag size={16} className="text-[var(--gold)]" /> Chi segna per ultimo <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">L&apos;ultimo gol della giornata nei 90 minuti.</p>
             <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
           </section>
         </div>

@@ -66,7 +66,7 @@ export default function SchedinaCard({ schedina: s, pronostico, risultato, now, 
         <div className="px-4 pb-3 flex flex-wrap gap-1">
           {pronostico.minuti.map(m => {
             const hit = !!risultato && risultato.minuti_gol.includes(m)
-            const doppio = hit && (m === risultato?.minuto_primo_gol || m === risultato?.minuto_ultimo_gol)
+            const doppio = hit && m === risultato?.minuto_primo_gol
             const miss = !!risultato && !hit && conclusa
             return (
               <span key={m} className={`tag-static ${miss ? 'is-miss' : risultato && !hit ? 'is-pending' : ''} px-2 py-0.5 text-[11px]`}>

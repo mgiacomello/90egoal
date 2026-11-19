@@ -6,10 +6,10 @@ export const metadata: Metadata = { title: 'Regole — 90 & Goal' }
 
 const PUNTI = [
   { p: '+1', t: 'per ogni tuo minuto in cui viene segnato almeno un gol, in una qualsiasi delle partite', c: 'text-[var(--accent)]' },
-  { p: '+2', t: 'se quel minuto è quello del primo o dell’ultimo gol della schedina (nei 90 minuti, in ordine di orario)', c: 'text-[var(--accent)]' },
+  { p: '+2', t: 'se quel minuto è quello del primo gol della schedina (nei 90 minuti, in ordine di orario)', c: 'text-[var(--accent)]' },
   { p: '+1', t: 'se c’è almeno un gol nel recupero del tempo che hai scelto (1° o 2°)', c: 'text-[var(--accent)]' },
-  { p: '+3', t: 'se indovini la squadra che segna il primo gol OPPURE l’ultimo', c: 'text-[var(--gold)]' },
-  { p: '+10', t: 'se le indovini entrambe (non si somma al +3)', c: 'text-[var(--gold)]' },
+  { p: '+1', t: 'se indovini la squadra che segna il primo gol nei 90 minuti regolamentari', c: 'text-[var(--gold)]' },
+  { p: '+1', t: 'se indovini la squadra che segna l’ultimo gol nei 90 minuti regolamentari', c: 'text-[var(--gold)]' },
 ]
 
 const FAQ: { q: string; a: React.ReactNode }[] = [
@@ -22,8 +22,12 @@ const FAQ: { q: string; a: React.ReactNode }[] = [
     a: <>Un gol al 45+2&apos; o al 90+3&apos; <strong className="text-[var(--ink)]">non vale per i minuti</strong> (non puoi sceglierlo), ma fa scattare il bonus recupero di quel tempo.</>,
   },
   {
-    q: 'Quali minuti valgono doppio?',
-    a: <>Il minuto del <strong className="text-[var(--ink)]">primo gol</strong> e quello dell&apos;<strong className="text-[var(--ink)]">ultimo gol</strong> segnati nei tempi regolamentari, considerando tutte le partite della schedina in ordine di orario reale. Se li hai in schedina, valgono 2 punti ciascuno invece di 1. I gol nel recupero non contano per questa regola.</>,
+    q: 'Quale minuto vale doppio?',
+    a: <>Il minuto del <strong className="text-[var(--ink)]">primo gol</strong> segnato nei tempi regolamentari, considerando tutte le partite della schedina in ordine di orario reale. Se lo hai in schedina, vale 2 punti invece di 1. I gol nel recupero non contano per questa regola.</>,
+  },
+  {
+    q: 'Prima e ultima squadra: quali gol contano?',
+    a: <>Solo quelli segnati nei 90 minuti regolamentari, dal 1° al 45° e dal 46° al 90°, in ordine di orario reale fra tutte le partite della schedina. I gol nei minuti di recupero non contano per questo bonus. Ogni squadra indovinata vale <strong className="text-[var(--ink)]">1 punto</strong>.</>,
   },
   {
     q: 'Due gol nello stesso minuto?',

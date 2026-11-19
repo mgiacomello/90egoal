@@ -93,7 +93,7 @@ export default async function Home() {
           <div className="glass rounded-2xl p-5 text-center">
             <div className="mb-4"><Countdown deadline={s.deadline} /></div>
             <Link href={`/schedine/${s.id}`} className="btn-primary w-full py-4 text-base">Scegli i tuoi 13 minuti →</Link>
-            <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il primo e l&apos;ultimo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
+            <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il minuto del primo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
           </div>
           <Partite s={s} />
         </>

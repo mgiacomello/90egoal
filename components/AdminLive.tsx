@@ -181,7 +181,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               {!riepilogo.completa && riepilogo.last_goal_team && <span className="text-[var(--gold)]"> (provvisoria)</span>}
             </div>
             <div className="text-[var(--muted)]">
-              Valgono doppio: <span className="text-[var(--ink)] font-mono">{[riepilogo.minuto_primo_gol, riepilogo.minuto_ultimo_gol].filter((m, i, a) => m !== null && a.indexOf(m) === i).map(m => `${m}'`).join(' ') || '—'}</span>
+              Vale doppio: <span className="text-[var(--ink)] font-mono">{riepilogo.minuto_primo_gol !== null ? `${riepilogo.minuto_primo_gol}'` : '—'}</span>
             </div>
             {error && <div className="text-[var(--danger)]">{error}</div>}
             <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">

@@ -103,11 +103,11 @@ export interface GolCronologia {
   home: string
   away: string
   score: string           // punteggio della partita subito dopo questo gol
-  doppio: boolean         // primo o ultimo gol dei 90': quel minuto vale 2
+  doppio: boolean         // primo gol dei 90': quel minuto vale 2
 }
 
 // Tutti i gol della schedina in ordine di orario reale, con il punteggio
-// parziale e il segno "doppio" sul primo e sull'ultimo dei tempi regolamentari.
+// parziale e il segno "doppio" sul primo gol dei tempi regolamentari.
 export function cronologiaGol(partite: PartitaLive[], dettagli: DettaglioLive[]): GolCronologia[] {
   const byKey = new Map(dettagli.map(d => [matchKey(d), d]))
   const out: (GolCronologia & { seq: number })[] = []
@@ -142,7 +142,6 @@ export function cronologiaGol(partite: PartitaLive[], dettagli: DettaglioLive[])
   const reg = out.filter(g => g.minuto !== null)
   if (reg.length) {
     reg[0].doppio = true
-    reg[reg.length - 1].doppio = true
   }
   return out.map(g => { const { seq, ...resto } = g; void seq; return resto })
 }
@@ -153,7 +152,7 @@ export interface RisultatoDerivato {
   first_goal_team: string | null
   last_goal_team: string | null
   minuto_primo_gol: number | null   // minuto (1–90) del primo gol nei tempi regolamentari: vale doppio
-  minuto_ultimo_gol: number | null  // minuto (1–90) dell'ultimo gol nei tempi regolamentari: vale doppio
+  minuto_ultimo_gol: number | null  // non più usato: da novembre 2026 vale doppio solo il primo gol. Sempre null.
   finite: number
   inCorso: number
   completa: boolean
@@ -163,8 +162,9 @@ export interface RisultatoDerivato {
 // - valgono per i minuti solo i gol dall'1' al 90' (recupero e supplementari esclusi);
 // - più gol nello stesso minuto contano una volta sola;
 // - il recupero conta per il bonus, primo tempo (45+) o secondo (90+);
-// - prima e ultima squadra: in ordine di orario reale fra tutte le partite;
-// - il minuto del primo e dell'ultimo gol fra 1' e 90' (stesso ordine reale) vale 2 punti.
+// - prima e ultima squadra: in ordine di orario reale fra tutte le partite, contando
+//   solo i gol dall'1' al 90' (quelli nel recupero non contano per questo bonus);
+// - il minuto del primo gol fra 1' e 90' (stesso ordine reale) vale 2 punti.
 export function deriveRisultato(partite: PartitaLive[], dettagli: DettaglioLive[]): RisultatoDerivato {
   const byKey = new Map(dettagli.map(d => [matchKey(d), d]))
   const minuti = new Set<number>()
@@ -197,10 +197,10 @@ export function deriveRisultato(partite: PartitaLive[], dettagli: DettaglioLive[
   return {
     minuti_gol: [...minuti].sort((a, b) => a - b),
     recupero: rec1 && rec2 ? 'entrambi' : rec1 ? 'primo' : rec2 ? 'secondo' : 'nessuno',
-    first_goal_team: cronologia[0]?.team ?? null,
-    last_goal_team: cronologia[cronologia.length - 1]?.team ?? null,
+    first_goal_team: regolamentari[0]?.team ?? null,
+    last_goal_team: regolamentari[regolamentari.length - 1]?.team ?? null,
     minuto_primo_gol: regolamentari[0]?.minuto ?? null,
-    minuto_ultimo_gol: regolamentari[regolamentari.length - 1]?.minuto ?? null,
+    minuto_ultimo_gol: null,
     finite,
     inCorso,
     completa: partite.length > 0 && finite === partite.length,

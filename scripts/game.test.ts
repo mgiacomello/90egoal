@@ -99,24 +99,31 @@ check('prima e ultima squadra seguono l\'orario reale, non l\'ordine di inserime
   // Torres al 50' della partita delle 14:30 ≈ 15:37; Empoli al 10' ≈ 15:10.
   assert.equal(r.last_goal_team, 'Torres')
 })
-check('il 45+3 del primo tempo viene prima del 46 di una partita iniziata insieme', () => {
+check('prima e ultima squadra: un gol nel recupero non conta, anche se arriva prima', () => {
   const B: PartitaLive = { home: 'Carpi', away: 'Lumezzane', date: '2026-10-17', ora: '14:30' }
   const r = deriveRisultato([REG, B], [
-    buildDettaglio(REG, [{ min: '46', team: 'Torres' }], 'finita'),
-    buildDettaglio(B, [{ min: '45+3', team: 'Carpi' }], 'finita'),
+    buildDettaglio(REG, [{ min: '46', team: 'Torres' }, { min: '90+4', team: 'Reggiana' }], 'finita'),
+    buildDettaglio(B, [{ min: '45+3', team: 'Carpi' }, { min: '60', team: 'Lumezzane' }], 'finita'),
   ])
-  assert.equal(r.first_goal_team, 'Carpi')
-  assert.equal(r.last_goal_team, 'Torres')
+  assert.equal(r.first_goal_team, 'Torres')      // il 45+3 del Carpi è recupero
+  assert.equal(r.last_goal_team, 'Lumezzane')    // il 90+4 della Reggiana è recupero
+  assert.equal(r.recupero, 'entrambi')           // ma il bonus recupero scatta lo stesso
 })
-check('minuto del primo e dell\'ultimo gol nei 90\': in ordine di orario, recupero escluso', () => {
+check('solo gol nel recupero: nessuna prima o ultima squadra', () => {
+  const r = deriveRisultato([REG], [buildDettaglio(REG, [{ min: '90+2', team: 'Torres' }], 'finita')])
+  assert.equal(r.first_goal_team, null)
+  assert.equal(r.last_goal_team, null)
+})
+check('minuto del primo gol e squadre prima/ultima: nei 90\', in ordine di orario, recupero escluso', () => {
   // Reggiana (14:30) segna al 20' → 14:50. Empoli (15:00) segna al 10' → 15:10 e al 90+3 (non conta).
   const r = deriveRisultato([REG, ASC], [
     buildDettaglio(ASC, [{ min: '10', team: 'Empoli' }, { min: '90+3', team: 'Ascoli' }], 'finita'),
     buildDettaglio(REG, [{ min: '20', team: 'Reggiana' }], 'finita'),
   ])
   assert.equal(r.minuto_primo_gol, 20)
-  assert.equal(r.minuto_ultimo_gol, 10)
-  assert.equal(r.last_goal_team, 'Ascoli')
+  assert.equal(r.minuto_ultimo_gol, null)   // l'ultimo gol non vale più doppio
+  assert.equal(r.first_goal_team, 'Reggiana')
+  assert.equal(r.last_goal_team, 'Empoli')   // il 90+3 dell'Ascoli è recupero: non conta
 })
 check('solo gol nel recupero: nessun minuto doppio', () => {
   const r = deriveRisultato([REG], [buildDettaglio(REG, [{ min: '45+1', team: 'Torres' }], 'finita')])
