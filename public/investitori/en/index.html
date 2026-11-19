@@ -124,7 +124,7 @@
       <div class="rule"><div class="v">+1</div><p><b>One point for every goal in your minutes</b>In any match that day. Two goals in the same minute on two different pitches are two points.</p></div>
       <div class="rule"><div class="v g">×2</div><p><b>The first goal of the day counts double</b>If the first goal of the afternoon, by the clock across all pitches, lands in one of your minutes, it is worth 2 points. It is the only multiplier on the minutes, so it never stacks with the added-time bonus.</p></div>
       <div class="rule"><div class="v">90+</div><p><b>Added time is a separate bonus</b>On top of your 13 minutes, you back the added time of either the first half or the second, not both. A goal in it earns a bonus point.</p></div>
-      <div class="rule"><div class="v g">1st</div><p><b>First and last team to score</b>Two optional picks on the same ticket: which team scores the first goal of the day and which scores the last. Each one you get right is worth one point, added to your score.</p></div>
+      <div class="rule"><div class="v g">1st</div><p><b>First and last team to score</b>Two optional picks on the same ticket: the team that scores the first goal and the team that scores the last within the 90 minutes of regulation play, from the 1st to the 45th minute and from the 46th to the 90th. Each team you get right is worth one point. Goals scored in added time, at the end of either half, do not count for this bonus.</p></div>
       <div class="rule"><div class="v">⏱</div><p><b>Deadline at kick-off</b>Once the first match kicks off, the system rejects every prediction, even one that bypasses the app.</p></div>
       <div class="rule"><div class="v">Σ</div><p><b>Standings per tournament</b>The overall standings add up the matchdays of the current tournament. The World Cup keeps its own separate table.</p></div>
     </div>
@@ -203,7 +203,7 @@
 window.TESTI = {
   giornata: '17 October matchday', sottotitolo: '10 matches · Serie A, B and C · closes at 14:30', minutiScelti: 'Minutes picked',
   recupero: 'Added time', primoTempo: '1st half', secondoTempo: '2nd half', fischio: 'Kick-off', caso: 'Pick for me', ricomincia: 'Start over',
-  tuoUscito: m => `A goal in your ${m}!`, segna: 'scored by', gol: 'Goal', al: 'at', primoGol: ' · first goal', bonus: 'Bonus', primaSquadra: 'First team to score', ultimaSquadra: 'Last team to score', primaBreve: 'first', ultimaBreve: 'last', nessuna: '—', inCampo: 'On the pitch', puntiFinora: 'Points so far',
+  tuoUscito: m => `A goal in your ${m}!`, segna: 'scored by', gol: 'Goal', al: 'at', primoGol: ' · first goal', bonus: 'Bonus', nei90: "First and last team: goals from 1' to 90' count, added-time goals do not.", primaSquadra: 'First team to score', ultimaSquadra: 'Last team to score', primaBreve: 'first', ultimaBreve: 'last', nessuna: '—', inCampo: 'On the pitch', puntiFinora: 'Points so far',
   golGiornata: 'Goals of the day', tuo: 'Yours', torna: 'Back to the match', tu: 'You', fine: 'Full time', punti: 'points',
   riepilogo: (miei, tot, doppio) => `${miei} goals in your minutes out of ${tot} scored${doppio ? ', one of them counted double' : ''}.`,
   classificaEsempio: 'Sample leaderboard', ancora: 'Play another matchday', valeDoppio: ' · counts double', attivaAudio: 'Turn sound on', silenzia: 'Mute',
