@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { logEvent } from '@/lib/track'
 import { trasferisciProva } from '@/lib/prova'
+import { PRIVACY_VERSIONE, TITOLARE } from '@/lib/privacy'
 import { percorsoDopoAccesso, nessunaIscrizione, suffissoRitorno } from '@/lib/leghe'
 
 export default function RegisterPage() {
@@ -15,6 +16,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const suffisso = useSyncExternalStore(nessunaIscrizione, suffissoRitorno, () => '')
   const [serveInvito, setServeInvito] = useState(false)
+  const [privacy, setPrivacy] = useState(false)
   const startedAt = useRef<number>(0)
 
   // Test chiuso: il campo codice compare solo se l'admin l'ha attivato nel database.
@@ -32,6 +34,7 @@ export default function RegisterPage() {
     e.preventDefault()
     setError('')
 
+    if (!privacy) { setError('Per registrarti devi aver letto l\'informativa privacy.'); return }
     if (form.password !== form.confirm) { setError('Le password non coincidono.'); return }
     if (form.password.length < 6) { setError('La password deve essere di almeno 6 caratteri.'); return }
     if (!/^[a-zA-Z0-9_]+$/.test(form.username)) { setError('Il nickname può contenere solo lettere, numeri e _'); return }
@@ -50,7 +53,11 @@ export default function RegisterPage() {
     const { data, error } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { username: form.username.toLowerCase(), full_name: form.fullName, invito: form.invito.trim() } },
+      options: { data: {
+        username: form.username.toLowerCase(), full_name: form.fullName, invito: form.invito.trim(),
+        // Prova dell'accettazione: quando e quale versione dell'informativa.
+        privacy_accettata_il: new Date().toISOString(), privacy_versione: PRIVACY_VERSIONE,
+      } },
     })
 
     if (error) {
@@ -122,6 +129,14 @@ export default function RegisterPage() {
               className="input-field w-full px-4 py-2.5 uppercase tracking-wider" placeholder="Te l'ha dato chi ti ha invitato" autoCapitalize="characters" />
           </div>
         )}
+
+        <label className="flex items-start gap-3 text-sm text-[var(--ink)]/85 cursor-pointer pt-1">
+          <input type="checkbox" required checked={privacy} onChange={e => setPrivacy(e.target.checked)}
+            className="mt-0.5 w-5 h-5 shrink-0 accent-[var(--accent)]" />
+          <span>
+            Ho letto l&apos;<Link href="/privacy" target="_blank" className="text-[var(--accent-soft)] underline font-medium">informativa privacy</Link> di {TITOLARE.nome} e ho almeno 14 anni.
+          </span>
+        </label>
 
         <button type="submit" disabled={loading} className="btn-primary w-full py-3 mt-2">
           {loading ? 'Registrazione…' : 'Crea account'}

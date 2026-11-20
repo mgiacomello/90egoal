@@ -234,7 +234,7 @@ function Landing() {
         ))}
       </div>
 
-      <p className="text-xs text-[var(--muted)] mt-8 text-center">Versione di test, senza premi. <Link href="/regole" className="text-[var(--accent)]">Regole complete</Link></p>
+      <p className="text-xs text-[var(--muted)] mt-8 text-center">Versione di test, senza premi. <Link href="/regole" className="text-[var(--accent)]">Regole complete</Link> · <Link href="/privacy" className="text-[var(--accent)]">Privacy</Link></p>
     </div>
   )
 }
