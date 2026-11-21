@@ -7,7 +7,7 @@ export const metadata: Metadata = { title: 'Informativa privacy — 90 & Goal' }
 const SEZIONI: { t: string; c: React.ReactNode }[] = [
   {
     t: '1. Chi tratta i tuoi dati',
-    c: <p>Il titolare del trattamento è <strong>{TITOLARE.nome}</strong>, con sede in {TITOLARE.indirizzo}. Per qualsiasi richiesta sui tuoi dati puoi scrivere al titolare a questo indirizzo.</p>,
+    c: <p>Il titolare del trattamento è <strong>{TITOLARE.nome}</strong>, con sede in {TITOLARE.indirizzo}. Per qualsiasi richiesta sui tuoi dati puoi scrivere a <a href={`mailto:${TITOLARE.email}`} className="underline">{TITOLARE.email}</a> o al titolare all&apos;indirizzo qui sopra.</p>,
   },
   {
     t: '2. Quali dati raccogliamo',
@@ -72,7 +72,7 @@ const SEZIONI: { t: string; c: React.ReactNode }[] = [
           <li>ricevere i dati in un formato leggibile da un altro servizio;</li>
           <li>revocare un consenso già dato, senza effetti su ciò che è stato fatto prima.</li>
         </ul>
-        <p>Per esercitare questi diritti scrivi a {TITOLARE.nome}, {TITOLARE.indirizzo}. Se ritieni che il trattamento violi la legge puoi presentare reclamo al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" className="underline">garanteprivacy.it</a>).</p>
+        <p>Per esercitare questi diritti scrivi a <a href={`mailto:${TITOLARE.email}`} className="underline">{TITOLARE.email}</a>, oppure a {TITOLARE.nome}, {TITOLARE.indirizzo}. Se ritieni che il trattamento violi la legge puoi presentare reclamo al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" className="underline">garanteprivacy.it</a>).</p>
       </>
     ),
   },
