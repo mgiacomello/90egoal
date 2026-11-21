@@ -34,7 +34,7 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
       <footer className={`mt-12 ${wide ? 'sm:pb-0' : ''} pb-[calc(4.5rem+env(safe-area-inset-bottom))]`}>
         <div className={`${wide ? 'max-w-5xl' : 'max-w-md'} mx-auto px-4 py-4 flex items-center justify-between text-xs text-[var(--muted)]`}>
           <span className="font-display font-semibold text-sm">90 <span className="text-[var(--muted)]">&amp;</span> Goal</span>
-          <span>versione di test</span>
+          <span className="flex items-center gap-3"><a href="/privacy" className="underline">Privacy</a><span>versione di test</span></span>
         </div>
       </footer>
     </>
