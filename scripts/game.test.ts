@@ -5,6 +5,7 @@ import { parseMinute, formatMinute, buildDettaglio, deriveRisultato, type Partit
 import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '../lib/teams.ts'
 import { parseMarcatore, magliaDi } from '../lib/kits.ts'
 import { suPiuGiorni, quandoPartita, fineStimataIso, inCorso, delMomento } from '../lib/giornata.ts'
+import { privacyDaAccettare, PRIVACY_VERSIONE } from '../lib/privacy.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
@@ -282,6 +283,20 @@ check('niente in corso e niente aperto: resta l\'ultima giornata chiusa', () => 
   const r = delMomento([VECCHIA, SERIE_B], '2026-12-25T10:00:00.000Z', () => true)
   assert.equal(r.principale?.id, 2)
   assert.deepEqual(r.altre, [])
+})
+
+/* --- informativa privacy --- */
+
+check('privacy: chi si è registrato prima dell\'informativa deve accettarla', () => {
+  assert.equal(privacyDaAccettare({ username: 'anna', full_name: 'Anna' }), true)
+  assert.equal(privacyDaAccettare(undefined), true)
+  assert.equal(privacyDaAccettare(null), true)
+})
+check('privacy: chi ha accettato la versione in vigore non rivede l\'avviso', () => {
+  assert.equal(privacyDaAccettare({ privacy_versione: PRIVACY_VERSIONE, privacy_accettata_il: '2026-11-21T10:00:00.000Z' }), false)
+})
+check('privacy: se la versione cambia, l\'avviso torna', () => {
+  assert.equal(privacyDaAccettare({ privacy_versione: '2020-01-01' }), true)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

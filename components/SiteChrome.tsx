@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import ActivityTracker from '@/components/ActivityTracker'
 import GolPopup from '@/components/GolPopup'
+import PrivacyAvviso from '@/components/PrivacyAvviso'
 
 /**
  * ONE TAP è un'app a sé dentro allo stesso deploy: lì la navigazione del sito
@@ -27,6 +28,8 @@ export default function SiteChrome({ children }: { children: React.ReactNode }) 
     <>
       <Navbar wide={wide} />
       <ActivityTracker />
+      {/* Chi ha un account da prima dell'informativa la accetta al primo accesso. Non sulla pagina dell'informativa né su accesso e recupero password. */}
+      {pathname !== '/privacy' && !pathname?.startsWith('/auth') && <PrivacyAvviso />}
       {/* Il popup del gol legge l'indirizzo: Suspense perché useSearchParams non blocchi la pagina. */}
       <Suspense fallback={null}><GolPopup /></Suspense>
       {/* La navigazione sta in basso: lo spazio sotto evita che copra il contenuto. */}
