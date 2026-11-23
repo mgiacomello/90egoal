@@ -24,6 +24,7 @@ export interface DettaglioLive {
   minuti: string[]
   gol: GolLive[]
   stato?: StatoPartita
+  manuale?: boolean   // corretta a mano dall'admin: i risultati automatici non la toccano
 }
 
 export interface Minuto {
