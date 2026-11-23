@@ -19,8 +19,10 @@ const SITE = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://90egoal.vercel.app'
 
 export const linkInvito = (codice: string) => `${SITE}/leghe/entra/${codice}`
 
-export const testoInvito = (lega: Pick<Lega, 'nome' | 'codice'>) =>
-  `Entra nella mia lega "${lega.nome}" su 90 & Goal: scegli 13 minuti, ogni gol in uno dei tuoi è un punto. ${linkInvito(lega.codice)}`
+export const testoInvito = (lega: Pick<Lega, 'nome' | 'codice'>, lingua: 'it' | 'en' = 'it') =>
+  lingua === 'en'
+    ? `Join my league "${lega.nome}" on 90 & Goal: pick 13 minutes, every goal in one of yours is a point. ${linkInvito(lega.codice)}`
+    : `Entra nella mia lega "${lega.nome}" su 90 & Goal: scegli 13 minuti, ogni gol in uno dei tuoi è un punto. ${linkInvito(lega.codice)}`
 
 // Le leghe di cui l'utente fa parte, con i membri di ciascuna.
 // Se la tabella non c'è ancora (migrazione non eseguita) torna una lista vuota.
@@ -39,7 +41,16 @@ export async function mieLeghe(supabase: SupabaseClient, userId: string): Promis
 }
 
 // Messaggi d'errore delle funzioni del database, detti come li direbbe una persona.
-export function erroreLega(msg: string | undefined): string {
+export function erroreLega(msg: string | undefined, lingua: 'it' | 'en' = 'it'): string {
+  if (lingua === 'en') {
+    if (!msg) return 'Something went wrong. Try again.'
+    if (msg.includes('codice non trovato')) return 'No league with this code. Check the letters.'
+    if (msg.includes('lega piena')) return 'This league is full.'
+    if (msg.includes('troppe leghe')) return 'You have already created the maximum number of leagues.'
+    if (msg.includes('nome non valido')) return 'The name must be 2 to 40 characters long.'
+    if (msg.includes('accesso richiesto')) return 'Sign in to continue.'
+    return 'Something went wrong. Try again.'
+  }
   if (!msg) return 'Qualcosa non ha funzionato. Riprova.'
   if (msg.includes('codice non trovato')) return 'Nessuna lega con questo codice. Controlla le lettere.'
   if (msg.includes('lega piena')) return 'Questa lega è al completo.'

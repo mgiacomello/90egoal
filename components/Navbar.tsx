@@ -5,20 +5,23 @@ import { useRouter, usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 import { IconBall, IconTicket, IconTrophy, IconUser } from '@/components/Icons'
+import { CambiaLingua, useLingua, useTx } from '@/components/Lingua'
 
 // Si gioca coi pollici: quattro sezioni in una barra in basso, sempre, anche
 // su computer. In alto solo il marchio e (per chi amministra) il pannello.
 // Le regole stanno dentro Oggi e Profilo: non meritano un posto sotto al pollice.
 const TABS = [
-  { href: '/', label: 'Oggi', Icon: IconBall, exact: true },
-  { href: '/schedine', label: 'Schedine', Icon: IconTicket },
-  { href: '/classifica', label: 'Classifica', Icon: IconTrophy },
-  { href: '/profilo', label: 'Profilo', Icon: IconUser },
+  { href: '/', label: { it: 'Oggi', en: 'Today' }, Icon: IconBall, exact: true },
+  { href: '/schedine', label: { it: 'Schedine', en: 'Tickets' }, Icon: IconTicket },
+  { href: '/classifica', label: { it: 'Classifica', en: 'Standings' }, Icon: IconTrophy },
+  { href: '/profilo', label: { it: 'Profilo', en: 'Profile' }, Icon: IconUser },
 ]
 
 export default function Navbar({ wide = false }: { wide?: boolean }) {
   const router = useRouter()
   const pathname = usePathname()
+  const tx = useTx()
+  const lingua = useLingua()
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -79,23 +82,24 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
             <div className="flex items-center gap-1">
               {wide && (
                 <div className="hidden sm:flex items-center gap-1">
-                  {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label}</Link>)}
+                  {TABS.map(t => <Link key={t.href} href={t.href} className={linkClass(t.href, t.exact)}>{t.label[lingua]}</Link>)}
                 </div>
               )}
               {isAdmin && <Link href="/admin" className={linkClass('/admin')}>⚙️<span className="hidden sm:inline"> Admin</span></Link>}
               {wide && (
                 <button onClick={handleLogout} className="hidden sm:inline text-sm text-[var(--muted)] hover:text-[var(--danger)] transition-colors px-3 py-2">
-                  Esci
+                  {tx('Esci', 'Sign out')}
                 </button>
               )}
             </div>
           ) : (
             <div className="flex items-center gap-1">
+              <CambiaLingua />
               <Link href="/auth/login" className="text-sm text-[var(--muted)] hover:text-[var(--ink)] transition-colors px-3 py-2">
-                Accedi
+                {tx('Accedi', 'Sign in')}
               </Link>
               <Link href="/prova" className="btn-primary text-sm px-5 py-2">
-                Gioca
+                {tx('Gioca', 'Play')}
               </Link>
             </div>
           )}
@@ -111,7 +115,7 @@ export default function Navbar({ wide = false }: { wide?: boolean }) {
                 <Link key={t.href} href={t.href}
                   className={`flex flex-col items-center justify-center gap-1 py-2.5 text-[10.5px] font-semibold uppercase tracking-wider transition-colors ${on ? 'text-[var(--ink)]' : 'text-[var(--muted)]'}`}>
                   <t.Icon size={22} strokeWidth={on ? 2.4 : 1.8} />
-                  {t.label}
+                  {t.label[lingua]}
                 </Link>
               )
             })}

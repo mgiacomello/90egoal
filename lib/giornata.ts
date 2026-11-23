@@ -1,11 +1,11 @@
 // Più schedine aperte insieme (una per serie) e giornate che durano più giorni.
 // Funzioni pure, senza dipendenze oltre agli orari: testate in scripts/game.test.ts.
 import { romeToUtcIso } from './time.ts'
+import { giornoBreve, type Lingua } from './lingua.ts'
 
 interface PartitaMin { date: string; ora?: string | null }
 interface SchedinaMin { id: number; deadline: string; partite: PartitaMin[] }
 
-const GIORNI = ['dom', 'lun', 'mar', 'mer', 'gio', 'ven', 'sab']
 const oraValida = (o?: string | null): o is string => !!o && /^\d{1,2}:\d{2}$/.test(o)
 
 // La giornata si gioca in più giorni? (Serie A: sabato, domenica, lunedì)
@@ -15,10 +15,10 @@ export function suPiuGiorni(partite: PartitaMin[]): boolean {
 
 // Etichetta dell'orario di una partita: "15:00" se la giornata sta in un giorno solo,
 // "sab 15:00" se ne prende più d'uno, così non si confonde il sabato con il lunedì.
-export function quandoPartita(p: PartitaMin, partite: PartitaMin[]): string {
+export function quandoPartita(p: PartitaMin, partite: PartitaMin[], lingua: Lingua = 'it'): string {
   if (!suPiuGiorni(partite) || !p.date) return p.ora ?? ''
   const [y, m, d] = p.date.split('-').map(Number)
-  const giorno = GIORNI[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]
+  const giorno = giornoBreve(new Date(Date.UTC(y, m - 1, d)).getUTCDay(), lingua)
   return p.ora ? `${giorno} ${p.ora}` : giorno
 }
 

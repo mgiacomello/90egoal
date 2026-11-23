@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { Schedina, MatchDetail, Risultato, ClassificaRow } from '@/lib/types'
 import { nomeBreve } from '@/lib/teams'
+import { linguaServer } from '@/lib/lingua.server'
+import { linguaDa, txDi } from '@/lib/lingua'
 
 export const runtime = 'nodejs'
 
@@ -62,7 +64,7 @@ async function buildGameContext(): Promise<string> {
   }
 }
 
-const SYSTEM = (gameData: string, today: string) => `Sei l'assistente di "90 & Goal", un gioco di pronostici sui minuti dei gol. Oggi è ${today}.
+const SYSTEM = (gameData: string, today: string, inglese = false) => `Sei l'assistente di "90 & Goal", un gioco di pronostici sui minuti dei gol. Oggi è ${today}.
 Ogni schedina ha 10 partite della stessa giornata (in questo periodo: Serie A, Serie B e Serie C). Si scelgono 13 minuti da 1 a 90: +1 punto per ogni minuto in cui c'è almeno un gol in una qualsiasi partita. Bonus: +1 se c'è un gol nel recupero del tempo scelto; +1 per la squadra che segna il primo gol e +1 per quella che segna l'ultimo, contando solo i gol dall'1' al 90' (non quelli nel recupero). Il minuto del primo gol della giornata vale 2 punti invece di 1. Nelle schedine a eliminazione diretta c'è anche +5 sui supplementari. I gol nel recupero (45+, 90+) non valgono per i minuti. Scadenza: calcio d'inizio della prima partita. Il pronostico è definitivo.
 
 Rispondi in italiano, in modo amichevole e conciso (massimo ~4 frasi), come in un riquadro su una home page. Niente preamboli tipo "Certo!" o "Ecco".
@@ -72,28 +74,32 @@ REGOLE IMPORTANTI:
 - Per curiosità generali di calcio puoi usare le tue conoscenze, ma su rose, classifiche e risultati recenti di Serie A, B e C non fidarti della memoria: se il dato non è nei DATI DEL GIOCO, dillo con onestà.
 - NON dare consigli su quali minuti giocare o pronostici da fare: rispondi in modo neutro (es. "scegli tu, fa parte del bello del gioco!").
 - Resta sul tema calcio / 90 & Goal. Se la domanda è fuori tema, riportala gentilmente al calcio.
-
+${inglese ? `- LINGUA: l'utente usa il gioco in inglese. Rispondi SEMPRE in inglese (britannico), anche se i dati qui sotto sono in italiano: traduci i termini del gioco (schedina = ticket, giornata = matchday, classifica = standings, recupero = stoppage time) ma lascia invariati i nomi di squadre, giocatori e competizioni. Questa regola prevale su "Rispondi in italiano".\n` : ''}
 DATI DEL GIOCO (reali):
 ${gameData}`
 
 export async function POST(request: Request) {
+  // La lingua arriva dal cookie; la richiesta può indicarla esplicitamente (campo "lang").
+  let lingua = await linguaServer()
+  let tx = txDi(lingua)
   if (!process.env.GROQ_API_KEY) {
-    return Response.json({ error: 'AI non configurata.' }, { status: 503 })
+    return Response.json({ error: tx('AI non configurata.', 'AI not configured.') }, { status: 503 })
   }
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
   if (rateLimited(ip)) {
-    return Response.json({ error: 'Troppe domande, riprova tra poco.' }, { status: 429 })
+    return Response.json({ error: tx('Troppe domande, riprova tra poco.', 'Too many questions, try again shortly.') }, { status: 429 })
   }
 
   let question = ''
   try {
     const body = await request.json()
     question = String(body?.question ?? '').trim()
+    if (body?.lang === 'en' || body?.lang === 'it') { lingua = linguaDa(body.lang); tx = txDi(lingua) }
   } catch {
-    return Response.json({ error: 'Richiesta non valida.' }, { status: 400 })
+    return Response.json({ error: tx('Richiesta non valida.', 'Invalid request.') }, { status: 400 })
   }
-  if (!question) return Response.json({ error: 'Scrivi una domanda.' }, { status: 400 })
+  if (!question) return Response.json({ error: tx('Scrivi una domanda.', 'Type a question.') }, { status: 400 })
   if (question.length > 300) question = question.slice(0, 300)
 
   const gameData = await buildGameContext()
@@ -111,25 +117,25 @@ export async function POST(request: Request) {
         max_tokens: 600,
         temperature: 0.5,
         messages: [
-          { role: 'system', content: SYSTEM(gameData, today) },
+          { role: 'system', content: SYSTEM(gameData, today, lingua === 'en') },
           { role: 'user', content: question },
         ],
       }),
     })
 
     if (res.status === 429) {
-      return Response.json({ error: 'Assistente sovraccarico, riprova tra poco.' }, { status: 429 })
+      return Response.json({ error: tx('Assistente sovraccarico, riprova tra poco.', 'The assistant is overloaded, try again shortly.') }, { status: 429 })
     }
     if (!res.ok) {
       console.error('groq error', res.status, await res.text().catch(() => ''))
-      return Response.json({ error: 'Errore nel generare la risposta.' }, { status: 500 })
+      return Response.json({ error: tx('Errore nel generare la risposta.', 'Error generating the answer.') }, { status: 500 })
     }
 
     const data = await res.json()
     const answer = String(data?.choices?.[0]?.message?.content ?? '').trim()
-    return Response.json({ answer: answer || 'Non sono riuscito a trovare una risposta, riprova!' })
+    return Response.json({ answer: answer || tx('Non sono riuscito a trovare una risposta, riprova!', 'I could not find an answer, try again!') })
   } catch (err) {
     console.error('ask route error', err)
-    return Response.json({ error: 'Errore nel generare la risposta.' }, { status: 500 })
+    return Response.json({ error: tx('Errore nel generare la risposta.', 'Error generating the answer.') }, { status: 500 })
   }
 }

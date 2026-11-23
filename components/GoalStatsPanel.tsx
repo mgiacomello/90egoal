@@ -1,7 +1,11 @@
+'use client'
+
 import { GoalStats, TeamGoalStats } from '@/lib/goalStats'
+import { useTx } from '@/components/Lingua'
 import Flag from '@/components/Flag'
 
 export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats; teamStats?: TeamGoalStats[] }) {
+  const tx = useTx()
   if (stats.totalGoals === 0) return null
   const maxBand = Math.max(1, ...stats.bands.map(b => b.count))
 
@@ -10,11 +14,11 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
       <summary className="cursor-pointer list-none flex items-center justify-between gap-3 p-5 select-none">
         <div className="min-w-0">
           <h2 className="font-display font-bold text-lg flex items-center gap-2">
-            <span className="text-base">💡</span> Sessione tecnica
-            <span className="text-xs font-normal text-[var(--muted)]">· dove arrivano i gol</span>
+            <span className="text-base">💡</span> {tx('Sessione tecnica', 'Technical briefing')}
+            <span className="text-xs font-normal text-[var(--muted)]">{tx('· dove arrivano i gol', '· where the goals come')}</span>
           </h2>
           <p className="text-xs text-[var(--muted)] mt-0.5">
-            {stats.totalGoals} gol in {stats.matches} partite · media {stats.avgPerMatch} a match
+            {tx(`${stats.totalGoals} gol in ${stats.matches} partite · media ${stats.avgPerMatch} a match`, `${stats.totalGoals} goals in ${stats.matches} matches · ${stats.avgPerMatch} per match on average`)}
           </p>
         </div>
         <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90 shrink-0">▶</span>
@@ -23,7 +27,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
       <div className="px-5 pb-5 -mt-1">
         {stats.hottest && (
           <p className="text-sm text-[var(--ink)] mb-4">
-            🔥 Fascia più calda: <strong className="text-[var(--accent-soft)]">{stats.hottest.label}</strong> ({stats.hottest.pct}% dei gol)
+            🔥 {tx('Fascia più calda:', 'Hottest spell:')} <strong className="text-[var(--accent-soft)]">{stats.hottest.label}</strong> ({stats.hottest.pct}% {tx('dei gol', 'of goals')})
           </p>
         )}
 
@@ -50,15 +54,15 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
         {/* Recupero + minuti caldi */}
         <div className="grid sm:grid-cols-2 gap-3">
           <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3">
-            <div className="text-xs text-[var(--muted)] mb-1">Gol nel recupero</div>
+            <div className="text-xs text-[var(--muted)] mb-1">{tx('Gol nel recupero', 'Goals in stoppage time')}</div>
             <div className="text-sm text-[var(--ink)]">
-              <strong className="text-[var(--gold)]">{stats.recuperoPct}%</strong> del totale
-              <span className="text-[var(--muted)]"> · 1°T: {stats.recupero1} · 2°T: {stats.recupero2}</span>
+              <strong className="text-[var(--gold)]">{stats.recuperoPct}%</strong> {tx('del totale', 'of the total')}
+              <span className="text-[var(--muted)]"> · {tx('1°T', '1H')}: {stats.recupero1} · {tx('2°T', '2H')}: {stats.recupero2}</span>
             </div>
           </div>
           {stats.topMinutes.length > 0 && (
             <div className="rounded-xl bg-[var(--surface-2)] border border-[var(--line)] px-4 py-3">
-              <div className="text-xs text-[var(--muted)] mb-1.5">Minuti più frequenti</div>
+              <div className="text-xs text-[var(--muted)] mb-1.5">{tx('Minuti più frequenti', 'Most frequent minutes')}</div>
               <div className="flex flex-wrap gap-1.5">
                 {stats.topMinutes.map(t => (
                   <span key={t.m} className="text-[11px] font-mono bg-[var(--surface-2)] text-[var(--ink)] px-1.5 py-0.5 rounded">
@@ -73,14 +77,14 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
         {/* Per squadra (quando disponibile il marcatore per gol) */}
         {teamStats && teamStats.length > 0 && (
           <div className="mt-5">
-            <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">Quando segnano le squadre</div>
+            <div className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider mb-2">{tx('Quando segnano le squadre', 'When the teams score')}</div>
             <div className="grid sm:grid-cols-2 gap-1.5">
               {teamStats.slice(0, 12).map(t => (
                 <div key={t.team} className="flex items-center gap-2 rounded-lg bg-[var(--surface-2)] border border-[var(--line)] px-3 py-2 text-sm">
                   <Flag team={t.team} w={40} className="w-5 h-3.5 shrink-0" />
                   <span className="font-medium truncate">{t.team}</span>
                   <span className="text-[var(--muted)] text-xs ml-auto shrink-0">
-                    {t.count} gol{t.hottest ? ` · ${t.hottest}` : ''}{t.recupero ? ` · +${t.recupero} rec.` : ''}
+                    {t.count} {tx('gol', t.count === 1 ? 'goal' : 'goals')}{t.hottest ? ` · ${t.hottest}` : ''}{t.recupero ? tx(` · +${t.recupero} rec.`, ` · +${t.recupero} stoppage`) : ''}
                   </span>
                 </div>
               ))}
@@ -89,7 +93,7 @@ export default function GoalStatsPanel({ stats, teamStats }: { stats: GoalStats;
         )}
 
         <p className="text-[11px] text-[var(--muted)] mt-4 leading-relaxed">
-          Dati dalle partite già giocate del torneo. Ti aiutano a orientarti, ma il bello del gioco resta la sorpresa. ⚽
+          {tx('Dati dalle partite già giocate del torneo. Ti aiutano a orientarti, ma il bello del gioco resta la sorpresa. ⚽', 'Data from the tournament matches already played. It helps you find your bearings, but the fun of the game is still the surprise. ⚽')}
         </p>
       </div>
     </details>

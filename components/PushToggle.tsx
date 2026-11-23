@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { IconBell } from '@/components/Icons'
+import { useTx } from '@/components/Lingua'
 
 type Stato = 'caricamento' | 'non-supportato' | 'ios-installa' | 'non-configurato' | 'negato' | 'spento' | 'acceso'
 type Preferenza = 'tutti' | 'miei'
@@ -37,6 +38,7 @@ async function registra(sub: PushSubscription, preferenza: Preferenza) {
 // Attiva/disattiva le notifiche su QUESTO dispositivo.
 // variant "banner": invito compatto in cima alle schedine, sparisce quando sono attive.
 export default function PushToggle({ variant = 'card', testo }: { variant?: 'card' | 'banner'; testo?: string }) {
+  const tx = useTx()
   const [stato, setStato] = useState<Stato>('caricamento')
   const [pref, setPref] = useState<Preferenza>('tutti')
   const [chiave, setChiave] = useState<string | null>(null)
@@ -83,9 +85,9 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
       const sub = (await reg.pushManager.getSubscription())
         ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64UrlToBytes(chiave) }))
       if (await registra(sub, pref)) setStato('acceso')
-      else setErrore('Attivazione non salvata. Riprova tra poco.')
+      else setErrore(tx('Attivazione non salvata. Riprova tra poco.', 'Activation not saved. Try again shortly.'))
     } catch {
-      setErrore('Attivazione non riuscita su questo dispositivo.')
+      setErrore(tx('Attivazione non riuscita su questo dispositivo.', 'Activation failed on this device.'))
     } finally {
       setBusy(false)
     }
@@ -111,7 +113,7 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
     if (stato !== 'acceso') return
     const reg = await navigator.serviceWorker.ready
     const sub = await reg.pushManager.getSubscription()
-    if (sub && !(await registra(sub, p))) setErrore('Preferenza non salvata.')
+    if (sub && !(await registra(sub, p))) setErrore(tx('Preferenza non salvata.', 'Preference not saved.'))
   }
 
   if (variant === 'banner') {
@@ -121,17 +123,17 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
         <IconBell size={24} className="text-[var(--accent)] shrink-0" />
         <div className="flex-1 min-w-0 text-sm">
           {stato === 'ios-installa' ? (
-            <>Per ricevere i gol in diretta su iPhone: <strong className="text-[var(--ink)]">Condividi → Aggiungi alla schermata Home</strong>, poi apri l&apos;app da lì.</>
+            <>{tx('Per ricevere i gol in diretta su iPhone:', 'To get live goals on iPhone:')} <strong className="text-[var(--ink)]">{tx('Condividi → Aggiungi alla schermata Home', 'Share → Add to Home Screen')}</strong>{tx(', poi apri l\'app da lì.', ', then open the app from there.')}</>
           ) : (
-            testo ? <strong className="text-[var(--ink)]">{testo}</strong> : <>Ricevi una notifica <strong className="text-[var(--ink)]">quando esce un tuo minuto</strong>.</>
+            testo ? <strong className="text-[var(--ink)]">{testo}</strong> : <>{tx('Ricevi una notifica', 'Get a notification')} <strong className="text-[var(--ink)]">{tx('quando esce un tuo minuto', 'when one of your minutes comes up')}</strong>.</>
           )}
         </div>
         {stato === 'spento' && (
-          <button onClick={attiva} disabled={busy} className="btn-primary px-4 py-2 text-sm shrink-0">{busy ? '…' : 'Attiva'}</button>
+          <button onClick={attiva} disabled={busy} className="btn-primary px-4 py-2 text-sm shrink-0">{busy ? '…' : tx('Attiva', 'Turn on')}</button>
         )}
         <button
           onClick={() => { setChiuso(true); try { localStorage.setItem('push-banner-chiuso', '1') } catch { /* ignora */ } }}
-          className="text-[var(--muted)] hover:text-[var(--ink)] text-sm shrink-0" aria-label="Chiudi"
+          className="text-[var(--muted)] hover:text-[var(--ink)] text-sm shrink-0" aria-label={tx('Chiudi', 'Close')}
         >✕</button>
       </div>
     )
@@ -141,27 +143,27 @@ export default function PushToggle({ variant = 'card', testo }: { variant?: 'car
     <div className="glass rounded-2xl p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h2 className="font-display font-bold flex items-center gap-2"><IconBell size={18} className="text-[var(--accent)]" /> Notifiche</h2>
-          <p className="text-xs text-[var(--muted)] mt-0.5">Su questo dispositivo.</p>
+          <h2 className="font-display font-bold flex items-center gap-2"><IconBell size={18} className="text-[var(--accent)]" /> {tx('Notifiche', 'Notifications')}</h2>
+          <p className="text-xs text-[var(--muted)] mt-0.5">{tx('Su questo dispositivo.', 'On this device.')}</p>
         </div>
-        {stato === 'acceso' && <button onClick={disattiva} disabled={busy} className="btn-ghost px-4 py-2 text-sm">Disattiva</button>}
-        {stato === 'spento' && <button onClick={attiva} disabled={busy} className="btn-primary px-4 py-2 text-sm">{busy ? 'Attivo…' : 'Attiva'}</button>}
+        {stato === 'acceso' && <button onClick={disattiva} disabled={busy} className="btn-ghost px-4 py-2 text-sm">{tx('Disattiva', 'Turn off')}</button>}
+        {stato === 'spento' && <button onClick={attiva} disabled={busy} className="btn-primary px-4 py-2 text-sm">{busy ? tx('Attivo…', 'Turning on…') : tx('Attiva', 'Turn on')}</button>}
       </div>
 
       <div className="text-sm text-[var(--muted)] mt-3">
-        {stato === 'caricamento' && 'Controllo…'}
-        {stato === 'ios-installa' && <>Su iPhone le notifiche funzionano solo nell&apos;app installata: in Safari tocca <strong className="text-[var(--ink)]">Condividi → Aggiungi alla schermata Home</strong>, poi apri 90 &amp; Goal dall&apos;icona e torna qui.</>}
-        {stato === 'non-supportato' && 'Questo browser non supporta le notifiche. Prova con Chrome su Android o con l’app installata su iPhone (iOS 16.4 o successivo).'}
-        {stato === 'non-configurato' && 'Le notifiche non sono ancora attive sul sito.'}
-        {stato === 'negato' && 'Hai bloccato le notifiche per questo sito. Per riattivarle vai nelle impostazioni del browser o del telefono, alla voce Notifiche.'}
-        {stato === 'spento' && 'Gol in diretta, i tuoi minuti che escono, il risultato a fine giornata e un promemoria prima della scadenza.'}
-        {stato === 'acceso' && 'Attive. Arrivano i gol delle schedine che hai giocato, il risultato finale e i promemoria.'}
+        {stato === 'caricamento' && tx('Controllo…', 'Checking…')}
+        {stato === 'ios-installa' && <>{tx('Su iPhone le notifiche funzionano solo nell\'app installata: in Safari tocca', 'On iPhone notifications only work in the installed app: in Safari tap')} <strong className="text-[var(--ink)]">{tx('Condividi → Aggiungi alla schermata Home', 'Share → Add to Home Screen')}</strong>{tx(', poi apri 90 & Goal dall\'icona e torna qui.', ', then open 90 & Goal from the icon and come back here.')}</>}
+        {stato === 'non-supportato' && tx('Questo browser non supporta le notifiche. Prova con Chrome su Android o con l’app installata su iPhone (iOS 16.4 o successivo).', 'This browser doesn’t support notifications. Try Chrome on Android or the installed app on iPhone (iOS 16.4 or later).')}
+        {stato === 'non-configurato' && tx('Le notifiche non sono ancora attive sul sito.', 'Notifications aren\'t active on the site yet.')}
+        {stato === 'negato' && tx('Hai bloccato le notifiche per questo sito. Per riattivarle vai nelle impostazioni del browser o del telefono, alla voce Notifiche.', 'You\'ve blocked notifications for this site. To turn them back on, go to your browser or phone settings, under Notifications.')}
+        {stato === 'spento' && tx('Gol in diretta, i tuoi minuti che escono, il risultato a fine giornata e un promemoria prima della scadenza.', 'Live goals, your minutes coming up, the result at the end of the matchday and a reminder before the deadline.')}
+        {stato === 'acceso' && tx('Attive. Arrivano i gol delle schedine che hai giocato, il risultato finale e i promemoria.', 'On. You\'ll get the goals from the tickets you\'ve played, the final result and reminders.')}
       </div>
 
       {(stato === 'acceso' || stato === 'spento') && (
         <div className="grid grid-cols-2 gap-2 mt-4">
-          <button onClick={() => cambiaPref('tutti')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'tutti' ? 'is-active' : ''}`}>Tutti i gol</button>
-          <button onClick={() => cambiaPref('miei')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'miei' ? 'is-active' : ''}`}>Solo i miei minuti</button>
+          <button onClick={() => cambiaPref('tutti')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'tutti' ? 'is-active' : ''}`}>{tx('Tutti i gol', 'All goals')}</button>
+          <button onClick={() => cambiaPref('miei')} className={`seg-btn px-3 py-2.5 text-xs ${pref === 'miei' ? 'is-active' : ''}`}>{tx('Solo i miei minuti', 'Only my minutes')}</button>
         </div>
       )}
       {errore && <p className="text-xs text-[var(--danger)] mt-3">{errore}</p>}

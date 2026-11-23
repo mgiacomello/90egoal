@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { IconShare } from '@/components/Icons'
+import { useTx } from '@/components/Lingua'
 
 export default function ShareButton({ text }: { text: string }) {
+  const tx = useTx()
   const [copied, setCopied] = useState(false)
   const waUrl = `https://wa.me/?text=${encodeURIComponent(text)}`
 
@@ -17,10 +19,10 @@ export default function ShareButton({ text }: { text: string }) {
   return (
     <div className="flex flex-wrap gap-2">
       <a href={waUrl} target="_blank" rel="noopener noreferrer" className="btn-primary px-5 py-2.5 text-sm inline-flex items-center gap-2">
-        <IconShare size={16} /> Condividi su WhatsApp
+        <IconShare size={16} /> {tx('Condividi su WhatsApp', 'Share on WhatsApp')}
       </a>
       <button onClick={nativeOrCopy} className="btn-ghost px-4 py-2.5 text-sm">
-        {copied ? 'Copiato' : 'Copia link'}
+        {copied ? tx('Copiato', 'Copied') : tx('Copia link', 'Copy link')}
       </button>
     </div>
   )

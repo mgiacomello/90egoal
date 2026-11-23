@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { useTx } from '@/components/Lingua'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
+  const tx = useTx()
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -31,13 +33,13 @@ export default function ResetPasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
-    if (password.length < 6) { setError('La password deve avere almeno 6 caratteri.'); return }
-    if (password !== confirm) { setError('Le due password non coincidono.'); return }
+    if (password.length < 6) { setError(tx('La password deve avere almeno 6 caratteri.', 'The password must be at least 6 characters long.')); return }
+    if (password !== confirm) { setError(tx('Le due password non coincidono.', 'The two passwords do not match.')); return }
     setLoading(true)
     const supabase = createClient()
     const { error } = await supabase.auth.updateUser({ password })
     if (error) {
-      setError('Non è stato possibile aggiornare la password. Richiedi un nuovo link.')
+      setError(tx('Non è stato possibile aggiornare la password. Richiedi un nuovo link.', 'The password could not be updated. Request a new link.'))
       setLoading(false)
     } else {
       setDone(true)
@@ -49,25 +51,25 @@ export default function ResetPasswordPage() {
     <div className="max-w-sm mx-auto mt-12 sm:mt-20 animate-fade-up">
       <div className="text-center mb-8">
         <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--accent-soft)] to-[var(--accent)] text-2xl shadow-[0_12px_30px_-8px_rgba(0,230,118,0.6)] mb-4">🔒</div>
-        <h1 className="font-display font-bold text-2xl">Nuova password</h1>
-        <p className="text-[var(--muted)] text-sm mt-1">Scegli una password per il tuo account</p>
+        <h1 className="font-display font-bold text-2xl">{tx('Nuova password', 'New password')}</h1>
+        <p className="text-[var(--muted)] text-sm mt-1">{tx('Scegli una password per il tuo account', 'Choose a password for your account')}</p>
       </div>
 
       {done ? (
         <div className="glass rounded-2xl p-6 text-center space-y-2">
           <div className="text-3xl">✅</div>
-          <p className="text-sm text-[var(--ink)]">Password aggiornata! Ti sto portando alle schedine…</p>
+          <p className="text-sm text-[var(--ink)]">{tx('Password aggiornata! Ti sto portando alle schedine…', 'Password updated! Taking you to the tickets…')}</p>
         </div>
       ) : checking ? (
-        <div className="glass rounded-2xl p-6 text-center text-sm text-[var(--muted)]">Verifica del link…</div>
+        <div className="glass rounded-2xl p-6 text-center text-sm text-[var(--muted)]">{tx('Verifica del link…', 'Checking the link…')}</div>
       ) : !ready ? (
         <div className="glass rounded-2xl p-6 text-center space-y-3">
           <div className="text-3xl">⏳</div>
           <p className="text-sm text-[var(--ink)]">
-            Questo link non è più valido o è scaduto.
+            {tx('Questo link non è più valido o è scaduto.', 'This link is no longer valid or has expired.')}
           </p>
           <Link href="/auth/forgot" className="inline-block text-[var(--accent-soft)] hover:underline text-sm font-medium">
-            Richiedi un nuovo link
+            {tx('Richiedi un nuovo link', 'Request a new link')}
           </Link>
         </div>
       ) : (
@@ -79,19 +81,19 @@ export default function ResetPasswordPage() {
           )}
 
           <div>
-            <label className="block text-sm text-[var(--muted)] mb-1.5">Nuova password</label>
+            <label className="block text-sm text-[var(--muted)] mb-1.5">{tx('Nuova password', 'New password')}</label>
             <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
               className="input-field w-full px-4 py-2.5" placeholder="••••••••" />
           </div>
 
           <div>
-            <label className="block text-sm text-[var(--muted)] mb-1.5">Conferma password</label>
+            <label className="block text-sm text-[var(--muted)] mb-1.5">{tx('Conferma password', 'Confirm password')}</label>
             <input type="password" required value={confirm} onChange={e => setConfirm(e.target.value)}
               className="input-field w-full px-4 py-2.5" placeholder="••••••••" />
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full py-3 mt-2">
-            {loading ? 'Salvataggio…' : 'Salva password'}
+            {loading ? tx('Salvataggio…', 'Saving…') : tx('Salva password', 'Save password')}
           </button>
         </form>
       )}

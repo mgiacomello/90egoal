@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { TITOLARE, PRIVACY_VERSIONE } from '@/lib/privacy'
+import { linguaServer, txServer } from '@/lib/lingua.server'
 
-export const metadata: Metadata = { title: 'Informativa privacy — 90 & Goal' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await linguaServer()) === 'en' ? 'Privacy notice — 90 & Goal' : 'Informativa privacy — 90 & Goal' }
+}
 
 const SEZIONI: { t: string; c: React.ReactNode }[] = [
   {
@@ -57,7 +60,7 @@ const SEZIONI: { t: string; c: React.ReactNode }[] = [
   },
   {
     t: '7. Cookie e dati salvati sul dispositivo',
-    c: <p>Il gioco usa solo cookie tecnici, necessari per tenerti collegato dopo l&apos;accesso. Non usa cookie di profilazione né pubblicità. Sul tuo dispositivo salva inoltre alcune preferenze, come la schedina di prova giocata senza account: restano sul telefono e puoi cancellarle dalle impostazioni del browser.</p>,
+    c: <p>Il gioco usa solo cookie tecnici, necessari per tenerti collegato dopo l&apos;accesso e per ricordare la lingua che hai scelto. Non usa cookie di profilazione né pubblicità. Sul tuo dispositivo salva inoltre alcune preferenze, come la schedina di prova giocata senza account: restano sul telefono e puoi cancellarle dalle impostazioni del browser.</p>,
   },
   {
     t: '8. I tuoi diritti',
@@ -90,17 +93,111 @@ const SEZIONI: { t: string; c: React.ReactNode }[] = [
   },
 ]
 
-export default function PrivacyPage() {
+const MAIL = <a href={`mailto:${TITOLARE.email}`} className="underline">{TITOLARE.email}</a>
+
+// Traduzione di cortesia: il testo che fa fede è quello italiano.
+const SECTIONS: { t: string; c: React.ReactNode }[] = [
+  {
+    t: '1. Who processes your data',
+    c: <p>The data controller is <strong>{TITOLARE.nome}</strong>, with registered office at {TITOLARE.indirizzo}. For any request about your data you can write to {MAIL} or to the controller at the address above.</p>,
+  },
+  {
+    t: '2. What data we collect',
+    c: (
+      <ul>
+        <li><strong>Registration data:</strong> first and last name, nickname, email address and password. The password is stored in encrypted form and cannot be read by anyone.</li>
+        <li><strong>Game data:</strong> the tickets you play, the minutes and bonuses you pick, your points, your place in the standings and the leagues with friends you take part in.</li>
+        <li><strong>Usage data:</strong> when you open and send a ticket, how long you take to fill it in and the pages you visit while signed in. We use them to understand how the game is used and to improve it.</li>
+        <li><strong>Notifications, only if you turn them on:</strong> the technical identifier of your device provided by the browser, the type of browser and your notification preference.</li>
+        <li><strong>Game assistant:</strong> the questions you write to the assistant.</li>
+      </ul>
+    ),
+  },
+  {
+    t: '3. Why we process them and on what basis',
+    c: (
+      <ul>
+        <li><strong>To let you play:</strong> creating the account, recording tickets, calculating points and showing the standings. The basis is the performance of the service you asked for by signing up.</li>
+        <li><strong>To send you notifications:</strong> only with your consent, which you give by turning them on and can withdraw at any time from your Profile or from your device settings.</li>
+        <li><strong>To improve and protect the game:</strong> usage statistics and checks against abuse. The basis is the controller&apos;s legitimate interest in making the service work well.</li>
+        <li><strong>To comply with the law:</strong> when a rule or an authority requires it.</li>
+      </ul>
+    ),
+  },
+  {
+    t: '4. What other players see',
+    c: <p>In the standings and in leagues, other signed-in players see your <strong>nickname</strong>, your points and, once the matchday is closed, the minutes you guessed. The first and last name you enter when signing up is visible to other players next to your nickname: if you prefer not to show it, choose a nickname that does not identify you and enter your first name only. Your email is never visible to other players.</p>,
+  },
+  {
+    t: '5. Who we share the data with',
+    c: (
+      <>
+        <p>The data are not sold or passed on to third parties for marketing purposes. They are processed, on behalf of the controller and only to make the service work, by these providers:</p>
+        <ul>
+          <li><strong>Supabase</strong>, for the database and sign-in with email and password;</li>
+          <li><strong>Vercel</strong>, for hosting the site;</li>
+          <li><strong>the notification services of your browser or device</strong> (for example Apple, Google, Mozilla), if you turn on notifications;</li>
+          <li><strong>Groq</strong>, for the game assistant: it receives the text of your question and public game data, such as results and the nicknames of the players at the top of the standings.</li>
+        </ul>
+        <p>Some of these providers may process the data outside the European Union as well. In that case the transfer takes place with the safeguards laid down by Regulation (EU) 2016/679, such as the standard contractual clauses approved by the European Commission.</p>
+      </>
+    ),
+  },
+  {
+    t: '6. How long we keep them',
+    c: <p>We keep the data for as long as you have an account. If you ask for erasure, we delete the account with the related tickets, points, leagues and usage data, except for what the law requires us to keep. Usage data may be kept longer only in aggregate and anonymous form.</p>,
+  },
+  {
+    t: '7. Cookies and data saved on your device',
+    c: <p>The game only uses technical cookies, needed to keep you signed in and to remember the language you chose. It does not use profiling cookies or advertising. It also saves some preferences on your device, such as the trial ticket played without an account: they stay on your phone and you can delete them from your browser settings.</p>,
+  },
+  {
+    t: '8. Your rights',
+    c: (
+      <>
+        <p>At any time you can ask the controller to:</p>
+        <ul>
+          <li>know what data we hold about you and receive a copy;</li>
+          <li>correct or update them;</li>
+          <li>erase them, or restrict their processing;</li>
+          <li>object to processing based on legitimate interest;</li>
+          <li>receive the data in a format another service can read;</li>
+          <li>withdraw a consent already given, without affecting what was done before.</li>
+        </ul>
+        <p>To exercise these rights write to {MAIL}, or to {TITOLARE.nome}, {TITOLARE.indirizzo}. If you believe the processing breaches the law you can lodge a complaint with the Italian data protection authority, the Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" className="underline">garanteprivacy.it</a>).</p>
+      </>
+    ),
+  },
+  {
+    t: '9. Minimum age',
+    c: <p>The game is free, with no cash prizes and no betting. You must be at least 14 years old to sign up. Anyone under 14 may use the service only with the consent of the person holding parental responsibility.</p>,
+  },
+  {
+    t: '10. Do you have to give us your data?',
+    c: <p>Registration data are necessary: without them we cannot create the account or put you in the standings. You can still try a ticket without signing up. Notifications are optional.</p>,
+  },
+  {
+    t: '11. Changes to this notice',
+    c: <p>If the notice changes in a substantial way we will point it out in the game. The version in force is always the one published on this page.</p>,
+  },
+]
+
+export default async function PrivacyPage() {
+  const { lingua, tx } = await txServer()
+  const en = lingua === 'en'
   const [a, m, g] = PRIVACY_VERSIONE.split('-')
   return (
     <div className="max-w-2xl mx-auto animate-fade-up">
-      <h1 className="font-display font-bold text-2xl sm:text-3xl">Informativa privacy</h1>
+      <h1 className="font-display font-bold text-2xl sm:text-3xl">{tx('Informativa privacy', 'Privacy notice')}</h1>
       <p className="text-sm text-[var(--muted)] mt-1">
-        Come 90 &amp; Goal tratta i tuoi dati personali, ai sensi degli articoli 13 e 14 del Regolamento (UE) 2016/679. Versione del {g}/{m}/{a}.
+        {en
+          ? <>How 90 &amp; Goal processes your personal data, under Articles 13 and 14 of Regulation (EU) 2016/679. Version of {g}/{m}/{a}.</>
+          : <>Come 90 &amp; Goal tratta i tuoi dati personali, ai sensi degli articoli 13 e 14 del Regolamento (UE) 2016/679. Versione del {g}/{m}/{a}.</>}
       </p>
+      {en && <p className="text-xs text-[var(--muted)] mt-2">This is a courtesy translation. If the two versions differ, the Italian text prevails.</p>}
 
       <div className="mt-6 space-y-6">
-        {SEZIONI.map(s => (
+        {(en ? SECTIONS : SEZIONI).map(s => (
           <section key={s.t}>
             <h2 className="font-display font-bold text-lg mb-2">{s.t}</h2>
             <div className="text-sm text-[var(--ink)]/85 leading-relaxed space-y-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1.5 [&_strong]:text-[var(--ink)]">{s.c}</div>
@@ -109,8 +206,8 @@ export default function PrivacyPage() {
       </div>
 
       <div className="mt-8 border-t border-[var(--line)] pt-5 text-sm flex gap-4">
-        <Link href="/" className="text-[var(--accent-soft)] hover:underline">← Torna al gioco</Link>
-        <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)]">Regole</Link>
+        <Link href="/" className="text-[var(--accent-soft)] hover:underline">{tx('← Torna al gioco', '← Back to the game')}</Link>
+        <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)]">{tx('Regole', 'Rules')}</Link>
       </div>
     </div>
   )

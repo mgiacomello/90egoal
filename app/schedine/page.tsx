@@ -7,11 +7,14 @@ import SchedinaCard from '@/components/SchedinaCard'
 import PushToggle from '@/components/PushToggle'
 import { IconTicket } from '@/components/Icons'
 import { inCorso } from '@/lib/giornata'
+import { txServer } from '@/lib/lingua.server'
+import { nomeTorneo } from '@/lib/lingua'
 
 export default async function SchedinePage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+  const { lingua, tx } = await txServer()
 
   const { data: schedine } = await supabase.from('schedine').select('*').order('id')
   const { data: mieiPronostici } = await supabase.from('pronostici').select('*').eq('user_id', user.id)
@@ -57,25 +60,25 @@ export default async function SchedinePage() {
       {inDiretta && <LiveRefresh seconds={60} generatedAt={now.toISOString()} />}
       <PushToggle variant="banner" />
       <div className="mb-5">
-        <h1 className="font-display font-bold text-2xl sm:text-3xl">Schedine</h1>
-        <p className="text-sm text-[var(--muted)] mt-1">Una per serie a ogni giornata. Si gioca fino al primo calcio d&apos;inizio.</p>
+        <h1 className="font-display font-bold text-2xl sm:text-3xl">{tx('Schedine', 'Tickets')}</h1>
+        <p className="text-sm text-[var(--muted)] mt-1">{tx('Una per serie a ogni giornata. Si gioca fino al primo calcio d\'inizio.', 'One per division every matchday. You can play until the first kick-off.')}</p>
       </div>
 
       {attive.length === 0 && chiuse.length === 0 ? (
         <div className="glass rounded-2xl py-16 text-center">
           <IconTicket size={36} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
-          <p className="text-[var(--muted)]">Nessuna schedina attiva al momento.<br />Le prossime arriveranno a breve.</p>
+          <p className="text-[var(--muted)]">{tx('Nessuna schedina attiva al momento.', 'No active tickets right now.')}<br />{tx('Le prossime arriveranno a breve.', 'The next ones are coming soon.')}</p>
         </div>
       ) : (
         <>
           {adesso.length > 0 && (
             <div className="space-y-3 stagger">
               {adesso.map(s => (
-                <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} />
+                <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} lingua={lingua} />
               ))}
             </div>
           )}
-          {[{ titolo: 'Più avanti', lista: piuAvanti, aperto: adesso.length === 0 }, { titolo: 'Giornate giocate', lista: chiuse, aperto: adesso.length === 0 && piuAvanti.length === 0 }].map(g => g.lista.length > 0 && (
+          {[{ titolo: tx('Più avanti', 'Later on'), lista: piuAvanti, aperto: adesso.length === 0 }, { titolo: tx('Giornate giocate', 'Past matchdays'), lista: chiuse, aperto: adesso.length === 0 && piuAvanti.length === 0 }].map(g => g.lista.length > 0 && (
             <details key={g.titolo} className="mt-6 group" open={g.aperto}>
               <summary className="cursor-pointer list-none flex items-center justify-between py-2 select-none">
                 <span className="text-xs font-semibold tracking-widest text-[var(--muted)] uppercase">{g.titolo} · {g.lista.length}</span>
@@ -83,7 +86,7 @@ export default async function SchedinePage() {
               </summary>
               <div className="space-y-3 mt-2">
                 {g.lista.map(s => (
-                  <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} />
+                  <SchedinaCard key={s.id} schedina={s} pronostico={pronosticoMap.get(s.id)} risultato={risultatoMap.get(s.id)} now={now} punti={puntiMap.get(s.id)} lingua={lingua} />
                 ))}
               </div>
             </details>
@@ -94,7 +97,7 @@ export default async function SchedinePage() {
       {/* I tornei finiti (i Mondiali) non stanno più in elenco: una riga li ricorda. */}
       {torneiFiniti.map(t => (
         <p key={t} className="text-xs text-[var(--muted)] text-center mt-10">
-          Si è giocato anche ai {t}. <Link href={`/classifica?torneo=${encodeURIComponent(t)}`} className="underline">Com&apos;è finita</Link>
+          {tx(`Si è giocato anche ai ${t}.`, `We also played the ${nomeTorneo(t, 'en')}.`)} <Link href={`/classifica?torneo=${encodeURIComponent(t)}`} className="underline">{tx('Com\'è finita', 'How it ended')}</Link>
         </p>
       ))}
     </div>

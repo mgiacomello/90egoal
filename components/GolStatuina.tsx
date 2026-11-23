@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import type * as THREE_NS from 'three'
 import { magliaDi, parseMarcatore, type Maglia } from '@/lib/kits'
+import { useTx } from '@/components/Lingua'
 
 // La statuina che festeggia il gol: un calciatore in 3D, non una persona reale.
 // Ceramica smaltata per la pelle, tessuto per la divisa, niente volto: è una statuina.
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function GolStatuina({ team, marcatore, esultanza, foto, className = '' }: Props) {
+  const tx = useTx()
   const host = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function GolStatuina({ team, marcatore, esultanza, foto, classNam
     return () => { vivo = false; pulizia() }
   }, [team, marcatore, esultanza, foto])
 
-  return <div ref={host} className={`relative touch-none select-none ${className}`} aria-label={`Statuina di un calciatore con la maglia ${team} che esulta`} role="img" />
+  return <div ref={host} className={`relative touch-none select-none ${className}`} aria-label={tx(`Statuina di un calciatore con la maglia ${team} che esulta`, `Figurine of a footballer in a ${team} shirt celebrating`)} role="img" />
 }
 
 type T = typeof THREE_NS

@@ -8,11 +8,16 @@ import Flag from '@/components/Flag'
 import ShareButton from '@/components/ShareButton'
 import { nomeBreve } from '@/lib/teams'
 import { IconTarget, IconStar, IconCrown, IconBook, IconTrophy } from '@/components/Icons'
+import { CambiaLingua } from '@/components/Lingua'
+import { txServer } from '@/lib/lingua.server'
+import { localeDi, nomeSchedina, nomeTorneo, ordinale } from '@/lib/lingua'
 
 export default async function ProfiloPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
+  const { lingua, tx } = await txServer()
+  const loc = localeDi(lingua)
 
   const [{ data: prof }, { data: classifica }, { data: schedine }, { data: mieiPron }] = await Promise.all([
     supabase.from('profiles').select('id, username, full_name, email, created_at').eq('id', user.id).single(),
@@ -50,8 +55,8 @@ export default async function ProfiloPage() {
   const cecchinoId = [...sumMin.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
   const isVeggente = cl.some(c => c.user_id === user.id && (c.punti_bonus === 2 || c.punti_bonus >= 10))
   const badges: { Icon: typeof IconTarget; nome: string }[] = []
-  if (cecchinoId === user.id && (sumMin.get(user.id) ?? 0) > 0) badges.push({ Icon: IconTarget, nome: 'Cecchino' })
-  if (isVeggente) badges.push({ Icon: IconStar, nome: 'Veggente' })
+  if (cecchinoId === user.id && (sumMin.get(user.id) ?? 0) > 0) badges.push({ Icon: IconTarget, nome: tx('Cecchino', 'Sharpshooter') })
+  if (isVeggente) badges.push({ Icon: IconStar, nome: tx('Veggente', 'Seer') })
   if (myPos === 1 && myTot > 0) badges.push({ Icon: IconCrown, nome: 'Leader' })
 
   // Prima della prima giornata i numeri sono tutti zero: meglio una cosa sola da fare.
@@ -59,10 +64,12 @@ export default async function ProfiloPage() {
   const prossima = tutte.filter(s => s.attiva !== false && s.deadline > nowIso && !pronById.has(s.id)).sort((a, b) => a.deadline.localeCompare(b.deadline))[0]
   const esordiente = pronById.size === 0 && myTot === 0
 
-  const nome = profile?.username ?? 'Giocatore'
+  const nome = profile?.username ?? tx('Giocatore', 'Player')
   const shareText = myTot > 0
-    ? `Sono ${myPos}° su ${totGiocatori} con ${myTot} punti a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
-    : `Sto giocando a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`
+    ? tx(`Sono ${myPos}° su ${totGiocatori} con ${myTot} punti a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`,
+        `I'm ${ordinale(myPos)} of ${totGiocatori} with ${myTot} ${myTot === 1 ? 'point' : 'points'} on 90 & Goal: guess the minute of the goal! https://90egoal.vercel.app/?lang=en`)
+    : tx(`Sto giocando a 90 & Goal: indovina il minuto del gol! https://90egoal.vercel.app`,
+        `I'm playing 90 & Goal: guess the minute of the goal! https://90egoal.vercel.app/?lang=en`)
 
   return (
     <div className="animate-fade-up max-w-2xl mx-auto">
@@ -74,31 +81,31 @@ export default async function ProfiloPage() {
         <div className="min-w-0 flex-1">
           <h1 className="font-display font-bold text-2xl truncate">{nome}</h1>
           {profile?.full_name && <p className="text-[var(--muted)] text-sm">{profile.full_name}</p>}
-          <p className="text-[var(--muted)] text-xs mt-0.5">Iscritto il {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Europe/Rome' }) : '—'}</p>
+          <p className="text-[var(--muted)] text-xs mt-0.5">{tx('Iscritto il', 'Joined on')} {profile?.created_at ? new Date(profile.created_at).toLocaleDateString(loc, { day: '2-digit', month: 'long', year: 'numeric', timeZone: 'Europe/Rome' }) : '—'}</p>
         </div>
       </div>
 
       {/* Esordiente: una cosa sola */}
       {esordiente && prossima && (
         <div className="glass rounded-2xl p-5 mb-6 text-center">
-          <p className="text-[var(--ink)]/85">La tua prima schedina si chiude {new Date(prossima.deadline).toLocaleDateString('it-IT', { weekday: 'long', timeZone: 'Europe/Rome' })} alle {new Date(prossima.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}.</p>
-          <Link href={`/schedine/${prossima.id}`} className="btn-primary w-full py-3.5 mt-4">Gioca {nomeBreve(prossima.nome)} →</Link>
+          <p className="text-[var(--ink)]/85">{tx('La tua prima schedina si chiude', 'Your first ticket closes on')} {new Date(prossima.deadline).toLocaleDateString(loc, { weekday: 'long', timeZone: 'Europe/Rome' })} {tx('alle', 'at')} {new Date(prossima.deadline).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}.</p>
+          <Link href={`/schedine/${prossima.id}`} className="btn-primary w-full py-3.5 mt-4">{tx('Gioca', 'Play')} {nomeSchedina(nomeBreve(prossima.nome), lingua)} →</Link>
         </div>
       )}
 
       {/* Numeri chiave */}
       {!esordiente && <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="glass rounded-2xl p-4 text-center">
-          <div className="font-num font-semibold text-3xl text-gradient-gold tabular-nums">{myPos || '—'}°</div>
-          <div className="text-[11px] text-[var(--muted)] mt-1">posizione (su {totGiocatori}){torneo ? ` · ${torneo}` : ''}</div>
+          <div className="font-num font-semibold text-3xl text-gradient-gold tabular-nums">{lingua === 'en' ? (myPos ? ordinale(myPos) : '—') : `${myPos || '—'}°`}</div>
+          <div className="text-[11px] text-[var(--muted)] mt-1">{tx('posizione (su', 'place (of')} {totGiocatori}){torneo ? ` · ${nomeTorneo(torneo, lingua)}` : ''}</div>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
           <div className="font-num font-semibold text-3xl text-gradient tabular-nums">{myTot}</div>
-          <div className="text-[11px] text-[var(--muted)] mt-1">punti totali</div>
+          <div className="text-[11px] text-[var(--muted)] mt-1">{tx('punti totali', 'total points')}</div>
         </div>
         <div className="glass rounded-2xl p-4 text-center">
           <div className="font-num font-semibold text-3xl tabular-nums">{pronById.size}</div>
-          <div className="text-[11px] text-[var(--muted)] mt-1">schedine giocate</div>
+          <div className="text-[11px] text-[var(--muted)] mt-1">{tx('schedine giocate', 'tickets played')}</div>
         </div>
       </div>}
 
@@ -120,7 +127,7 @@ export default async function ProfiloPage() {
       <div className="mb-7"><PushToggle /></div>
 
       {/* Le mie schedine */}
-      {!esordiente && <h2 className="font-display font-bold text-lg mb-3">Le tue schedine</h2>}
+      {!esordiente && <h2 className="font-display font-bold text-lg mb-3">{tx('Le tue schedine', 'Your tickets')}</h2>}
       {!esordiente && <div className="space-y-3">
         {[...tutte].reverse().map(s => {
           const pron = pronById.get(s.id)
@@ -129,18 +136,18 @@ export default async function ProfiloPage() {
           if (!pron) {
             return (
               <div key={s.id} className="glass rounded-2xl p-5 flex items-center justify-between gap-3">
-                <span className="text-[var(--muted)] text-sm">{nomeBreve(s.nome)} — non giocata</span>
-                <Link href={`/schedine/${s.id}`} className="btn-ghost px-4 py-2 text-sm">Vai →</Link>
+                <span className="text-[var(--muted)] text-sm">{nomeSchedina(nomeBreve(s.nome), lingua)} — {tx('non giocata', 'not played')}</span>
+                <Link href={`/schedine/${s.id}`} className="btn-ghost px-4 py-2 text-sm">{tx('Vai →', 'Go →')}</Link>
               </div>
             )
           }
           return (
             <div key={s.id} className="glass rounded-2xl p-5">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
-                <span className="font-semibold">{nomeBreve(s.nome)}</span>
+                <span className="font-semibold">{nomeSchedina(nomeBreve(s.nome), lingua)}</span>
                 {row ? (
-                  <span className="font-display font-extrabold text-[var(--accent-soft)] tabular-nums">{row.totale} pt <span className="text-[var(--muted)] text-xs font-normal">({row.punti_minuti}m · {row.punti_recupero}r · {row.punti_bonus}b)</span></span>
-                ) : <span className="text-xs text-[var(--muted)]">in attesa risultati</span>}
+                  <span className="font-display font-extrabold text-[var(--accent-soft)] tabular-nums">{row.totale} {tx('pt', 'pts')} <span className="text-[var(--muted)] text-xs font-normal">({row.punti_minuti}m · {row.punti_recupero}r · {row.punti_bonus}b)</span></span>
+                ) : <span className="text-xs text-[var(--muted)]">{tx('in attesa risultati', 'awaiting results')}</span>}
               </div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {pron.minuti.map(m => (
@@ -148,9 +155,9 @@ export default async function ProfiloPage() {
                 ))}
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-[var(--muted)]">
-                {pron.recupero && <span>{pron.recupero === 'primo' ? 'Rec. 1°T' : 'Rec. 2°T'}</span>}
-                {pron.first_goal && <span className="flex items-center gap-1">Primo: <Flag team={pron.first_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{pron.first_goal}</span></span>}
-                {pron.last_goal && <span className="flex items-center gap-1">Ultimo: <Flag team={pron.last_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{pron.last_goal}</span></span>}
+                {pron.recupero && <span>{pron.recupero === 'primo' ? tx('Rec. 1°T', 'Stoppage 1H') : tx('Rec. 2°T', 'Stoppage 2H')}</span>}
+                {pron.first_goal && <span className="flex items-center gap-1">{tx('Primo:', 'First:')} <Flag team={pron.first_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{pron.first_goal}</span></span>}
+                {pron.last_goal && <span className="flex items-center gap-1">{tx('Ultimo:', 'Last:')} <Flag team={pron.last_goal} w={40} className="w-4 h-3" /><span className="text-[var(--ink)]">{pron.last_goal}</span></span>}
               </div>
             </div>
           )
@@ -159,12 +166,17 @@ export default async function ProfiloPage() {
 
       <Link href="/leghe" className="glass rounded-2xl px-4 py-3.5 mt-8 flex items-center gap-3 hover:border-[var(--ink)]">
         <IconTrophy size={20} className="text-[var(--gold)] shrink-0" />
-        <span className="flex-1 min-w-0"><span className="font-semibold block">Leghe tra amici</span><span className="text-xs text-[var(--muted)]">Una classifica solo per il vostro gruppo</span></span>
+        <span className="flex-1 min-w-0"><span className="font-semibold block">{tx('Leghe tra amici', 'Leagues with friends')}</span><span className="text-xs text-[var(--muted)]">{tx('Una classifica solo per il vostro gruppo', 'Standings just for your group')}</span></span>
         <span className="text-[var(--muted)]">→</span>
       </Link>
 
+      <div className="glass rounded-2xl px-4 py-3 mt-3 flex items-center justify-between gap-3">
+        <span className="font-semibold text-sm">Lingua <span className="text-[var(--muted)] font-normal">/ Language</span></span>
+        <CambiaLingua />
+      </div>
+
       <div className="mt-8 flex items-center justify-between border-t border-[var(--line)] pt-5 text-sm">
-        <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center gap-1.5"><IconBook size={16} /> Regole del gioco</Link>
+        <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center gap-1.5"><IconBook size={16} /> {tx('Regole del gioco', 'Rules of the game')}</Link>
         <LogoutButton className="btn-ghost px-5 py-2 text-sm" />
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { Partita } from '@/lib/types'
 import Flag from '@/components/Flag'
 import { squadreDi } from '@/lib/teams'
+import { useTx } from '@/components/Lingua'
 
 interface Props {
   partite: Partita[]
@@ -15,6 +16,7 @@ interface Props {
 export default function TeamPicker({ partite, value, onChange }: Props) {
   // Tutte le squadre in gioco, esclusi i segnaposto del tabellone ("Vinc. USA-Belgio", "da definire")
   const teams = squadreDi(partite)
+  const tx = useTx()
 
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -23,7 +25,7 @@ export default function TeamPicker({ partite, value, onChange }: Props) {
         onClick={() => onChange('')}
         className={`team-chip justify-center col-span-2 sm:col-span-3 ${value === '' ? 'is-on' : ''}`}
       >
-        — Nessuna —
+        {tx('— Nessuna —', '— None —')}
       </button>
       {teams.map(t => (
         <button

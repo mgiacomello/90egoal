@@ -1,5 +1,6 @@
 // La logica della classifica: posizioni con i pari merito, movimento rispetto al turno
 // prima, distacchi, chi mostrare. Funzioni pure, senza dipendenze: testate in scripts/game.test.ts.
+import { nomeSchedina, ordinale, type Lingua } from './lingua.ts'
 
 export interface RigaPunti {
   schedina_id: number
@@ -84,22 +85,31 @@ export function daMostrare<T extends { user_id: string }>(righe: T[], userId: st
 }
 
 // La frase che dice al giocatore quanto manca: al gradino sopra, o quanto vantaggio ha in testa.
-export function distacco(righe: { user_id: string; totale: number; pos: number }[], userId: string): string | null {
+export function distacco(righe: { user_id: string; totale: number; pos: number }[], userId: string, lingua: Lingua = 'it'): string | null {
   const io = righe.find(r => r.user_id === userId)
   if (!io) return null
-  const pt = (n: number) => `${n} ${n === 1 ? 'punto' : 'punti'}`
+  const en = lingua === 'en'
+  const pt = (n: number) => en ? `${n} ${n === 1 ? 'point' : 'points'}` : `${n} ${n === 1 ? 'punto' : 'punti'}`
   if (io.pos === 1) {
     const pari = righe.filter(r => r.pos === 1).length
-    if (pari > 1) return pari === 2 ? 'In testa a pari merito con un altro' : `In testa a pari merito con altri ${pari - 1}`
+    if (pari > 1) {
+      if (en) return pari === 2 ? 'In the lead, tied with one other' : `In the lead, tied with ${pari - 1} others`
+      return pari === 2 ? 'In testa a pari merito con un altro' : `In testa a pari merito con altri ${pari - 1}`
+    }
     const secondo = righe.find(r => r.pos > 1)
+    if (en) return secondo ? `In the lead by ${pt(io.totale - secondo.totale)}` : 'In the lead'
     return secondo ? `In testa con ${pt(io.totale - secondo.totale)} di vantaggio` : 'In testa'
   }
   const sopra = [...righe].reverse().find(r => r.pos < io.pos)!
+  if (en) return `${pt(sopra.totale - io.totale)} off ${ordinale(sopra.pos)} place`
   return `A ${pt(sopra.totale - io.totale)} dal ${sopra.pos}° posto`
 }
 
 // "Serie A · 12ª giornata" → "A · 12ª" (o "12ª" dentro la vista di una serie sola). Gli altri nomi restano.
-export function etichettaGiornata(nome: string, soloNumero = false): string {
-  const m = /Serie\s+([ABC])\s*·\s*(\d+ª)/.exec(nome)
-  return m ? (soloNumero ? m[2] : `${m[1]} · ${m[2]}`) : nome
+export function etichettaGiornata(nome: string, soloNumero = false, lingua: Lingua = 'it'): string {
+  const m = /Serie\s+([ABC])\s*·\s*((\d+)ª)/.exec(nome)
+  if (!m) return nomeSchedina(nome, lingua)
+  // In inglese "12ª" diventa "MD 12" (matchday): l'ordinale italiano non si legge.
+  const numero = lingua === 'en' ? `MD ${m[3]}` : m[2]
+  return soloNumero ? numero : `${m[1]} · ${numero}`
 }
