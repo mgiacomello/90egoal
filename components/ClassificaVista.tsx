@@ -309,7 +309,7 @@ function Giornata({ g, righe, userId, cima, lingua }: { g: GiornataVista; righe:
     const pezzi = [
       { n: r.punti_minuti, l: tx('minuti', r.punti_minuti === 1 ? 'minute' : 'minutes'), c: 'var(--accent)' },
       { n: r.punti_recupero, l: tx('recupero', 'stoppage time'), c: 'var(--accent-cyan)' },
-      { n: r.punti_bonus, l: tx('squadre', 'teams'), c: 'var(--gold)' },
+      { n: r.punti_bonus, l: tx('squadre', r.punti_bonus === 1 ? 'team' : 'teams'), c: 'var(--gold)' },
     ].filter(p => p.n > 0)
     return (
       <div key={r.user_id} className={`leader-row rounded-xl px-3 py-2.5 border ${mio ? 'border-[var(--accent)] bg-[rgba(232,100,28,0.07)]' : 'glass'}`} style={{ animationDelay: `${Math.min(idx * 0.035, 0.6)}s` }}>
