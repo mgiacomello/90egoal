@@ -15,7 +15,8 @@ interface Props {
   risultatiMap: Record<number, Risultato>
 }
 
-type Stato = Record<string, { gol: GolLive[]; stato: StatoPartita }>
+// manuale: la partita è stata toccata a mano, i risultati automatici non la sovrascrivono.
+type Stato = Record<string, { gol: GolLive[]; stato: StatoPartita; manuale?: boolean }>
 
 function statoIniziale(s: Schedina, r?: Risultato): Stato {
   const out: Stato = {}
@@ -27,6 +28,7 @@ function statoIniziale(s: Schedina, r?: Risultato): Stato {
       gol: d?.gol ? d.gol.map(g => ({ min: g.min, team: g.team })) : [],
       // Dati vecchi senza stato: se c'è un dettaglio, la partita era finita.
       stato: d?.stato ?? (d ? 'finita' : 'da_giocare'),
+      manuale: !!d?.manuale,
     }
   }
   return out
@@ -54,6 +56,8 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
   const [error, setError] = useState('')
   const [notifiche, setNotifiche] = useState(true)
   const [esitoPush, setEsitoPush] = useState('')
+  const [esitoAuto, setEsitoAuto] = useState('')
+  const [aggiorno, setAggiorno] = useState(false)
 
   function scegli(id: number) {
     const s = schedine.find(x => x.id === id)
@@ -64,7 +68,11 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     setMarcatore({})
     setSavedAt(null)
     setError('')
+    setEsitoAuto('')
   }
+
+  const conSegno = (p: Schedina['partite'][number], st: Stato[string]) =>
+    ({ ...buildDettaglio(p, st.gol, st.stato), ...(st.manuale ? { manuale: true } : {}) })
 
   function derivato(st: Stato) {
     if (!schedina) return null
@@ -74,17 +82,29 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     return deriveRisultato(schedina.partite, dettagli)
   }
 
-  async function salva(next: Stato): Promise<boolean> {
+  // `toccata`: la partita su cui l'admin ha appena agito, che vale sempre come è qui.
+  async function salva(proposto: Stato, toccata?: string): Promise<boolean> {
     if (!schedina) return false
-    setStato(next)
     setSaving(true)
     setError('')
+    const sb = createClient()
+    // I risultati automatici scrivono mentre il pannello è aperto: prima di salvare si
+    // rilegge il database. Le partite toccate a mano valgono come sono qui, le altre
+    // come sono là, così un gol inserito a mano non cancella quelli arrivati da soli.
+    const { data: fresco } = await sb.from('risultati').select('*').eq('schedina_id', schedina.id).maybeSingle()
+    const inDb = statoIniziale(schedina, (fresco as Risultato | null) ?? undefined)
+    const next: Stato = {}
+    for (const p of schedina.partite) {
+      const k = matchKey(p)
+      next[k] = k === toccata || proposto[k]?.manuale || !fresco ? proposto[k] : inDb[k]
+    }
+    setStato(next)
     const dettagli = schedina.partite
       .map(p => ({ p, st: next[matchKey(p)] }))
       .filter(({ st }) => st && (st.stato !== 'da_giocare' || st.gol.length > 0))
-      .map(({ p, st }) => buildDettaglio(p, st.gol, st.stato))
+      .map(({ p, st }) => conSegno(p, st))
     const d = deriveRisultato(schedina.partite, dettagli)
-    const prec = risultatiMap[schedina.id]
+    const prec = (fresco as Risultato | null) ?? risultatiMap[schedina.id]
     const payload = {
       schedina_id: schedina.id,
       dettagli,
@@ -97,12 +117,43 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
       extra_time: prec?.extra_time ?? null,
       note: prec?.note ?? null,
     }
-    const { error: dbError } = await createClient().from('risultati').upsert(payload, { onConflict: 'schedina_id' })
+    const { error: dbError } = await sb.from('risultati').upsert(payload, { onConflict: 'schedina_id' })
     setSaving(false)
     if (dbError) { setError('Non salvato: ' + dbError.message); return false }
     setSavedAt(new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Europe/Rome' }))
     router.refresh()
     return true
+  }
+
+  // Chiede subito un giro ai risultati automatici per questa schedina (anche se è vecchia)
+  // e ricarica quello che ne esce.
+  async function aggiornaDaiRisultati() {
+    if (!schedina) return
+    setAggiorno(true)
+    setError('')
+    setEsitoAuto('')
+    try {
+      const res = await fetch(`/api/risultati/sync?schedina=${schedina.id}`, { cache: 'no-store' })
+      const j = await res.json()
+      const e = j.schedine?.[0]
+      if (!res.ok || j.errore || !e) setError(j.errore ?? j.error ?? 'Nessun aggiornamento: la schedina non è ancora cominciata.')
+      else setEsitoAuto([
+        `${e.abbinate}/${schedina.partite.length} partite trovate`,
+        e.nonTrovate.length ? `da inserire a mano: ${e.nonTrovate.join(', ')}` : '',
+        e.daControllare.length ? `da controllare: ${e.daControllare.join('; ')}` : '',
+      ].filter(Boolean).join(' · '))
+      const { data: fresco } = await createClient().from('risultati').select('*').eq('schedina_id', schedina.id).maybeSingle()
+      setStato(statoIniziale(schedina, (fresco as Risultato | null) ?? undefined))
+      router.refresh()
+    } catch {
+      setError('Risultati automatici non raggiungibili. Riprova fra poco.')
+    }
+    setAggiorno(false)
+  }
+
+  // Toglie il segno "a mano": al prossimo giro la partita torna a seguire i risultati veri.
+  function tornaAutomatica(key: string) {
+    salva({ ...stato, [key]: { ...stato[key], manuale: false } }, key)
   }
 
   async function aggiungiGol(key: string, team: string) {
@@ -113,7 +164,7 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
     const min = formatMinute(m)
     const scorer = (marcatore[key] ?? '').trim().slice(0, 40) || undefined
     const gol = scorer ? { min, team, scorer } : { min, team }
-    const next = { ...stato, [key]: { gol: [...st.gol, gol], stato: st.stato === 'da_giocare' ? 'in_corso' as const : st.stato } }
+    const next = { ...stato, [key]: { gol: [...st.gol, gol], stato: st.stato === 'da_giocare' ? 'in_corso' as const : st.stato, manuale: true } }
     setMinuto(v => ({ ...v, [key]: '' }))
     setMarcatore(v => ({ ...v, [key]: '' }))
     // La notifica parte solo dopo il salvataggio: il server legge il punteggio aggiornato dal database.
@@ -126,13 +177,13 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
   function togliGol(key: string, idx: number) {
     const g = stato[key].gol[idx]
     if (!window.confirm(`Togliere il gol di ${g.team} al ${g.min}?`)) return
-    salva({ ...stato, [key]: { ...stato[key], gol: stato[key].gol.filter((_, i) => i !== idx) } })
+    salva({ ...stato, [key]: { ...stato[key], gol: stato[key].gol.filter((_, i) => i !== idx), manuale: true } })
   }
 
   async function cambiaStato(key: string, s: StatoPartita) {
     if (!schedina) return
     const prima = derivato(stato)?.completa
-    const next = { ...stato, [key]: { ...stato[key], stato: s } }
+    const next = { ...stato, [key]: { ...stato[key], stato: s, manuale: true } }
     const ok = await salva(next)
     // Ultima partita finita: la classifica è definitiva, si può dire a ciascuno com'è andata.
     if (ok && notifiche && !prima && derivato(next)?.completa
@@ -146,8 +197,9 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
   return (
     <div>
       <p className="text-[var(--muted)] text-sm mb-4">
-        Durante le partite: scrivi il minuto e tocca la squadra che ha segnato (autogol: la squadra che ne beneficia).
-        Ogni tocco salva subito. Chi apre l&apos;app vede punteggi e classifica aggiornati. <strong className="text-[var(--ink)]">Una sola persona per schedina</strong>, altrimenti ci si sovrascrive.
+        I gol di Serie A, B e C arrivano da soli, circa ogni minuto, mentre si gioca. Qui si corregge o si completa:
+        scrivi il minuto e tocca la squadra che ha segnato (autogol: la squadra che ne beneficia). Ogni tocco salva subito.
+        Una partita toccata a mano resta com&apos;è finché non la rimetti in automatico.
       </p>
 
       <div className="flex flex-wrap gap-2 mb-2">
@@ -184,6 +236,12 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               Vale doppio: <span className="text-[var(--ink)] font-mono">{riepilogo.minuto_primo_gol !== null ? `${riepilogo.minuto_primo_gol}'` : '—'}</span>
             </div>
             {error && <div className="text-[var(--danger)]">{error}</div>}
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <button onClick={aggiornaDaiRisultati} disabled={aggiorno || saving} className="btn-ghost px-3 py-1.5 text-xs">
+                {aggiorno ? 'Aggiorno…' : '↻ Aggiorna dai risultati veri'}
+              </button>
+              {esitoAuto && <span className="text-xs text-[var(--muted)]">{esitoAuto}</span>}
+            </div>
             <label className="flex items-center gap-2 text-xs text-[var(--muted)] pt-1">
               <input type="checkbox" checked={notifiche} onChange={e => setNotifiche(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
               📣 Notifica i giocatori a ogni gol
@@ -200,7 +258,14 @@ export default function AdminLive({ schedine, risultatiMap }: Props) {
               return (
                 <div key={key} className={`rounded-2xl border p-3 ${st.stato === 'in_corso' ? 'border-[var(--accent)]/50 bg-[var(--accent)]/[0.06]' : 'border-[var(--line)] bg-[var(--surface-2)]'}`}>
                   <div className="flex items-center justify-between gap-2 text-[11px] text-[var(--muted)] mb-2">
-                    <span>{p.competizione ?? ''}{quandoPartita(p, schedina.partite) ? ` · ${quandoPartita(p, schedina.partite)}` : ''}</span>
+                    <span>
+                      {p.competizione ?? ''}{quandoPartita(p, schedina.partite) ? ` · ${quandoPartita(p, schedina.partite)}` : ''}
+                      {st.manuale && (
+                        <button onClick={() => tornaAutomatica(key)} disabled={saving} className="ml-2 text-[var(--gold)] underline" title="Torna a seguire i risultati automatici">
+                          a mano · rimetti automatica
+                        </button>
+                      )}
+                    </span>
                     <div className="flex gap-1">
                       {STATI.map(x => (
                         <button key={x.v} onClick={() => cambiaStato(key, x.v)} disabled={saving}

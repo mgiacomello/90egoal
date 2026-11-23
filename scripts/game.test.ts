@@ -6,6 +6,7 @@ import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '
 import { parseMarcatore, magliaDi } from '../lib/kits.ts'
 import { suPiuGiorni, quandoPartita, fineStimataIso, inCorso, delMomento } from '../lib/giornata.ts'
 import { privacyDaAccettare, PRIVACY_VERSIONE } from '../lib/privacy.ts'
+import { serieDi, stessaSquadra, abbina, statoDaFeed, eventiDaElenco, golDaIncidenti, golCoerenti, golNuovi, unisciDettagli, type EventoFeed } from '../lib/feed.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
@@ -297,6 +298,119 @@ check('privacy: chi ha accettato la versione in vigore non rivede l\'avviso', ()
 })
 check('privacy: se la versione cambia, l\'avviso torna', () => {
   assert.equal(privacyDaAccettare({ privacy_versione: '2020-01-01' }), true)
+})
+
+/* --- risultati automatici: dalla fonte ai gol della schedina --- */
+
+check('feed: la serie si legge dalla competizione della partita', () => {
+  assert.equal(serieDi('Serie A'), 'A')
+  assert.equal(serieDi('Serie C - Girone B'), 'C')
+  assert.equal(serieDi('Mondiali FIFA 2026'), null)
+  assert.equal(serieDi(null), null)
+})
+check('feed: i nomi della fonte si riconoscono nonostante sigle, anni e accenti', () => {
+  for (const [mio, loro] of [
+    ['Milan', 'AC Milan'], ['Roma', 'AS Roma'], ['Como', 'Como 1907'], ['Cesena', 'Cesena FC'],
+    ['Arezzo', 'S.S. Arezzo'], ['Padova', 'Calcio Padova'], ['Südtirol', 'Sudtirol'], ['Forlì', 'Forli'],
+    ['L.R. Vicenza', 'L.R. Vicenza'], ['Pescara', 'Pescara Calcio'], ['Picerno', 'AZ Picerno ASD'],
+    ['Livorno', 'US Livorno 1915'], ['Altamura', 'Team Altamura'], ['Alcione Milano', 'Alcione'],
+    ['Ospitaletto Franciacorta', 'Ospitaletto'], ['Arzignano Valchiampo', 'FC Arzignano Valchiampo'],
+    ['Juventus Next Gen', 'Juventus Next Gen'], ['Inter U23', 'Inter U23'],
+  ]) assert.ok(stessaSquadra(mio, loro), `${mio} = ${loro}`)
+})
+check('feed: prima e seconda squadra non si confondono', () => {
+  assert.equal(stessaSquadra('Inter', 'Inter U23'), false)
+  assert.equal(stessaSquadra('Juventus', 'Juventus Next Gen'), false)
+  assert.equal(stessaSquadra('Atalanta U23', 'Atalanta'), false)
+  assert.equal(stessaSquadra('Verona', 'Vicenza'), false)
+})
+const EVENTI: EventoFeed[] = [
+  { id: '1', serie: 'A', home: 'AC Milan', away: 'Frosinone', data: '2026-11-22', stato: 'finita', golCasa: 5, golTrasferta: 1 },
+  { id: '2', serie: 'A', home: 'Atalanta', away: 'Inter', data: '2026-11-22', stato: 'in_corso', golCasa: 1, golTrasferta: 2 },
+  { id: '3', serie: 'C', home: 'Inter U23', away: 'Potenza', data: '2026-11-21', stato: 'finita', golCasa: 2, golTrasferta: 1 },
+]
+check('feed: la partita si abbina per serie, squadre e giorno', () => {
+  assert.equal(abbina({ home: 'Milan', away: 'Frosinone', date: '2026-11-22', competizione: 'Serie A' }, EVENTI)?.id, '1')
+  assert.equal(abbina({ home: 'Inter U23', away: 'Potenza', date: '2026-11-21', competizione: 'Serie C' }, EVENTI)?.id, '3')
+})
+check('feed: niente abbinamento se cambia la serie, il verso o il giorno', () => {
+  assert.equal(abbina({ home: 'Milan', away: 'Frosinone', date: '2026-11-22', competizione: 'Serie B' }, EVENTI), null)
+  assert.equal(abbina({ home: 'Frosinone', away: 'Milan', date: '2026-11-22', competizione: 'Serie A' }, EVENTI), null)
+  assert.equal(abbina({ home: 'Milan', away: 'Frosinone', date: '2026-11-29', competizione: 'Serie A' }, EVENTI), null)
+  assert.equal(abbina({ home: 'Milan', away: 'Frosinone', date: '2026-11-22', competizione: null }, EVENTI), null)
+})
+check('feed: lo stato della partita, e i casi da non toccare', () => {
+  assert.equal(statoDaFeed('NS'), 'da_giocare')
+  assert.equal(statoDaFeed('FT'), 'finita')
+  assert.equal(statoDaFeed('HT'), 'in_corso')
+  assert.equal(statoDaFeed("67'"), 'in_corso')
+  assert.equal(statoDaFeed("90+3'"), 'in_corso')
+  assert.equal(statoDaFeed('Postp.'), null)
+  assert.equal(statoDaFeed('Canc.'), null)
+})
+check('feed: dall\'elenco del giorno escono solo Serie A, B e C maschili', () => {
+  const ev = eventiDaElenco({ Stages: [
+    { Cnm: 'Italy', Scd: 'serie-a', Events: [{ Eid: '10', Esd: 20261122180000, Eps: 'FT', Tr1: '5', Tr2: '1', T1: [{ Nm: 'AC Milan' }], T2: [{ Nm: 'Frosinone' }] }] },
+    { Cnm: 'Italy', Scd: 'serie-a-women', Events: [{ Eid: '11', Esd: 20261122150000, Eps: 'FT', Tr1: '1', Tr2: '0', T1: [{ Nm: 'Juventus' }], T2: [{ Nm: 'Roma' }] }] },
+    { Cnm: 'Italy', Scd: 'serie-c-group-b-2025', Events: [{ Eid: '12', Esd: 20261121143000, Eps: 'NS', T1: [{ Nm: 'Vado' }], T2: [{ Nm: 'Latina' }] }] },
+    { Cnm: 'Italy', Scd: 'serie-d-group-a', Events: [{ Eid: '13', Esd: 20261121143000, Eps: 'FT', T1: [{ Nm: 'X' }], T2: [{ Nm: 'Y' }] }] },
+    { Cnm: 'Spain', Scd: 'serie-a', Events: [{ Eid: '14', Esd: 20261121143000, Eps: 'FT', T1: [{ Nm: 'X' }], T2: [{ Nm: 'Y' }] }] },
+  ] })
+  assert.deepEqual(ev.map(e => e.id), ['10', '12'])
+  assert.deepEqual(ev[0], { id: '10', serie: 'A', home: 'AC Milan', away: 'Frosinone', data: '2026-11-22', stato: 'finita', golCasa: 5, golTrasferta: 1 })
+  assert.equal(ev[1].serie, 'C')
+  assert.equal(ev[1].golCasa, null)
+})
+// Com'è fatta la risposta vera: gol semplici, gol raggruppati con l'assist, autogol,
+// rigore nel recupero, e gli episodi che gol non sono (cartellino 43, rigore sbagliato 38).
+const INCIDENTI = { Incs: {
+  '1': [
+    { Min: 4, Nm: 1, IT: 39, Pn: 'G. Calvani', Sc: [1, 0] },
+    { Min: 19, Nm: 1, Sc: [2, 0], Incs: [
+      { Min: 19, Nm: 1, IT: 36, Pn: 'Gonçalo Ramos', Pnum: 9, Sc: [2, 0] },
+      { Min: 19, Nm: 1, IT: 63, Pn: 'A. Rabiot', Sc: [2, 0] },
+    ] },
+    { Min: 25, Nm: 2, IT: 36, Ln: 'Masini', Pn: 'P. Masini', Pnum: 8, Sc: [2, 1] },
+    { Min: 40, Nm: 2, IT: 38, Pn: 'X', Sc: [2, 1] },
+    { Min: 45, MinEx: 2, Nm: 2, IT: 43, Pn: 'Y' },
+  ],
+  '2': [
+    { Min: 90, MinEx: 1, Nm: 1, IT: 37, Ln: 'Kessie', Pnum: 79, Sc: [3, 1] },
+  ],
+} }
+check('feed: dagli episodi si prendono solo i gol, con minuto e marcatore', () => {
+  assert.deepEqual(golDaIncidenti(INCIDENTI, 'Milan', 'Frosinone'), [
+    { min: "4'", team: 'Milan' },
+    { min: "19'", team: 'Milan', scorer: 'Gonçalo Ramos 9' },
+    { min: "25'", team: 'Frosinone', scorer: 'Masini 8' },
+    { min: "90+1'", team: 'Milan', scorer: 'Kessie 79' },
+  ])
+  assert.deepEqual(golDaIncidenti({}, 'Milan', 'Frosinone'), [])
+  assert.deepEqual(golDaIncidenti(null, 'Milan', 'Frosinone'), [])
+})
+check('feed: gol e punteggio dichiarato devono tornare', () => {
+  const gol = golDaIncidenti(INCIDENTI, 'Milan', 'Frosinone')
+  const e = { ...EVENTI[0], golCasa: 3, golTrasferta: 1 }
+  assert.equal(golCoerenti(gol, e, 'Milan', 'Frosinone'), true)
+  assert.equal(golCoerenti(gol, { ...e, golCasa: 4 }, 'Milan', 'Frosinone'), false)
+  assert.equal(golCoerenti(gol, { ...e, golCasa: null }, 'Milan', 'Frosinone'), true)
+})
+check('feed: i gol nuovi sono solo quelli non ancora salvati', () => {
+  const a = { min: "19'", team: 'Milan' }
+  const b = { min: "25'", team: 'Frosinone' }
+  assert.deepEqual(golNuovi([a], [a, b]), [b])
+  assert.deepEqual(golNuovi([a, b], [a, b]), [])
+  // doppietta nello stesso minuto: il secondo è nuovo
+  assert.deepEqual(golNuovi([a], [a, a]), [a])
+})
+check('feed: la partita corretta a mano non viene sovrascritta, le altre sì', () => {
+  const partite = [{ home: 'A', away: 'B' }, { home: 'C', away: 'D' }, { home: 'E', away: 'F' }]
+  const d = (home: string, away: string, score: string, extra = {}) => ({ home, away, score, minuti: [], gol: [], stato: 'finita' as const, ...extra })
+  const salvati = [d('A', 'B', '1-0', { manuale: true }), d('C', 'D', '0-0')]
+  const daFeed = new Map([['A__B', d('A', 'B', '9-9')], ['C__D', d('C', 'D', '2-1')]])
+  const out = unisciDettagli(partite, salvati, daFeed)
+  assert.deepEqual(out.map(x => x.score), ['1-0', '2-1'])   // E-F non è nella fonte né salvata: non compare
+  assert.equal(out[0].manuale, true)
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

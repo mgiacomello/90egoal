@@ -45,6 +45,7 @@ export interface MatchDetail {
   minuti: string[]       // es. ["9'", "45+5'", "67'"] — retrocompatibilità/display rapido
   gol?: GoalScored[]     // marcatore per gol (per analisi per-squadra); assente sui dati vecchi
   stato?: 'da_giocare' | 'in_corso' | 'finita'  // modalità live; assente sui dati vecchi = finita
+  manuale?: boolean      // corretta a mano dall'admin: i risultati automatici non la toccano
 }
 
 export interface Risultato {
