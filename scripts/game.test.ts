@@ -6,6 +6,7 @@ import { nomeBreve, isPlaceholder, squadreDi, sigla, parseElencoPartite } from '
 import { parseMarcatore, magliaDi } from '../lib/kits.ts'
 import { suPiuGiorni, quandoPartita, fineStimataIso, inCorso, delMomento } from '../lib/giornata.ts'
 import { privacyDaAccettare, PRIVACY_VERSIONE } from '../lib/privacy.ts'
+import { conPosizioni, ultimoTurno, classificaGenerale, daMostrare, distacco, etichettaGiornata } from '../lib/classifica.ts'
 import { serieDi, stessaSquadra, abbina, statoDaFeed, eventiDaElenco, golDaIncidenti, golCoerenti, golNuovi, unisciDettagli, type EventoFeed } from '../lib/feed.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
@@ -411,6 +412,67 @@ check('feed: la partita corretta a mano non viene sovrascritta, le altre sì', (
   const out = unisciDettagli(partite, salvati, daFeed)
   assert.deepEqual(out.map(x => x.score), ['1-0', '2-1'])   // E-F non è nella fonte né salvata: non compare
   assert.equal(out[0].manuale, true)
+})
+
+/* --- classifica: posizioni, movimento, distacchi --- */
+
+const R = (schedina_id: number, user_id: string, totale: number) => ({ schedina_id, user_id, username: user_id, full_name: '', totale })
+check('classifica: a pari punti stessa posizione, e la successiva salta', () => {
+  const out = conPosizioni([R(1, 'd', 5), R(1, 'b', 8), R(1, 'a', 10), R(1, 'c', 8)])
+  assert.deepEqual(out.map(r => [r.username, r.pos]), [['a', 1], ['b', 2], ['c', 2], ['d', 4]])
+})
+check('classifica: l\'ultimo turno prende le schedine dello stesso weekend', () => {
+  const s = [
+    { id: 1, deadline: '2026-11-14T14:00:00Z' },
+    { id: 2, deadline: '2026-11-20T19:30:00Z' },
+    { id: 3, deadline: '2026-11-21T14:00:00Z' },
+    { id: 4, deadline: '2026-11-27T19:45:00Z' },   // non ancora giocata
+  ]
+  assert.deepEqual([...ultimoTurno(s, new Set([1, 2, 3]))].sort(), [2, 3])
+  assert.equal(ultimoTurno(s, new Set()).size, 0)
+})
+const RIGHE = [
+  R(1, 'anna', 6), R(1, 'bea', 4), R(1, 'carlo', 2),
+  R(2, 'anna', 1), R(2, 'bea', 5), R(2, 'dino', 9),
+]
+check('classifica: generale con punti dell\'ultimo turno e movimento', () => {
+  const g = classificaGenerale(RIGHE, new Set([2]), new Set([1]))
+  assert.deepEqual(g.map(r => [r.username, r.totale, r.pos]), [['bea', 9, 1], ['dino', 9, 1], ['anna', 7, 3], ['carlo', 2, 4]])
+  const di = (u: string) => g.find(r => r.user_id === u)!
+  assert.equal(di('bea').movimento, 1)       // era 2ª, ora 1ª
+  assert.equal(di('anna').movimento, -2)     // era 1ª, ora 3ª
+  assert.equal(di('dino').movimento, null)   // prima non c'era
+  assert.equal(di('carlo').movimento, -1)
+  assert.equal(di('carlo').ultimo, null)     // non ha giocato l'ultimo turno
+  assert.equal(di('dino').ultimo, 9)
+  assert.equal(di('anna').vittorie, 1)       // ha vinto la giornata 1, conclusa
+  assert.equal(di('dino').vittorie, 0)       // la 2 non è conclusa
+  assert.equal(di('anna').giocate, 2)
+})
+check('classifica: al primo turno in assoluto nessuno si muove', () => {
+  const g = classificaGenerale(RIGHE.filter(r => r.schedina_id === 1), new Set([1]))
+  assert.ok(g.every(r => r.movimento === 0))
+})
+check('classifica: chi è fuori dai primi vede sé stesso e i vicini', () => {
+  const righe = Array.from({ length: 20 }, (_, i) => ({ user_id: `u${i}` }))
+  assert.equal(daMostrare(righe, 'u3', 10).vicino.length, 0)
+  assert.deepEqual(daMostrare(righe, 'u14', 10).vicino.map(r => r.user_id), ['u13', 'u14', 'u15'])
+  assert.deepEqual(daMostrare(righe, 'u10', 10).vicino.map(r => r.user_id), ['u10', 'u11'])   // l'11° non ripete il 10°
+  assert.deepEqual(daMostrare(righe, 'u19', 10).vicino.map(r => r.user_id), ['u18', 'u19'])
+  assert.equal(daMostrare(righe, undefined, 10).cima.length, 10)
+})
+check('classifica: la frase del distacco', () => {
+  const g = conPosizioni([R(1, 'a', 10), R(1, 'b', 8), R(1, 'c', 8), R(1, 'd', 7)])
+  assert.equal(distacco(g, 'a'), 'In testa con 2 punti di vantaggio')
+  assert.equal(distacco(g, 'b'), 'A 2 punti dal 1° posto')
+  assert.equal(distacco(g, 'd'), 'A 1 punto dal 2° posto')
+  assert.equal(distacco(conPosizioni([R(1, 'a', 5), R(1, 'b', 5)]), 'a'), 'In testa a pari merito con un altro')
+  assert.equal(distacco(g, 'nessuno'), null)
+})
+check('classifica: etichette corte delle giornate', () => {
+  assert.equal(etichettaGiornata('Serie A · 12ª giornata'), 'A · 12ª')
+  assert.equal(etichettaGiornata('Serie C · 15ª giornata', true), '15ª')
+  assert.equal(etichettaGiornata('Fase finale'), 'Fase finale')
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)
