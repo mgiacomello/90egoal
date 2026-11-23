@@ -2,29 +2,15 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { ClassificaRow, MatchDetail, Partita } from '@/lib/types'
 import LiveRefresh from '@/components/LiveRefresh'
-import { nomeBreve } from '@/lib/teams'
-import { IconTrophy, IconBall, IconPlus } from '@/components/Icons'
+import ClassificaVista, { type GiornataVista } from '@/components/ClassificaVista'
+import { IconTrophy, IconPlus } from '@/components/Icons'
 import { mieLeghe } from '@/lib/leghe'
-
-interface GeneraleRow { user_id: string; username: string; full_name: string; totale: number; pos: number }
-
-const AVATAR_GRADIENTS = [
-  'linear-gradient(135deg,#1aff8c,#22d3ee)',
-  'linear-gradient(135deg,#22d3ee,#8b5cf6)',
-  'linear-gradient(135deg,#ffd24a,#ff9f43)',
-  'linear-gradient(135deg,#8b5cf6,#ec4899)',
-  'linear-gradient(135deg,#34d399,#3b82f6)',
-  'linear-gradient(135deg,#f472b6,#fb7185)',
-]
-function avatarFor(name: string) {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
-  return AVATAR_GRADIENTS[h % AVATAR_GRADIENTS.length]
-}
+import { serieDi } from '@/lib/feed'
+import { inCorso } from '@/lib/giornata'
 
 interface SchedinaLite { id: number; nome: string; attiva: boolean; torneo?: string; partite: Partita[]; deadline: string }
 
-export default async function ClassificaPage({ searchParams }: { searchParams: Promise<{ torneo?: string; lega?: string }> }) {
+export default async function ClassificaPage({ searchParams }: { searchParams: Promise<{ torneo?: string; lega?: string; serie?: string; g?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const params = await searchParams
@@ -50,24 +36,18 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
   const lega = leghe.find(l => l.id === params.lega) ?? null
   const membri = lega ? new Set(lega.membri) : null
   const classifica = ((tuttaClassifica ?? []) as ClassificaRow[]).filter(r => ids.has(r.schedina_id) && (!membri || membri.has(r.user_id)))
-  const qs = (t: string, l: string | null) => {
+  const qs = (t: string, l: string | null, extra?: { serie: string | null; g: number | null }) => {
     const u = new URLSearchParams()
     if (t) u.set('torneo', t)
     if (l) u.set('lega', l)
+    if (extra?.serie) u.set('serie', extra.serie)
+    if (extra?.g) u.set('g', String(extra.g))
     const q = u.toString()
     return q ? `/classifica?${q}` : '/classifica'
   }
   const limite = lega ? 200 : 10
 
-  // Provvisoria finché c'è una schedina con risultati ma partite non ancora finite.
   const risMap = new Map(((risultati ?? []) as { schedina_id: number; dettagli: MatchDetail[] | null }[]).map(r => [r.schedina_id, r.dettagli ?? []]))
-  const provvisoria = schedine.some(s => {
-    const d = risMap.get(s.id)
-    if (!d) return false
-    const finite = d.filter(x => (x.stato ?? 'finita') === 'finita').length
-    return finite < s.partite.length
-  })
-
   // Quando si parte: la prima scadenza ancora da venire, detta come la direbbe una persona.
   const nowIso = new Date().toISOString()
   const prossima = all.filter(s => s.attiva !== false && s.deadline > nowIso).sort((a, b) => a.deadline.localeCompare(b.deadline))[0]
@@ -75,28 +55,18 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
     ? `${new Date(prossima.deadline).toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} alle ${new Date(prossima.deadline).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}`
     : null
 
-  const bySchedina = new Map<number, ClassificaRow[]>()
-  classifica?.forEach((r: ClassificaRow) => {
-    const arr = bySchedina.get(r.schedina_id) ?? []
-    arr.push(r)
-    bySchedina.set(r.schedina_id, arr)
+  // Per ogni giornata: di che serie è, se è finita, se si sta giocando.
+  const giornate: GiornataVista[] = schedine.map(s => {
+    const d = risMap.get(s.id)
+    const finite = d ? d.filter(x => (x.stato ?? 'finita') === 'finita').length : 0
+    const conclusa = s.attiva === false || (!!d && s.partite.length > 0 && finite === s.partite.length)
+    // "In corso" solo a ridosso delle partite: una giornata vecchia rimasta a metà non lampeggia per sempre.
+    return { id: s.id, nome: s.nome, serie: serieDi(s.partite[0]?.competizione), deadline: s.deadline, conclusa, live: !!d && inCorso(s, nowIso, conclusa) }
   })
-
-  const generalMap = new Map<string, GeneraleRow>()
-  classifica?.forEach((r: ClassificaRow) => {
-    const e = generalMap.get(r.user_id)
-    if (e) e.totale += r.totale
-    else generalMap.set(r.user_id, { user_id: r.user_id, username: r.username, full_name: r.full_name, totale: r.totale, pos: 0 })
-  })
-  const generale = [...generalMap.values()].sort((a, b) => b.totale - a.totale).map((r, i) => ({ ...r, pos: i + 1 }))
-
-  // Albo d'oro: campione di ogni fase CONCLUSA (schedina archiviata)
-  const albo = schedine
-    .filter(s => s.attiva === false)
-    .flatMap(s => {
-      const rows = (bySchedina.get(s.id) ?? []).slice().sort((a, b) => b.totale - a.totale)
-      return rows.length ? [{ nome: nomeBreve(s.nome), champ: rows[0] }] : []
-    })
+  // Provvisoria finché una giornata si sta giocando.
+  const provvisoria = giornate.some(g => g.live)
+  const serie = ['A', 'B', 'C'].includes(params.serie ?? '') ? params.serie! : null
+  const giornataId = params.g && /^\d+$/.test(params.g) ? Number(params.g) : null
 
   return (
     <div className="animate-fade-up">
@@ -131,8 +101,9 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
 
       {provvisoria && <LiveRefresh seconds={60} generatedAt={new Date().toISOString()} />}
       {provvisoria && (
-        <p className="text-xs text-[var(--gold)] bg-[var(--gold)]/10 border border-[var(--gold)]/30 rounded-xl px-3 py-2 mb-5">
-          ⚡ Partite in corso: classifica provvisoria. Diventa definitiva al fischio finale dell&apos;ultima partita.
+        <p className="text-xs text-[var(--danger)] bg-[var(--danger-soft)] border border-[var(--danger)]/30 rounded-xl px-3 py-2 mb-5 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[var(--danger)] animate-pulse-glow shrink-0" />
+          <span>Si sta giocando: i punti cambiano a ogni gol. La classifica diventa definitiva al fischio finale.</span>
         </p>
       )}
 
@@ -142,7 +113,7 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
           <p className="text-[var(--ink)]/85">Per ora ci sei solo tu.<br /><span className="text-[var(--muted)]">Manda il link al gruppo: la classifica si riempie da sola.</span></p>
           <Link href={`/leghe/${lega.id}`} className="btn-primary px-5 py-2.5 text-sm mt-5 inline-flex">Invita gli amici</Link>
         </div>
-      ) : generale.length === 0 ? (
+      ) : classifica.length === 0 ? (
         <div className="glass rounded-2xl py-14 px-6 text-center">
           <IconTrophy size={36} className="inline-block text-[var(--accent)] mb-4" strokeWidth={1.6} />
           {prossimaApertura ? (
@@ -152,50 +123,16 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
           )}
         </div>
       ) : (
-        <>
-          {generale.length >= 3 && <Podium top3={generale.slice(0, 3)} currentUserId={user?.id} />}
-
-          <section className="mb-10">
-            <h2 className="font-display font-bold text-lg mb-3 text-[var(--gold)]">{lega ? 'Classifica della lega' : 'Classifica Generale'}</h2>
-            <LeaderList rows={generale.slice(0, limite).map(g => ({ ...g, key: g.user_id }))} maxTot={generale[0]?.totale ?? 1} currentUserId={user?.id} />
-          </section>
-
-          {albo.length > 0 && (
-            <section className="mb-10">
-              <h2 className="font-display font-bold text-lg mb-1 text-[var(--gold)]">Albo d&apos;oro</h2>
-              <p className="text-[var(--muted)] text-sm mb-3">Il miglior Tredicista di ogni fase conclusa.</p>
-              <div className="space-y-2">
-                {albo.map((c, i) => (
-                  <div key={i} className="glass rounded-xl px-4 py-3 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-xs text-[var(--muted)]">{c.nome}</div>
-                      <div className="font-display font-semibold truncate">{c.champ.username}</div>
-                    </div>
-                    <span className="font-display font-extrabold text-[var(--gold)] tabular-nums shrink-0">{c.champ.totale} pt</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {schedine.map(s => {
-            const rows = (bySchedina.get(s.id) ?? []).sort((a, b) => b.totale - a.totale).slice(0, limite).map((r, i) => ({ ...r, pos: i + 1 }))
-            return (
-              <section key={s.id} className="mb-8">
-                <h2 className="font-display font-semibold text-base mb-3 text-[var(--ink)]">{nomeBreve(s.nome)}</h2>
-                {rows.length === 0 ? (
-                  <div className="glass rounded-2xl p-6 text-center text-[var(--muted)] text-sm">Risultati non ancora pubblicati.</div>
-                ) : (
-                  <LeaderList
-                    rows={rows.map(r => ({ key: r.user_id, user_id: r.user_id, username: r.username, full_name: r.full_name, totale: r.totale, pos: r.pos, detail: r }))}
-                    maxTot={rows[0]?.totale ?? 1}
-                    currentUserId={user?.id}
-                  />
-                )}
-              </section>
-            )
-          })}
-        </>
+        <ClassificaVista
+          righe={classifica}
+          giornate={giornate}
+          userId={user?.id}
+          serie={serie}
+          giornataId={giornataId}
+          href={o => qs(torneo, lega?.id ?? null, o)}
+          cima={limite}
+          titolo={lega ? 'Classifica della lega' : 'Classifica generale'}
+        />
       )}
 
       {finiti.filter(t => t !== torneo).map(t => (
@@ -208,126 +145,6 @@ export default async function ClassificaPage({ searchParams }: { searchParams: P
           Torneo concluso. <Link href="/classifica" className="underline">Torna alla classifica di oggi</Link>
         </p>
       )}
-    </div>
-  )
-}
-
-function Podium({ top3, currentUserId }: { top3: GeneraleRow[]; currentUserId?: string }) {
-  const order = [top3[1], top3[0], top3[2]] // 2°, 1°, 3°
-  const heights = ['h-20', 'h-32', 'h-16']
-  const medalColor = ['#c9ced6', 'var(--gold)', '#d8a070']
-  const ranks = [2, 1, 3]
-  const delays = ['0.15s', '0s', '0.3s']
-  const colCol = [
-    'linear-gradient(to top, rgba(148,163,184,0.18), rgba(148,163,184,0.02))',
-    'linear-gradient(to top, rgba(255,210,74,0.3), rgba(255,210,74,0.04))',
-    'linear-gradient(to top, rgba(180,120,60,0.2), rgba(180,120,60,0.03))',
-  ]
-
-  return (
-    <div className="glass rounded-2xl p-6 pt-8 mb-8 overflow-hidden relative">
-      <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-72 h-72 bg-[var(--gold)]/10 blur-3xl rounded-full pointer-events-none" />
-      <div className="relative flex items-end justify-center gap-3 sm:gap-5">
-        {order.map((r, i) => {
-          const isMe = r.user_id === currentUserId
-          const isFirst = ranks[i] === 1
-          return (
-            <div key={r.user_id} className="flex flex-col items-center flex-1 max-w-[140px]">
-              <div className="podium-medal font-display font-extrabold text-2xl mb-1" style={{ animationDelay: delays[i], color: medalColor[i] }}>{ranks[i]}°</div>
-              <div
-                className="grid place-items-center w-11 h-11 rounded-full text-sm font-extrabold text-[var(--accent-ink)] mb-2 ring-2 ring-[var(--line)] podium-medal"
-                style={{ background: avatarFor(r.username), animationDelay: delays[i] }}
-              >
-                {r.username.slice(0, 1).toUpperCase()}
-              </div>
-              <div className={`font-semibold text-sm text-center truncate w-full ${isMe ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>
-                {r.username}{isMe && ' (tu)'}
-              </div>
-              <div className="font-num font-semibold text-2xl text-gradient-gold tabular-nums">{r.totale}<span className="text-xs text-[var(--muted)] font-normal ml-0.5">pt</span></div>
-              <div
-                className={`podium-col mt-2 w-full ${heights[i]} rounded-t-xl border border-[var(--line)] border-b-0 grid place-items-start justify-center pt-2 ${isFirst ? 'is-leader' : ''}`}
-                style={{ background: colCol[i], animationDelay: delays[i] }}
-              >
-                <span className="font-display font-extrabold text-xl text-[var(--muted)]">{ranks[i]}</span>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
-
-interface ListRow {
-  key: string
-  user_id?: string
-  username: string
-  full_name: string
-  totale: number
-  pos: number
-  detail?: ClassificaRow
-}
-
-function LeaderList({ rows, maxTot, currentUserId }: { rows: ListRow[]; maxTot: number; currentUserId?: string }) {
-  const medalColor = ['var(--gold)', '#c9ced6', '#d8a070']
-  return (
-    <div className="space-y-2">
-      {rows.map((r, idx) => {
-        const isMe = r.user_id && r.user_id === currentUserId
-        const pct = maxTot > 0 ? Math.max((r.totale / maxTot) * 100, 4) : 0
-        const azzeccati = r.detail?.minuti_azzeccati ?? []
-        return (
-          <div
-            key={r.key}
-            className={`leader-row glass rounded-xl px-3 py-2.5 ${isMe ? 'is-leader' : 'glass-hover'}`}
-            style={{ animationDelay: `${Math.min(idx * 0.04, 0.7)}s` }}
-          >
-            <div className="flex items-center gap-3">
-              {/* rank */}
-              <div className="w-8 shrink-0 text-center">
-                <span className="font-display font-extrabold tabular-nums text-lg" style={{ color: r.pos <= 3 ? medalColor[r.pos - 1] : 'var(--muted)' }}>{r.pos}</span>
-              </div>
-              {/* avatar */}
-              <div className="grid place-items-center w-9 h-9 rounded-full text-xs font-extrabold text-[var(--accent-ink)] shrink-0 ring-1 ring-[var(--line)]" style={{ background: avatarFor(r.username) }}>
-                {r.username.slice(0, 1).toUpperCase()}
-              </div>
-              {/* name + bar */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className={`font-semibold truncate ${isMe ? 'text-[var(--accent-soft)]' : 'text-[var(--ink)]'}`}>{r.username}</span>
-                  {isMe && <span className="text-[var(--accent)] text-[10px] font-bold">TU</span>}
-                  {r.full_name && <span className="text-[var(--muted)] text-xs hidden sm:inline truncate">· {r.full_name}</span>}
-                </div>
-                <div className="h-1.5 mt-1.5 rounded-full bg-[var(--surface-2)] overflow-hidden">
-                  <div className="points-bar-fill h-full rounded-full" style={{ width: `${pct}%`, background: 'linear-gradient(90deg, var(--accent-soft), var(--accent-cyan))', animationDelay: `${Math.min(idx * 0.04, 0.7) + 0.1}s` }} />
-                </div>
-              </div>
-              {/* total */}
-              <div className="shrink-0 text-right">
-                <span className="font-display font-extrabold text-lg text-[var(--accent-soft)] tabular-nums">{r.totale}</span>
-                <span className="text-[10px] text-[var(--muted)] ml-0.5">pt</span>
-              </div>
-            </div>
-
-            {/* dettaglio per-schedina: punti + minuti azzeccati */}
-            {r.detail && (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-2 pl-[4.75rem] text-xs">
-                <span className="text-[var(--muted)]">
-                  {r.detail.punti_minuti} min · {r.detail.punti_recupero} rec · {r.detail.punti_bonus} bonus
-                </span>
-                {azzeccati.length > 0 && (
-                  <span className="flex flex-wrap items-center gap-1">
-                    <IconBall size={12} className="text-[var(--muted)]" />
-                    {azzeccati.map(m => (
-                      <span key={m} className="tag-static px-1.5 py-0.5 text-[10px]">{m}&apos;</span>
-                    ))}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-        )
-      })}
     </div>
   )
 }
