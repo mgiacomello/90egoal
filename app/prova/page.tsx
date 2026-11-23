@@ -3,8 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { Schedina } from '@/lib/types'
 import { SCHEDINA_PROVA } from '@/lib/demo'
 import ProvaClient from '@/components/ProvaClient'
+import { linguaServer } from '@/lib/lingua.server'
 
-export const metadata: Metadata = { title: 'Prova — 90 & Goal' }
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await linguaServer()) === 'en' ? 'Try it — 90 & Goal' : 'Prova — 90 & Goal' }
+}
 
 // Si gioca subito, senza account: la schedina resta sul telefono.
 // La prossima giornata vera se il database risponde, altrimenti quella di riserva.

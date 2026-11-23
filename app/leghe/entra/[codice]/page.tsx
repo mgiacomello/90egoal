@@ -3,8 +3,12 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import EntraInLega from './EntraInLega'
+import { txServer } from '@/lib/lingua.server'
 
-export const metadata: Metadata = { title: 'Invito a una lega — 90 & Goal' }
+export async function generateMetadata(): Promise<Metadata> {
+  const { tx } = await txServer()
+  return { title: tx('Invito a una lega — 90 & Goal', 'League invite — 90 & Goal') }
+}
 
 // La pagina che si apre dal link mandato su WhatsApp. Funziona anche senza account:
 // mostra la lega e porta a registrazione o accesso, poi si torna qui.
@@ -23,6 +27,7 @@ export default async function EntraPage({ params }: { params: Promise<{ codice: 
     if (gia) redirect(`/classifica?lega=${gia.id}`)
   }
 
+  const { tx } = await txServer()
   const ritorno = encodeURIComponent(`/leghe/entra/${codice}`)
 
   return (
@@ -31,14 +36,14 @@ export default async function EntraPage({ params }: { params: Promise<{ codice: 
         <div className="inline-grid place-items-center w-14 h-14 rounded-2xl bg-[var(--accent)] text-[var(--accent-ink)] font-display font-extrabold text-2xl mb-4">90</div>
         {lega ? (
           <>
-            <p className="text-sm text-[var(--muted)]">{lega.creatore ? <><strong className="text-[var(--ink)]">{lega.creatore}</strong> ti invita nella lega</> : 'Sei invitato nella lega'}</p>
+            <p className="text-sm text-[var(--muted)]">{lega.creatore ? <><strong className="text-[var(--ink)]">{lega.creatore}</strong> {tx('ti invita nella lega', 'invites you to the league')}</> : tx('Sei invitato nella lega', 'You are invited to the league')}</p>
             <h1 className="font-display font-bold text-2xl mt-1 break-words">{lega.nome}</h1>
-            <p className="text-sm text-[var(--muted)] mt-1">{lega.membri} {lega.membri === 1 ? 'giocatore' : 'giocatori'} · stesse schedine di tutti, classifica solo vostra</p>
+            <p className="text-sm text-[var(--muted)] mt-1">{lega.membri} {lega.membri === 1 ? tx('giocatore', 'player') : tx('giocatori', 'players')} · {tx('stesse schedine di tutti, classifica solo vostra', 'same tickets as everyone, standings of your own')}</p>
           </>
         ) : (
           <>
-            <h1 className="font-display font-bold text-2xl">Codice non valido</h1>
-            <p className="text-sm text-[var(--muted)] mt-1">Il link potrebbe essere incompleto. Chiedi di nuovo l&apos;invito o scrivi il codice a mano.</p>
+            <h1 className="font-display font-bold text-2xl">{tx('Codice non valido', 'Invalid code')}</h1>
+            <p className="text-sm text-[var(--muted)] mt-1">{tx('Il link potrebbe essere incompleto. Chiedi di nuovo l\'invito o scrivi il codice a mano.', 'The link may be incomplete. Ask for the invite again or type the code by hand.')}</p>
           </>
         )}
       </div>
@@ -47,15 +52,15 @@ export default async function EntraPage({ params }: { params: Promise<{ codice: 
         ? <EntraInLega codice={codice} />
         : (
           <div className="glass rounded-2xl p-5 space-y-3">
-            <p className="text-sm text-center">Per entrare serve un account: ci vogliono trenta secondi.</p>
-            <Link href={`/auth/register?next=${ritorno}`} className="btn-primary w-full py-3">Registrati ed entra</Link>
-            <Link href={`/auth/login?next=${ritorno}`} className="btn-ghost w-full py-3">Ho già un account</Link>
+            <p className="text-sm text-center">{tx('Per entrare serve un account: ci vogliono trenta secondi.', 'You need an account to join: it takes thirty seconds.')}</p>
+            <Link href={`/auth/register?next=${ritorno}`} className="btn-primary w-full py-3">{tx('Registrati ed entra', 'Sign up and join')}</Link>
+            <Link href={`/auth/login?next=${ritorno}`} className="btn-ghost w-full py-3">{tx('Ho già un account', 'I already have an account')}</Link>
           </div>
         ))}
 
-      {!lega && <div className="text-center"><Link href={user ? '/leghe' : '/'} className="btn-ghost px-5 py-2.5 text-sm">{user ? 'Inserisci il codice' : 'Vai al gioco'}</Link></div>}
+      {!lega && <div className="text-center"><Link href={user ? '/leghe' : '/'} className="btn-ghost px-5 py-2.5 text-sm">{user ? tx('Inserisci il codice', 'Enter the code') : tx('Vai al gioco', 'Go to the game')}</Link></div>}
 
-      <p className="text-center text-xs text-[var(--muted)] mt-6">90 &amp; Goal: scegli 13 minuti, ogni gol in uno dei tuoi è un punto. <Link href="/regole" className="underline">Regole</Link></p>
+      <p className="text-center text-xs text-[var(--muted)] mt-6">{tx('90 & Goal: scegli 13 minuti, ogni gol in uno dei tuoi è un punto.', '90 & Goal: pick 13 minutes, every goal in one of yours is a point.')} <Link href="/regole" className="underline">{tx('Regole', 'Rules')}</Link></p>
     </div>
   )
 }

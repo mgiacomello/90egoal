@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useLingua, useTx } from '@/components/Lingua'
+import { localeDi } from '@/lib/lingua'
 
 // Modalità live: le notifiche push avvisano chi le ha attivate, e in più i dati si aggiornano
 // - ogni N secondi mentre la pagina è in primo piano;
@@ -9,6 +11,8 @@ import { useRouter } from 'next/navigation'
 // - a richiesta, col pulsante: nella PWA installata su iPhone non esiste il "trascina per aggiornare".
 export default function LiveRefresh({ seconds = 60, generatedAt }: { seconds?: number; generatedAt?: string }) {
   const router = useRouter()
+  const tx = useTx()
+  const lingua = useLingua()
   const [spinning, setSpinning] = useState(false)
 
   useEffect(() => {
@@ -39,16 +43,16 @@ export default function LiveRefresh({ seconds = 60, generatedAt }: { seconds?: n
   }, [spinning, generatedAt])
 
   if (!generatedAt) return null
-  const ora = new Date(generatedAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
+  const ora = new Date(generatedAt).toLocaleTimeString(localeDi(lingua), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })
   return (
     <div className="flex items-center justify-end gap-2 text-xs text-[var(--muted)] mb-3">
-      <span>Aggiornato alle {ora}</span>
+      <span>{tx('Aggiornato alle', 'Updated at')} {ora}</span>
       <button
         onClick={() => { setSpinning(true); router.refresh() }}
         className="inline-flex items-center gap-1 rounded-full border border-[var(--line)] bg-[var(--surface-2)] px-2.5 py-1 hover:text-[var(--ink)] hover:border-[var(--line)] transition-colors"
-        aria-label="Aggiorna"
+        aria-label={tx('Aggiorna', 'Refresh')}
       >
-        <span className={spinning ? 'inline-block animate-spin' : 'inline-block'}>↻</span> Aggiorna
+        <span className={spinning ? 'inline-block animate-spin' : 'inline-block'}>↻</span> {tx('Aggiorna', 'Refresh')}
       </button>
     </div>
   )

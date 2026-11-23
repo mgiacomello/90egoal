@@ -13,6 +13,8 @@ import { nomeBreve } from '@/lib/teams'
 import { PROVA_KEY, type PronosticoProva } from '@/lib/demo'
 import { quandoPartita, suPiuGiorni } from '@/lib/giornata'
 import PushToggle from '@/components/PushToggle'
+import { useLingua, useTx } from '@/components/Lingua'
+import { localeDi, nomeSchedina } from '@/lib/lingua'
 import { IconPlus, IconWhistle, IconFlag, IconStopwatch, IconChart, IconLock, IconCheck } from '@/components/Icons'
 
 const MAX_MINUTI = 13
@@ -33,6 +35,8 @@ interface Props {
 
 export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goalStats, teamStats, guest, onGuestSaved }: Props) {
   const router = useRouter()
+  const tx = useTx()
+  const lingua = useLingua()
   const isKnockout = schedina.fase === 'eliminazione'
 
   const [passo, setPasso] = useState<Passo>('minuti')
@@ -112,7 +116,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
     }
     const { error: dbError } = await createClient().from('pronostici').insert(payload)
     if (dbError) {
-      setError(new Date() > new Date(schedina.deadline) ? 'La schedina è chiusa: il calcio d\'inizio è già passato.' : 'Errore nell\'invio. Riprova.')
+      setError(new Date() > new Date(schedina.deadline) ? tx('La schedina è chiusa: il calcio d\'inizio è già passato.', 'The ticket is closed: kick-off has already passed.') : tx('Errore nell\'invio. Riprova.', 'Something went wrong while sending. Try again.'))
     } else {
       logEvent('submit', { schedina_id: schedina.id, ms: Date.now() - openedAt.current })
       setSaved(true)
@@ -126,10 +130,10 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       <div className="animate-fade-up pt-10 space-y-6">
         <div className="text-center">
           <div className="inline-grid place-items-center w-20 h-20 rounded-3xl bg-[var(--ink)] text-[var(--bg)] mb-5"><IconCheck size={40} strokeWidth={2.6} /></div>
-          <h2 className="font-display font-bold text-3xl">{guest ? 'Schedina salvata' : 'Schedina giocata'}</h2>
-          <p className="text-[var(--muted)] mt-2">{guest ? 'Resta su questo telefono. Con un account entra in classifica.' : 'Ora tocca al campo. Durante le partite i tuoi minuti si accendono qui.'}</p>
+          <h2 className="font-display font-bold text-3xl">{guest ? tx('Schedina salvata', 'Ticket saved') : tx('Schedina giocata', 'Ticket played')}</h2>
+          <p className="text-[var(--muted)] mt-2">{guest ? tx('Resta su questo telefono. Con un account entra in classifica.', 'It stays on this phone. With an account it enters the standings.') : tx('Ora tocca al campo. Durante le partite i tuoi minuti si accendono qui.', 'Now it\'s up to the pitch. During the matches your minutes light up here.')}</p>
         </div>
-        {!guest && <PushToggle variant="banner" testo="Ti avviso io quando esce un tuo minuto." />}
+        {!guest && <PushToggle variant="banner" testo={tx('Ti avviso io quando esce un tuo minuto.', 'I\'ll let you know when one of your minutes comes up.')} />}
       </div>
     )
   }
@@ -147,16 +151,16 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       {/* Testata essenziale: nome, scadenza, passo */}
       <div className="flex items-center justify-between gap-3 mb-4">
         <button type="button" onClick={() => (idx > 0 ? setPasso(nPassi[idx - 1]) : router.push('/'))}
-          className="text-sm text-[var(--muted)] hover:text-[var(--ink)] -ml-1 px-1 py-1">← {idx > 0 ? 'Indietro' : 'Esci'}</button>
+          className="text-sm text-[var(--muted)] hover:text-[var(--ink)] -ml-1 px-1 py-1">← {idx > 0 ? tx('Indietro', 'Back') : tx('Esci', 'Exit')}</button>
         <div className="flex gap-1.5">
           {nPassi.map((p, i) => (
             <span key={p} className={`h-1.5 rounded-full transition-all ${i <= idx ? 'w-6 bg-[var(--accent)]' : 'w-3 bg-[var(--surface-2)]'}`} />
           ))}
         </div>
       </div>
-      <h1 className="font-display font-bold text-2xl leading-tight">{nomeBreve(schedina.nome)}</h1>
+      <h1 className="font-display font-bold text-2xl leading-tight">{nomeSchedina(nomeBreve(schedina.nome), lingua)}</h1>
       <p className="text-xs text-[var(--muted)] mt-1 mb-5">
-        Si chiude {deadline.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} alle {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}
+        {tx('Si chiude', 'Closes')} {deadline.toLocaleDateString(localeDi(lingua), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' })} {tx('alle', 'at')} {deadline.toLocaleTimeString(localeDi(lingua), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}
       </p>
 
       {/* ===== PASSO 1: i minuti ===== */}
@@ -164,23 +168,27 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
         <div className="space-y-4">
           <div>
             <div className="flex items-start justify-between gap-3">
-              <h2 className="font-display font-bold text-xl">In quali minuti si segna?</h2>
+              <h2 className="font-display font-bold text-xl">{tx('In quali minuti si segna?', 'In which minutes will goals come?')}</h2>
               {conDati && (
                 <button type="button" onClick={cambiaCaldi} aria-pressed={caldi}
                   className={`seg-btn shrink-0 px-2.5 py-1 text-xs flex items-center gap-1.5 ${caldi ? 'is-active' : ''}`}>
-                  <IconChart size={14} /> Minuti caldi
+                  <IconChart size={14} /> {tx('Minuti caldi', 'Hot minutes')}
                 </button>
               )}
             </div>
-            <p className="text-sm text-[var(--muted)] mt-1">Scegline {MAX_MINUTI}. Vale un gol in una qualsiasi delle {schedina.partite.length} partite.</p>
+            <p className="text-sm text-[var(--muted)] mt-1">{tx(`Scegline ${MAX_MINUTI}. Vale un gol in una qualsiasi delle ${schedina.partite.length} partite.`, `Pick ${MAX_MINUTI}. A goal in any of the ${schedina.partite.length} matches counts.`)}</p>
             {caldi && goalStats && (
               <p className="text-xs text-[var(--ink)] mt-2 leading-snug" aria-live="polite">
                 {ultimo != null
                   ? (goalStats.perMinute[ultimo] ?? 0) === 0
-                    ? <>Il <strong>{ultimo}&apos;</strong> non è ancora uscito in {goalStats.matches} partite.</>
-                    : <>Il <strong>{ultimo}&apos;</strong> è uscito <strong>{goalStats.perMinute[ultimo]}</strong> {goalStats.perMinute[ultimo] === 1 ? 'volta' : 'volte'} in {goalStats.matches} partite.</>
-                  : <>Barretta più alta, più gol in quel minuto. {goalStats.hottest && <>Fascia più calda <strong>{goalStats.hottest.label}</strong> ({goalStats.hottest.pct}%).</>}</>}
-                <span className="text-[var(--muted)]"> · {goalStats.totalGoals} gol finora</span>
+                    ? lingua === 'en'
+                      ? <>Minute <strong>{ultimo}&apos;</strong> hasn&apos;t come up yet in {goalStats.matches} matches.</>
+                      : <>Il <strong>{ultimo}&apos;</strong> non è ancora uscito in {goalStats.matches} partite.</>
+                    : lingua === 'en'
+                      ? <>Minute <strong>{ultimo}&apos;</strong> has come up <strong>{goalStats.perMinute[ultimo]}</strong> {goalStats.perMinute[ultimo] === 1 ? 'time' : 'times'} in {goalStats.matches} matches.</>
+                      : <>Il <strong>{ultimo}&apos;</strong> è uscito <strong>{goalStats.perMinute[ultimo]}</strong> {goalStats.perMinute[ultimo] === 1 ? 'volta' : 'volte'} in {goalStats.matches} partite.</>
+                  : <>{tx('Barretta più alta, più gol in quel minuto.', 'Taller bar, more goals in that minute.')} {goalStats.hottest && <>{tx('Fascia più calda', 'Hottest spell')} <strong>{goalStats.hottest.label}</strong> ({goalStats.hottest.pct}%).</>}</>}
+                <span className="text-[var(--muted)]"> · {goalStats.totalGoals} {tx('gol finora', 'goals so far')}</span>
               </p>
             )}
           </div>
@@ -188,7 +196,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           {(['primo', 'secondo'] as const).map(tempo => (
             <div key={tempo}>
               <div className="flex items-center gap-3 mb-2">
-                <span className="font-semibold uppercase tracking-wider text-[11px] text-[var(--muted)]">{tempo === 'primo' ? 'Primo tempo' : 'Secondo tempo'}</span>
+                <span className="font-semibold uppercase tracking-wider text-[11px] text-[var(--muted)]">{tempo === 'primo' ? tx('Primo tempo', 'First half') : tx('Secondo tempo', 'Second half')}</span>
                 <span className="flex-1 h-px bg-[var(--line)]" />
               </div>
               <div className="grid grid-cols-6 gap-1.5">
@@ -208,13 +216,13 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
 
           <details className="glass rounded-xl overflow-hidden group">
             <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-3 text-sm select-none">
-              <span className="text-[var(--ink)]/85">Le {schedina.partite.length} partite</span>
+              <span className="text-[var(--ink)]/85">{tx(`Le ${schedina.partite.length} partite`, `The ${schedina.partite.length} matches`)}</span>
               <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90">▶</span>
             </summary>
             <div className="px-4 pb-3 space-y-1.5">
               {schedina.partite.map((p: Partita, i: number) => (
                 <div key={i} className="flex items-center gap-2 text-sm">
-                  <span className={`text-[11px] text-[var(--muted)] ${suPiuGiorni(schedina.partite) ? 'w-[4.25rem]' : 'w-10'} shrink-0 tabular-nums`}>{quandoPartita(p, schedina.partite)}</span>
+                  <span className={`text-[11px] text-[var(--muted)] ${suPiuGiorni(schedina.partite) ? 'w-[4.25rem]' : 'w-10'} shrink-0 tabular-nums`}>{quandoPartita(p, schedina.partite, lingua)}</span>
                   <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
                   <span className="truncate">{p.home}</span>
                   <span className="text-[var(--muted)] text-xs">–</span>
@@ -228,7 +236,7 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           {goalStats && (
             <details className="glass rounded-xl overflow-hidden group">
               <summary className="cursor-pointer list-none flex items-center justify-between px-4 py-3 text-sm select-none">
-                <span className="text-[var(--ink)]/85 flex items-center gap-2"><IconChart size={16} className="text-[var(--muted)]" /> Quando si è segnato finora</span>
+                <span className="text-[var(--ink)]/85 flex items-center gap-2"><IconChart size={16} className="text-[var(--muted)]" /> {tx('Quando si è segnato finora', 'When goals have come so far')}</span>
                 <span className="text-[var(--muted)] text-xs transition-transform group-open:rotate-90">▶</span>
               </summary>
               <div className="px-2 pb-2"><GoalStatsPanel stats={goalStats} teamStats={teamStats} /></div>
@@ -241,18 +249,18 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       {passo === 'bonus' && (
         <div className="space-y-7">
           <div>
-            <h2 className="font-display font-bold text-lg">Tre bonus, se te la senti</h2>
-            <p className="text-sm text-[var(--muted)] mt-1">Puoi anche saltarli: i tuoi {MAX_MINUTI} minuti sono già salvi.</p>
+            <h2 className="font-display font-bold text-lg">{tx('Tre bonus, se te la senti', 'Three bonuses, if you fancy it')}</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">{tx(`Puoi anche saltarli: i tuoi ${MAX_MINUTI} minuti sono già salvi.`, `You can skip them: your ${MAX_MINUTI} minutes are already safe.`)}</p>
           </div>
 
           <section>
-            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconPlus size={16} className="text-[var(--gold)]" /> Gol nel recupero <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
-            <p className="text-xs text-[var(--muted)] mb-3">Un gol oltre il 45&apos; o oltre il 90&apos;, in una partita qualsiasi.</p>
+            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconPlus size={16} className="text-[var(--gold)]" /> {tx('Gol nel recupero', 'Goal in stoppage time')} <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">{tx('Un gol oltre il 45\' o oltre il 90\', in una partita qualsiasi.', 'A goal after the 45th or after the 90th minute, in any match.')}</p>
             <div className="grid grid-cols-2 gap-2">
               {(['primo', 'secondo'] as const).map(t => (
                 <button key={t} type="button" onClick={() => setRecupero(recupero === t ? null : t)}
                   className={`seg-btn px-4 py-3.5 text-sm ${recupero === t ? 'is-active' : ''}`}>
-                  {t === 'primo' ? '1° tempo' : '2° tempo'}
+                  {t === 'primo' ? tx('1° tempo', '1st half') : tx('2° tempo', '2nd half')}
                 </button>
               ))}
             </div>
@@ -260,29 +268,29 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
 
           {isKnockout && (
             <section>
-              <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconStopwatch size={16} className="text-[var(--gold)]" /> Supplementari <span className="text-xs font-normal text-[var(--gold)]">+5</span></h3>
-              <p className="text-xs text-[var(--muted)] mb-3">Almeno una partita va oltre i 90&apos;?</p>
+              <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconStopwatch size={16} className="text-[var(--gold)]" /> {tx('Supplementari', 'Extra time')} <span className="text-xs font-normal text-[var(--gold)]">+5</span></h3>
+              <p className="text-xs text-[var(--muted)] mb-3">{tx('Almeno una partita va oltre i 90\'?', 'Will at least one match go beyond 90 minutes?')}</p>
               <div className="grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => setExtraTime(extraTime === true ? null : true)} className={`seg-btn px-4 py-3.5 text-sm ${extraTime === true ? 'is-active' : ''}`}>Sì</button>
+                <button type="button" onClick={() => setExtraTime(extraTime === true ? null : true)} className={`seg-btn px-4 py-3.5 text-sm ${extraTime === true ? 'is-active' : ''}`}>{tx('Sì', 'Yes')}</button>
                 <button type="button" onClick={() => setExtraTime(extraTime === false ? null : false)} className={`seg-btn px-4 py-3.5 text-sm ${extraTime === false ? 'is-active' : ''}`}>No</button>
               </div>
             </section>
           )}
 
           <section>
-            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconWhistle size={16} className="text-[var(--gold)]" /> Chi segna per primo <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
-            <p className="text-xs text-[var(--muted)] mb-3">Il primo gol della giornata nei 90 minuti, in ordine di orario. I gol nel recupero non contano.</p>
+            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconWhistle size={16} className="text-[var(--gold)]" /> {tx('Chi segna per primo', 'First team to score')} <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">{tx('Il primo gol della giornata nei 90 minuti, in ordine di orario. I gol nel recupero non contano.', 'The matchday\'s first goal within the 90 minutes, in order of real time. Stoppage-time goals don\'t count.')}</p>
             {bomber.length > 0 && (
               <p className="text-xs text-[var(--muted)] -mt-2 mb-3 truncate">
-                <IconChart size={12} className="inline -mt-0.5 mr-1" />Più gol finora: {bomber.map((t, i) => <span key={t.team}>{i > 0 && ' · '}<span className="text-[var(--ink)] font-medium">{t.team}</span> {t.count}</span>)}
+                <IconChart size={12} className="inline -mt-0.5 mr-1" />{tx('Più gol finora:', 'Most goals so far:')} {bomber.map((t, i) => <span key={t.team}>{i > 0 && ' · '}<span className="text-[var(--ink)] font-medium">{t.team}</span> {t.count}</span>)}
               </p>
             )}
             <TeamPicker partite={schedina.partite} value={firstGoal} onChange={setFirstGoal} />
           </section>
 
           <section>
-            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconFlag size={16} className="text-[var(--gold)]" /> Chi segna per ultimo <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
-            <p className="text-xs text-[var(--muted)] mb-3">L&apos;ultimo gol della giornata nei 90 minuti.</p>
+            <h3 className="font-semibold mb-0.5 flex items-center gap-2"><IconFlag size={16} className="text-[var(--gold)]" /> {tx('Chi segna per ultimo', 'Last team to score')} <span className="text-xs font-normal text-[var(--gold)]">+1</span></h3>
+            <p className="text-xs text-[var(--muted)] mb-3">{tx('L\'ultimo gol della giornata nei 90 minuti.', 'The matchday\'s last goal within the 90 minutes.')}</p>
             <TeamPicker partite={schedina.partite} value={lastGoal} onChange={setLastGoal} />
           </section>
         </div>
@@ -292,14 +300,14 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
       {passo === 'conferma' && (
         <div className="space-y-5">
           <div>
-            <h2 className="font-display font-bold text-lg">Tutto giusto?</h2>
-            <p className="text-sm text-[var(--muted)] mt-1">Dopo l&apos;invio non si cambia più.</p>
+            <h2 className="font-display font-bold text-lg">{tx('Tutto giusto?', 'All correct?')}</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">{tx('Dopo l\'invio non si cambia più.', 'Once sent, it can\'t be changed.')}</p>
           </div>
 
           <div className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">I tuoi {MAX_MINUTI} minuti</span>
-              <button type="button" onClick={() => setPasso('minuti')} className="text-xs text-[var(--accent-soft)]">Cambia</button>
+              <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">{tx(`I tuoi ${MAX_MINUTI} minuti`, `Your ${MAX_MINUTI} minutes`)}</span>
+              <button type="button" onClick={() => setPasso('minuti')} className="text-xs text-[var(--accent-soft)]">{tx('Cambia', 'Change')}</button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {minuti.map(m => <span key={m} className="tag-static px-2.5 py-1.5 text-sm">{m}&apos;</span>)}
@@ -309,16 +317,16 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           <div className="glass rounded-2xl p-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-semibold text-[var(--muted)] uppercase tracking-wider">Bonus</span>
-              <button type="button" onClick={() => setPasso('bonus')} className="text-xs text-[var(--accent-soft)]">Cambia</button>
+              <button type="button" onClick={() => setPasso('bonus')} className="text-xs text-[var(--accent-soft)]">{tx('Cambia', 'Change')}</button>
             </div>
             {!recupero && !firstGoal && !lastGoal && extraTime == null ? (
-              <p className="text-sm text-[var(--muted)]">Nessuno. Va benissimo così.</p>
+              <p className="text-sm text-[var(--muted)]">{tx('Nessuno. Va benissimo così.', 'None. That\'s perfectly fine.')}</p>
             ) : (
               <div className="space-y-2 text-sm">
-                {recupero && <div className="flex items-center gap-2"><IconPlus size={14} className="text-[var(--gold)]" /> Recupero <span className="font-medium">{recupero === 'primo' ? '1° tempo' : '2° tempo'}</span></div>}
-                {extraTime != null && <div className="flex items-center gap-2"><IconStopwatch size={14} className="text-[var(--gold)]" /> Supplementari: <span className="font-medium">{extraTime ? 'Sì' : 'No'}</span></div>}
-                {firstGoal && <div className="flex items-center gap-2"><IconWhistle size={14} className="text-[var(--gold)]" /> Primo gol: <Flag team={firstGoal} w={40} className="w-5 h-3.5" /> <span className="font-medium">{firstGoal}</span></div>}
-                {lastGoal && <div className="flex items-center gap-2"><IconFlag size={14} className="text-[var(--gold)]" /> Ultimo gol: <Flag team={lastGoal} w={40} className="w-5 h-3.5" /> <span className="font-medium">{lastGoal}</span></div>}
+                {recupero && <div className="flex items-center gap-2"><IconPlus size={14} className="text-[var(--gold)]" /> {tx('Recupero', 'Stoppage time')} <span className="font-medium">{recupero === 'primo' ? tx('1° tempo', '1st half') : tx('2° tempo', '2nd half')}</span></div>}
+                {extraTime != null && <div className="flex items-center gap-2"><IconStopwatch size={14} className="text-[var(--gold)]" /> {tx('Supplementari:', 'Extra time:')} <span className="font-medium">{extraTime ? tx('Sì', 'Yes') : 'No'}</span></div>}
+                {firstGoal && <div className="flex items-center gap-2"><IconWhistle size={14} className="text-[var(--gold)]" /> {tx('Primo gol:', 'First goal:')} <Flag team={firstGoal} w={40} className="w-5 h-3.5" /> <span className="font-medium">{firstGoal}</span></div>}
+                {lastGoal && <div className="flex items-center gap-2"><IconFlag size={14} className="text-[var(--gold)]" /> {tx('Ultimo gol:', 'Last goal:')} <Flag team={lastGoal} w={40} className="w-5 h-3.5" /> <span className="font-medium">{lastGoal}</span></div>}
               </div>
             )}
           </div>
@@ -337,14 +345,14 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
               <div className="flex items-center gap-3">
                 <div className="shrink-0">
                   <div className={`font-num font-semibold text-2xl tabular-nums leading-none ${completo ? 'text-[var(--accent)]' : 'text-[var(--ink)]'}`}>{minuti.length}<span className="text-sm text-[var(--muted)] font-normal">/{MAX_MINUTI}</span></div>
-                  <div className="text-[11px] text-[var(--muted)] mt-0.5">{completo ? 'fatto' : `ancora ${mancano}`}</div>
+                  <div className="text-[11px] text-[var(--muted)] mt-0.5">{completo ? tx('fatto', 'done') : tx(`ancora ${mancano}`, `${mancano} to go`)}</div>
                 </div>
-                <button type="button" disabled={!completo} onClick={() => setPasso('bonus')} className="btn-primary flex-1 py-3.5 text-base">Avanti →</button>
+                <button type="button" disabled={!completo} onClick={() => setPasso('bonus')} className="btn-primary flex-1 py-3.5 text-base">{tx('Avanti →', 'Next →')}</button>
               </div>
               {minuti.length > 0 && (
                 <div className="flex gap-1 mt-2 overflow-x-auto [scrollbar-width:none]">
                   {minuti.map(m => (
-                    <button key={m} type="button" onClick={() => toggleMinuto(m)} className="tag-static px-1.5 py-0.5 text-[11px] shrink-0" title="Tocca per togliere">{m}&apos;</button>
+                    <button key={m} type="button" onClick={() => toggleMinuto(m)} className="tag-static px-1.5 py-0.5 text-[11px] shrink-0" title={tx('Tocca per togliere', 'Tap to remove')}>{m}&apos;</button>
                   ))}
                 </div>
               )}
@@ -352,13 +360,13 @@ export default function ScedinaForm({ schedina, pronosticoEsistente, userId, goa
           )}
           {passo === 'bonus' && (
             <>
-              <button type="button" onClick={() => { setRecupero(null); setFirstGoal(''); setLastGoal(''); setExtraTime(null); setPasso('conferma') }} className="btn-ghost px-5 py-3.5 text-sm">Salta</button>
-              <button type="button" onClick={() => setPasso('conferma')} className="btn-primary flex-1 py-3.5 text-base">Avanti →</button>
+              <button type="button" onClick={() => { setRecupero(null); setFirstGoal(''); setLastGoal(''); setExtraTime(null); setPasso('conferma') }} className="btn-ghost px-5 py-3.5 text-sm">{tx('Salta', 'Skip')}</button>
+              <button type="button" onClick={() => setPasso('conferma')} className="btn-primary flex-1 py-3.5 text-base">{tx('Avanti →', 'Next →')}</button>
             </>
           )}
           {passo === 'conferma' && (
             <button type="button" disabled={saving} onClick={invia} className="btn-primary flex-1 py-4 text-base">
-              {saving ? 'Invio…' : <><IconLock size={18} className="mr-2" /> Gioca la schedina</>}
+              {saving ? tx('Invio…', 'Sending…') : <><IconLock size={18} className="mr-2" /> {tx('Gioca la schedina', 'Play the ticket')}</>}
             </button>
           )}
         </div>

@@ -10,6 +10,8 @@ import PushToggle from '@/components/PushToggle'
 import { nomeBreve } from '@/lib/teams'
 import { IconBall, IconCheck } from '@/components/Icons'
 import { delMomento, inCorso as schedinaInCorso, quandoPartita, suPiuGiorni } from '@/lib/giornata'
+import { txServer } from '@/lib/lingua.server'
+import { localeDi, nomeSchedina, ordinale, type Lingua, type Tx } from '@/lib/lingua'
 
 // La home è "Oggi": una cosa sola, quella che conta adesso.
 // Da compilare → il pulsante. Giocata → l'attesa. In corso → i gol in diretta. Finita → i punti.
@@ -17,7 +19,10 @@ export default async function Home() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (!user) return <Landing />
+  const { lingua, tx } = await txServer()
+  const loc = localeDi(lingua)
+
+  if (!user) return <Landing tx={tx} />
 
   const now = new Date()
   const nowIso = now.toISOString()
@@ -54,8 +59,8 @@ export default async function Home() {
     return (
       <div className="max-w-lg mx-auto animate-fade-up text-center py-20">
         <IconBall size={40} className="inline-block text-[var(--ink)] mb-4" strokeWidth={1.4} />
-        <h1 className="font-display font-bold text-2xl">Nessuna giornata in programma</h1>
-        <p className="text-[var(--muted)] mt-2">Appena c&apos;è una schedina la trovi qui.</p>
+        <h1 className="font-display font-bold text-2xl">{tx('Nessuna giornata in programma', 'No matchday scheduled')}</h1>
+        <p className="text-[var(--muted)] mt-2">{tx('Appena c\'è una schedina la trovi qui.', 'As soon as there\'s a ticket, you\'ll find it here.')}</p>
       </div>
     )
   }
@@ -75,14 +80,14 @@ export default async function Home() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <span className={`text-[11px] font-semibold tracking-widest uppercase ${live ? 'text-[var(--accent-soft)]' : 'text-[var(--muted)]'}`}>
-            {live ? '● In diretta' : aperta ? 'Prossima giornata' : 'Giornata conclusa'}
+            {live ? tx('● In diretta', '● Live') : aperta ? tx('Prossima giornata', 'Next matchday') : tx('Giornata conclusa', 'Matchday over')}
           </span>
-          <h1 className="font-display font-bold text-2xl sm:text-3xl mt-1 leading-tight">{nomeBreve(s.nome)}</h1>
+          <h1 className="font-display font-bold text-2xl sm:text-3xl mt-1 leading-tight">{nomeSchedina(nomeBreve(s.nome), lingua)}</h1>
         </div>
         {posizione && (
           <Link href="/classifica" className="glass rounded-xl px-3 py-2 text-right shrink-0">
-            <div className="font-num font-semibold text-xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
-            <div className="text-[10px] text-[var(--muted)] mt-0.5">{myTot} pt</div>
+            <div className="font-num font-semibold text-xl text-gradient-gold tabular-nums leading-none">{lingua === 'en' ? ordinale(posizione.pos) : `${posizione.pos}°`}</div>
+            <div className="text-[10px] text-[var(--muted)] mt-0.5">{myTot} {tx('pt', 'pts')}</div>
           </Link>
         )}
       </div>
@@ -92,10 +97,10 @@ export default async function Home() {
         <>
           <div className="glass rounded-2xl p-5 text-center">
             <div className="mb-4"><Countdown deadline={s.deadline} /></div>
-            <Link href={`/schedine/${s.id}`} className="btn-primary w-full py-4 text-base">Scegli i tuoi 13 minuti →</Link>
-            <p className="text-xs text-[var(--muted)] mt-3">Un minuto giusto = 1 punto. Il minuto del primo gol della giornata = 2. <Link href="/regole" className="text-[var(--accent-soft)]">Regole</Link></p>
+            <Link href={`/schedine/${s.id}`} className="btn-primary w-full py-4 text-base">{tx('Scegli i tuoi 13 minuti →', 'Pick your 13 minutes →')}</Link>
+            <p className="text-xs text-[var(--muted)] mt-3">{tx('Un minuto giusto = 1 punto. Il minuto del primo gol della giornata = 2.', 'A right minute = 1 point. The minute of the matchday\'s first goal = 2.')} <Link href="/regole" className="text-[var(--accent-soft)]">{tx('Regole', 'Rules')}</Link></p>
           </div>
-          <Partite s={s} />
+          <Partite s={s} lingua={lingua} />
         </>
       )}
 
@@ -104,57 +109,57 @@ export default async function Home() {
         <>
           <div className="glass rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="font-semibold text-[var(--ink)] flex items-center gap-1.5"><IconCheck size={16} className="text-[var(--accent-soft)]" /> Schedina giocata</span>
-              <span className="text-xs text-[var(--muted)]">si parte {deadline.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
+              <span className="font-semibold text-[var(--ink)] flex items-center gap-1.5"><IconCheck size={16} className="text-[var(--accent-soft)]" /> {tx('Schedina giocata', 'Ticket played')}</span>
+              <span className="text-xs text-[var(--muted)]">{tx('si parte', 'kick-off')} {deadline.toLocaleDateString(loc, { weekday: 'short', day: 'numeric', timeZone: 'Europe/Rome' })} · {deadline.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {p.minuti.map(m => <span key={m} className="tag-static px-2.5 py-1.5 text-sm">{m}&apos;</span>)}
             </div>
-            <p className="text-xs text-[var(--muted)] mt-3">Torna durante le partite: i minuti che escono si accendono qui.</p>
+            <p className="text-xs text-[var(--muted)] mt-3">{tx('Torna durante le partite: i minuti che escono si accendono qui.', 'Come back during the matches: the minutes that come up light up here.')}</p>
           </div>
           <PushToggle variant="banner" />
-          <Partite s={s} />
+          <Partite s={s} lingua={lingua} />
         </>
       )}
 
       {/* ===== IN CORSO O FINITA ===== */}
       {!aperta && (
         r ? (
-          <LiveFeed schedina={s} risultato={r} pronostico={p} punti={puntiSchedina} posizione={posizione} />
+          <LiveFeed schedina={s} risultato={r} pronostico={p} punti={puntiSchedina} posizione={posizione} lingua={lingua} />
         ) : (
           <>
             <div className="glass rounded-2xl p-5 text-center text-sm text-[var(--muted)]">
-              Le partite stanno per iniziare. I gol compaiono qui appena arrivano.
+              {tx('Le partite stanno per iniziare. I gol compaiono qui appena arrivano.', 'The matches are about to start. Goals show up here as they come in.')}
             </div>
-            <Partite s={s} />
+            <Partite s={s} lingua={lingua} />
           </>
         )
       )}
 
       {!aperta && !p && (
-        <p className="text-center text-xs text-[var(--muted)]">Questa giornata non l&apos;hai giocata. <Link href="/schedine" className="text-[var(--accent-soft)]">Le prossime →</Link></p>
+        <p className="text-center text-xs text-[var(--muted)]">{tx('Questa giornata non l\'hai giocata.', 'You didn\'t play this matchday.')} <Link href="/schedine" className="text-[var(--accent-soft)]">{tx('Le prossime →', 'Upcoming ones →')}</Link></p>
       )}
 
       {/* ===== LE ALTRE DEL MOMENTO: una riga ciascuna ===== */}
       {altre.length > 0 && (
         <section>
-          <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[var(--muted)] mb-2">Anche in questi giorni</h2>
+          <h2 className="text-[11px] font-semibold tracking-widest uppercase text-[var(--muted)] mb-2">{tx('Anche in questi giorni', 'Also these days')}</h2>
           <div className="space-y-2">
             {altre.map(a => {
               const giocata = pron.has(a.id)
               const viva = schedinaInCorso(a, nowIso, conclusa(a))
               const d = new Date(a.deadline)
-              const quando = `${d.toLocaleDateString('it-IT', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Rome' })} · ${d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}`
+              const quando = `${d.toLocaleDateString(loc, { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Europe/Rome' })} · ${d.toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' })}`
               const daGiocare = !viva && !giocata
               return (
                 <Link key={a.id} href={daGiocare ? `/schedine/${a.id}` : '/schedine'} className="glass rounded-xl px-4 py-3 flex items-center gap-3">
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold truncate">{nomeBreve(a.nome)}</div>
+                    <div className="font-semibold truncate">{nomeSchedina(nomeBreve(a.nome), lingua)}</div>
                     <div className={`text-xs ${viva ? 'text-[var(--accent-soft)] font-semibold' : 'text-[var(--muted)]'}`}>
-                      {viva ? '● In diretta' : giocata ? `Giocata · si parte ${quando}` : `Chiude ${quando}`}
+                      {viva ? tx('● In diretta', '● Live') : giocata ? tx(`Giocata · si parte ${quando}`, `Played · kick-off ${quando}`) : tx(`Chiude ${quando}`, `Closes ${quando}`)}
                     </div>
                   </div>
-                  <span className={`${daGiocare ? 'btn-primary' : 'btn-ghost'} px-3 py-1.5 text-xs shrink-0`}>{daGiocare ? 'Gioca →' : viva ? 'Segui →' : 'Vedi →'}</span>
+                  <span className={`${daGiocare ? 'btn-primary' : 'btn-ghost'} px-3 py-1.5 text-xs shrink-0`}>{daGiocare ? tx('Gioca →', 'Play →') : viva ? tx('Segui →', 'Follow →') : tx('Vedi →', 'View →')}</span>
                 </Link>
               )
             })}
@@ -167,13 +172,13 @@ export default async function Home() {
   )
 }
 
-function Partite({ s }: { s: Schedina }) {
+function Partite({ s, lingua }: { s: Schedina; lingua: Lingua }) {
   const largo = suPiuGiorni(s.partite)
   return (
     <div className="glass rounded-2xl px-4 py-3 space-y-2">
       {s.partite.map((p, i) => (
         <div key={i} className="flex items-center gap-2 text-sm">
-          <span className={`text-[11px] text-[var(--muted)] ${largo ? 'w-[4.25rem]' : 'w-10'} shrink-0 tabular-nums`}>{quandoPartita(p, s.partite)}</span>
+          <span className={`text-[11px] text-[var(--muted)] ${largo ? 'w-[4.25rem]' : 'w-10'} shrink-0 tabular-nums`}>{quandoPartita(p, s.partite, lingua)}</span>
           <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
             <span className="truncate">{p.home}</span>
             <Flag team={p.home} w={40} className="w-5 h-3.5 shrink-0" />
@@ -193,13 +198,13 @@ function Partite({ s }: { s: Schedina }) {
 // La fila di tessere mostra il gioco prima di spiegarlo: due minuti "presi", gli altri no.
 const ESEMPIO: { m: number; hit?: boolean }[] = [{ m: 12 }, { m: 27, hit: true }, { m: 44 }, { m: 61, hit: true }, { m: 78 }, { m: 89 }]
 
-function Landing() {
+function Landing({ tx }: { tx: Tx }) {
   return (
     <div className="animate-fade-up pt-4 pb-10">
       <div className="text-center">
         <span className="inline-block font-semibold text-[var(--muted)] uppercase tracking-[0.18em] text-[11px]">Serie A · B · C</span>
         <h1 className="font-display font-semibold text-[2.9rem] leading-[1.02] tracking-tight mt-3">
-          Indovina il minuto<br /><span className="text-[var(--accent-soft)]">del gol</span>
+          {tx('Indovina il minuto', 'Guess the minute')}<br /><span className="text-[var(--accent-soft)]">{tx('del gol', 'of the goal')}</span>
         </h1>
       </div>
 
@@ -208,24 +213,24 @@ function Landing() {
           <span key={t.m} className={`min-cell ${t.hit ? 'is-selected' : ''} pointer-events-none`}>{t.m}</span>
         ))}
       </div>
-      <p className="text-center text-xs text-[var(--muted)] mt-2">Al 27&apos; e al 61&apos; qualcuno ha segnato: due punti.</p>
+      <p className="text-center text-xs text-[var(--muted)] mt-2">{tx('Al 27\' e al 61\' qualcuno ha segnato: due punti.', 'Someone scored in the 27th and the 61st minute: two points.')}</p>
 
       <p className="mt-7 text-[17px] leading-snug text-[var(--ink)]/85">
-        Dieci partite, una schedina. Tu scegli <strong className="text-[var(--ink)]">13 minuti</strong>.
-        Ogni gol che arriva in uno dei tuoi, in una qualsiasi delle partite, è un punto.
+        {tx('Dieci partite, una schedina. Tu scegli', 'Ten matches, one ticket. You pick')} <strong className="text-[var(--ink)]">{tx('13 minuti', '13 minutes')}</strong>.
+        {' '}{tx('Ogni gol che arriva in uno dei tuoi, in una qualsiasi delle partite, è un punto.', 'Every goal that lands in one of yours, in any of the matches, is a point.')}
       </p>
 
       <div className="mt-7 space-y-3">
-        <Link href="/prova" className="btn-primary w-full py-4 text-lg">Gioca →</Link>
-        <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">Ho già un account</Link>
+        <Link href="/prova" className="btn-primary w-full py-4 text-lg">{tx('Gioca →', 'Play →')}</Link>
+        <Link href="/auth/login" className="btn-ghost w-full py-3.5 text-sm">{tx('Ho già un account', 'I already have an account')}</Link>
         <InstallButton />
       </div>
 
       <div className="mt-9 space-y-2.5 text-sm">
         {[
-          ['1', 'Scegli 13 minuti, dall\'1\' al 90\'.'],
-          ['2', 'Non importa in quale partita: basta che qualcuno segni.'],
-          ['3', 'Durante le partite guardi i tuoi minuti accendersi.'],
+          ['1', tx('Scegli 13 minuti, dall\'1\' al 90\'.', 'Pick 13 minutes, from the 1st to the 90th.')],
+          ['2', tx('Non importa in quale partita: basta che qualcuno segni.', 'It doesn\'t matter which match: someone just has to score.')],
+          ['3', tx('Durante le partite guardi i tuoi minuti accendersi.', 'During the matches you watch your minutes light up.')],
         ].map(([n, t]) => (
           <div key={n} className="flex gap-3 items-center">
             <span className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--ink)] text-[var(--bg)] font-num font-semibold text-xs shrink-0">{n}</span>
@@ -234,7 +239,7 @@ function Landing() {
         ))}
       </div>
 
-      <p className="text-xs text-[var(--muted)] mt-8 text-center">Versione di test, senza premi. <Link href="/regole" className="text-[var(--accent)]">Regole complete</Link> · <Link href="/privacy" className="text-[var(--accent)]">Privacy</Link></p>
+      <p className="text-xs text-[var(--muted)] mt-8 text-center">{tx('Versione di test, senza premi.', 'Test version, no prizes.')} <Link href="/regole" className="text-[var(--accent)]">{tx('Regole complete', 'Full rules')}</Link> · <Link href="/privacy" className="text-[var(--accent)]">Privacy</Link></p>
     </div>
   )
 }

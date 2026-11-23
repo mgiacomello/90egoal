@@ -2,6 +2,7 @@ import { Schedina, Pronostico, Risultato, MatchDetail } from '@/lib/types'
 import { cronologiaGol, type DettaglioLive } from '@/lib/live'
 import Link from 'next/link'
 import Flag from '@/components/Flag'
+import { ordinale, txDi, type Lingua } from '@/lib/lingua'
 
 interface Props {
   schedina: Schedina
@@ -9,11 +10,13 @@ interface Props {
   pronostico?: Pronostico
   punti?: number
   posizione?: { pos: number; su: number }
+  lingua?: Lingua
 }
 
 // Il secondo schermo: durante le partite si apre l'app e si vedono i gol
 // arrivare, dal più recente, con il minuto grande. Se il minuto è tuo, si accende.
-export default function LiveFeed({ schedina, risultato, pronostico, punti, posizione }: Props) {
+export default function LiveFeed({ schedina, risultato, pronostico, punti, posizione, lingua = 'it' }: Props) {
+  const tx = txDi(lingua)
   const dettagli = ((risultato.dettagli as MatchDetail[] | undefined) ?? []).map(d => ({
     home: d.home, away: d.away, score: d.score, minuti: d.minuti, gol: d.gol ?? [], stato: d.stato ?? 'finita',
   })) as DettaglioLive[]
@@ -32,16 +35,16 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
         <div className="glass rounded-2xl px-5 py-4 flex items-center justify-between gap-4">
           <div>
             <div className="font-num font-semibold text-4xl text-[var(--accent-soft)] tabular-nums leading-none">
-              {punti ?? 0}<span className="text-sm font-normal text-[var(--muted)] ml-1">pt</span>
+              {punti ?? 0}<span className="text-sm font-normal text-[var(--muted)] ml-1">{tx('pt', 'pts')}</span>
             </div>
             <div className="text-xs text-[var(--muted)] mt-1.5">
-              {azzeccati.length}/{pronostico.minuti.length} minuti presi{conclusa ? ' · finale' : ''}
+              {azzeccati.length}/{pronostico.minuti.length} {tx('minuti presi', 'minutes hit')}{conclusa ? tx(' · finale', ' · final') : ''}
             </div>
           </div>
           {posizione && (
             <div className="text-right">
-              <div className="font-num font-semibold text-3xl text-gradient-gold tabular-nums leading-none">{posizione.pos}°</div>
-              <div className="text-xs text-[var(--muted)] mt-1.5">su {posizione.su}</div>
+              <div className="font-num font-semibold text-3xl text-gradient-gold tabular-nums leading-none">{lingua === 'en' ? ordinale(posizione.pos) : `${posizione.pos}°`}</div>
+              <div className="text-xs text-[var(--muted)] mt-1.5">{tx('su', 'of')} {posizione.su}</div>
             </div>
           )}
         </div>
@@ -65,16 +68,16 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
       {/* Stato delle partite */}
       <div className="flex items-center justify-between text-xs text-[var(--muted)] px-1">
         <span>
-          {inCorso > 0 && <span className="text-[var(--danger)] font-semibold">● {inCorso} in corso · </span>}
-          {finite}/{schedina.partite.length} finite
+          {inCorso > 0 && <span className="text-[var(--danger)] font-semibold">● {inCorso} {tx('in corso', 'in play')} · </span>}
+          {finite}/{schedina.partite.length} {tx('finite', 'finished')}
         </span>
-        <span>{gol.length} gol</span>
+        <span>{gol.length} {tx('gol', gol.length === 1 ? 'goal' : 'goals')}</span>
       </div>
 
       {/* I gol, dal più recente */}
       {gol.length === 0 ? (
         <div className="glass rounded-2xl py-10 text-center text-[var(--muted)] text-sm">
-          Ancora nessun gol. Appena arriva, lo vedi qui.
+          {tx('Ancora nessun gol. Appena arriva, lo vedi qui.', 'No goals yet. As soon as one comes, you\'ll see it here.')}
         </div>
       ) : (
         <div className="space-y-1.5">
@@ -97,7 +100,7 @@ export default function LiveFeed({ schedina, risultato, pronostico, punti, posiz
                   </div>
                   <div className="text-xs text-[var(--muted)] truncate">{g.home} {g.score} {g.away}</div>
                 </div>
-                {mio && <span className="text-[10px] font-bold text-[var(--accent-ink)] bg-[var(--accent)] rounded-full px-2 py-0.5 shrink-0">TUO</span>}
+                {mio && <span className="text-[10px] font-bold text-[var(--accent-ink)] bg-[var(--accent)] rounded-full px-2 py-0.5 shrink-0">{tx('TUO', 'YOURS')}</span>}
               </Link>
             )
           })}

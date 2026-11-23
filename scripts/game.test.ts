@@ -8,6 +8,7 @@ import { suPiuGiorni, quandoPartita, fineStimataIso, inCorso, delMomento } from 
 import { privacyDaAccettare, PRIVACY_VERSIONE } from '../lib/privacy.ts'
 import { conPosizioni, ultimoTurno, classificaGenerale, daMostrare, distacco, etichettaGiornata } from '../lib/classifica.ts'
 import { serieDi, stessaSquadra, abbina, statoDaFeed, eventiDaElenco, golDaIncidenti, golCoerenti, golNuovi, unisciDettagli, type EventoFeed } from '../lib/feed.ts'
+import { linguaDa, txDi, localeDi, nomeSchedina, nomeTorneo, giornoBreve, ordinale } from '../lib/lingua.ts'
 import { golPreso, messaggioGol, posizioni, messaggioFinale, type GolPush } from '../lib/push.ts'
 
 let passed = 0
@@ -473,6 +474,37 @@ check('classifica: etichette corte delle giornate', () => {
   assert.equal(etichettaGiornata('Serie A · 12ª giornata'), 'A · 12ª')
   assert.equal(etichettaGiornata('Serie C · 15ª giornata', true), '15ª')
   assert.equal(etichettaGiornata('Fase finale'), 'Fase finale')
+})
+
+// ── Lingua: italiano e inglese ──
+check('lingua: italiano se il cookie manca o non è valido', () => {
+  assert.equal(linguaDa(undefined), 'it')
+  assert.equal(linguaDa('fr'), 'it')
+  assert.equal(linguaDa('en'), 'en')
+  assert.equal(txDi('it')('Classifica', 'Standings'), 'Classifica')
+  assert.equal(txDi('en')('Classifica', 'Standings'), 'Standings')
+  assert.equal(localeDi('en'), 'en-GB')
+  assert.equal(localeDi('it'), 'it-IT')
+})
+check('lingua: i nomi delle giornate in inglese', () => {
+  assert.equal(nomeSchedina('Serie A · 12ª giornata', 'it'), 'Serie A · 12ª giornata')
+  assert.equal(nomeSchedina('Serie A · 12ª giornata', 'en'), 'Serie A · Matchday 12')
+  assert.equal(nomeSchedina('Giornata del 24 ottobre', 'en'), 'Matchday of 24 October')
+  assert.equal(nomeSchedina('Giornata del 1° novembre', 'en'), 'Matchday of 1 November')
+  assert.equal(nomeSchedina('Schedina 1 — Mondiali FIFA 2026', 'en'), 'Ticket 1 — FIFA World Cup 2026')
+  assert.equal(nomeSchedina('Sedicesimi — Mondiali FIFA 2026', 'en'), 'Round of 32 — FIFA World Cup 2026')
+  assert.equal(nomeSchedina('Un nome libero', 'en'), 'Un nome libero')
+  assert.equal(nomeTorneo('Campionati italiani 2026/27', 'en'), 'Italian leagues 2026/27')
+  assert.equal(nomeTorneo('Mondiali 2026', 'en'), 'World Cup 2026')
+  assert.equal(nomeTorneo('Mondiali 2026', 'it'), 'Mondiali 2026')
+})
+check('lingua: giorni, ordinali ed etichette', () => {
+  assert.equal(giornoBreve(6, 'it'), 'sab')
+  assert.equal(giornoBreve(6, 'en'), 'Sat')
+  assert.equal(quandoPartita(SERIE_A.partite[0], SERIE_A.partite, 'en'), 'Sat 15:00')
+  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 103].map(ordinale), ['1st', '2nd', '3rd', '4th', '11th', '12th', '13th', '21st', '22nd', '103rd'])
+  assert.equal(etichettaGiornata('Serie A · 12ª giornata', false, 'en'), 'A · MD 12')
+  assert.equal(etichettaGiornata('Serie C · 15ª giornata', true, 'en'), 'MD 15')
 })
 
 console.log(`\n${passed} passati, ${failed} falliti`)

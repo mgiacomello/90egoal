@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { IconInstall } from '@/components/Icons'
+import { useTx } from '@/components/Lingua'
 
 // Il link gira su WhatsApp: chi lo apre deve poter mettere 90 & Goal sulla
 // schermata Home con un tocco. Android chiede al browser; iPhone non lo
@@ -27,6 +28,7 @@ function leggiAmbiente(): Stato {
 const noSubscribe = () => () => {}
 
 export default function InstallButton({ className = '' }: { className?: string }) {
+  const tx = useTx()
   const base = useSyncExternalStore(noSubscribe, leggiAmbiente, () => 'nascosto' as Stato)
   const [override, setStato] = useState<Stato | null>(null)
   const [prompt, setPrompt] = useState<BeforeInstallPromptEvent | null>(null)
@@ -54,14 +56,14 @@ export default function InstallButton({ className = '' }: { className?: string }
   return (
     <div className={className}>
       <button type="button" onClick={installa} className="btn-ghost w-full py-3 text-sm inline-flex items-center gap-2">
-        <IconInstall size={18} /> Metti 90 &amp; Goal sulla Home
+        <IconInstall size={18} /> {tx('Metti 90 & Goal sulla Home', 'Add 90 & Goal to your Home screen')}
       </button>
       {guida && stato === 'ios' && (
         <div className="glass rounded-xl p-4 mt-2 text-sm text-[var(--ink)] space-y-1.5 animate-fade-up">
-          <p>In Safari:</p>
-          <p>1 · Tocca <strong className="text-[var(--ink)]">Condividi</strong> (il quadrato con la freccia, in basso).</p>
-          <p>2 · Scegli <strong className="text-[var(--ink)]">Aggiungi alla schermata Home</strong>.</p>
-          <p className="text-xs text-[var(--muted)] pt-1">Da lì si apre come un&apos;app e può mandarti le notifiche dei gol.</p>
+          <p>{tx('In Safari:', 'In Safari:')}</p>
+          <p>1 · {tx('Tocca', 'Tap')} <strong className="text-[var(--ink)]">{tx('Condividi', 'Share')}</strong> {tx('(il quadrato con la freccia, in basso).', '(the square with the arrow, at the bottom).')}</p>
+          <p>2 · {tx('Scegli', 'Choose')} <strong className="text-[var(--ink)]">{tx('Aggiungi alla schermata Home', 'Add to Home Screen')}</strong>.</p>
+          <p className="text-xs text-[var(--muted)] pt-1">{tx('Da lì si apre come un\'app e può mandarti le notifiche dei gol.', 'From there it opens like an app and can send you goal notifications.')}</p>
         </div>
       )}
     </div>

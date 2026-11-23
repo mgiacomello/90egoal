@@ -13,6 +13,17 @@ export const COOKIE_INVESTITORI = 'investitori'
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Un link con ?lang=en (o ?lang=it) fissa la lingua e torna all'indirizzo pulito:
+  // serve a mandare a qualcuno il gioco già in inglese.
+  const lang = request.nextUrl.searchParams.get('lang')
+  if (lang === 'en' || lang === 'it') {
+    const pulito = request.nextUrl.clone()
+    pulito.searchParams.delete('lang')
+    const risposta = NextResponse.redirect(pulito)
+    risposta.cookies.set('lingua', lang, { path: '/', maxAge: 31536000, sameSite: 'lax' })
+    return risposta
+  }
   if (pathname.startsWith('/investitori') && !pathname.startsWith('/investitori/accesso')) {
     const password = process.env.INVESTITORI_PASSWORD
     const cookie = request.cookies.get(COOKIE_INVESTITORI)?.value
