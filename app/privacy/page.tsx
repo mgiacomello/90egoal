@@ -76,6 +76,7 @@ const SEZIONI: { t: string; c: React.ReactNode }[] = [
           <li>revocare un consenso già dato, senza effetti su ciò che è stato fatto prima.</li>
         </ul>
         <p>Per esercitare questi diritti scrivi a <a href={`mailto:${TITOLARE.email}`} className="underline">{TITOLARE.email}</a>, oppure a {TITOLARE.nome}, {TITOLARE.indirizzo}. Se ritieni che il trattamento violi la legge puoi presentare reclamo al Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" className="underline">garanteprivacy.it</a>).</p>
+        <p>Puoi eliminare l&apos;account da solo, dal Profilo: <a href="/elimina-account" className="underline">come eliminare l&apos;account</a>.</p>
       </>
     ),
   },
@@ -165,6 +166,7 @@ const SECTIONS: { t: string; c: React.ReactNode }[] = [
           <li>withdraw a consent already given, without affecting what was done before.</li>
         </ul>
         <p>To exercise these rights write to {MAIL}, or to {TITOLARE.nome}, {TITOLARE.indirizzo}. If you believe the processing breaches the law you can lodge a complaint with the Italian data protection authority, the Garante per la protezione dei dati personali (<a href="https://www.garanteprivacy.it" target="_blank" rel="noopener noreferrer" className="underline">garanteprivacy.it</a>).</p>
+        <p>You can delete your account yourself, from your Profile: <a href="/elimina-account" className="underline">how to delete your account</a>.</p>
       </>
     ),
   },
