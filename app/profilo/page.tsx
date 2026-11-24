@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ClassificaRow, Pronostico, Schedina, Profile } from '@/lib/types'
 import LogoutButton from '@/components/LogoutButton'
+import EliminaAccount from '@/components/EliminaAccount'
 import PushToggle from '@/components/PushToggle'
 import Flag from '@/components/Flag'
 import ShareButton from '@/components/ShareButton'
@@ -179,6 +180,11 @@ export default async function ProfiloPage() {
         <Link href="/regole" className="text-[var(--muted)] hover:text-[var(--ink)] flex items-center gap-1.5"><IconBook size={16} /> {tx('Regole del gioco', 'Rules of the game')}</Link>
         <LogoutButton className="btn-ghost px-5 py-2 text-sm" />
       </div>
+
+      {/* Eliminazione dell'account: gli admin non la vedono (l'API la rifiuta comunque). */}
+      {profile?.username && !profile.is_admin && (
+        <div className="mt-6 text-center"><EliminaAccount username={profile.username} /></div>
+      )}
     </div>
   )
 }
