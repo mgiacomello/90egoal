@@ -121,8 +121,8 @@ Non raccolti: posizione, contatti, foto, file, dati finanziari, salute, messaggi
 | Elemento | Formato | Stato |
 |---|---|---|
 | Icona | 512 × 512 PNG | Pronta: `public/icons/icon-512.png` |
-| Immagine in evidenza | 1024 × 500 PNG o JPG | Da fare |
-| Screenshot telefono | Almeno 2, da 4 a 8 consigliati, 9:16 | Da fare, in italiano e in inglese |
+| Immagine in evidenza | 1024 × 500 PNG o JPG | Pronta: `store/grafica/immagine-in-evidenza-it.png` e `-en.png` |
+| Screenshot telefono | Almeno 2, da 4 a 8 consigliati, 9:16 | Pronti 4 per lingua, 1080 × 1920: `store/grafica/telefono-it-*.png` e `telefono-en-*.png` (home, prova, regole, accesso). Mancano le pagine che richiedono l'accesso: schedine e classifica |
 
 ## Prima di pubblicare
 
