@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "digital.giacomello.novantaegoal",
+      "sha256_cert_fingerprints": [
+        "96:F6:75:DC:6D:52:78:94:4A:25:81:44:C3:FA:CA:37:2E:29:BC:10:2A:5C:0E:57:46:2C:83:37:C9:11:BB:44"
+      ]
+    }
+  }
+]
